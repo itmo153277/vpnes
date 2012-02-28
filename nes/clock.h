@@ -26,4 +26,48 @@
 #include "config.h"
 #endif
 
+#include <algorithm>
+#include "device.h"
+
+namespace vpnes {
+
+/* Стандартное утройство, работающие по тактам */
+template <class _Bus>
+class CClockedDevice: CDevice<_Bus> {
+protected:
+	/* Текущие такты */
+	int Clocks;
+public:
+	inline explicit CClockedDevice():Clocks(0) {}
+	inline ~CClockedDevice() {}
+
+	/* Получить такты */
+	inline int &GetClocks() const { return Clocks; }
+	/* Выполнить действие */
+	inline int Clock(int DoClocks) { return 0; }
+};
+
+/* Стандартный тактовой генератор */
+template <class _Bus, class _CPU, class _PPU>
+class CClock {
+private:
+	/* Указатель на шину */
+	_Bus *Bus;
+	/* Текущие такты */
+	int Clocks;
+public:
+	inline explicit CClock(_Bus *pBus):Bus(pBus), Clocks(0) {}
+	inline ~CClock() {}
+
+	/* Выполнить такт */
+	inline void Clock() {
+		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
+			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks());
+		static_cast<_CPU *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+		static_cast<_PPU *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+	}
+};
+
+}
+
 #endif
