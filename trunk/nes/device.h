@@ -76,24 +76,29 @@ public:
 		APU,
 		PPU,
 		ROM,
+		Input,
 		StandardDevicesNum
 	};
 
+protected:
 	/* Список стандартных устройств */
 	CDevice<CBus> *DevicesList[StandardDevicesNum];
 
+public:
 	inline explicit CBus() {}
 	inline ~CBus() {}
 	inline explicit CBus(CBus const &) {}
 
 	/* Обращение к памяти CPU */
-	inline uint8 ReadCPUMemory(uint16 Address) {}
+	inline uint8 ReadCPUMemory(uint16 Address) { return 0x00; }
 	inline void WriteCPUMemory(uint16 Address) {}
 
 	/* Обращение к памяти PPU */
-	inline uint8 ReadPPUMemory(uint16 Address) {}
+	inline uint8 ReadPPUMemory(uint16 Address) { return 0x00; }
 	inline void WritePPUMemory(uint16 Address) {}
 
+	/* Список стандартных устройств */
+	inline CDevice<CBus> **GetDeviceList() { return DevicesList; }
 };
 
 }
