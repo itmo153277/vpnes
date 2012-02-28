@@ -26,4 +26,76 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+namespace vpnes {
+
+/* Стандартное устройство */
+template <class _Bus>
+class CDevice {
+protected:
+	/* Указатель на шину */
+	_Bus *Bus;
+public:
+	inline explicit CDevice() {}
+	inline ~CDevice() {}
+	inline explicit CDevice(CDevice const &) {}
+
+	/* Чтение памяти */
+	virtual uint8 ReadAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти */
+	virtual void WriteAddress(uint16 Address, uint8 Src) {}
+};
+
+/* Стандартное устройство PPU */
+class CPPUDevice {
+public:
+	inline explicit CPPUDevice() {}
+	inline ~CPPUDevice() {}
+	inline explicit CPPUDevice(CPPUDevice const &) {}
+
+	/* Чтение памяти */
+	virtual uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти */
+	virtual void WritePPUAddress(uint16 Address, uint8 Src) {}
+};
+
+
+/* Стандартная реализация шины */
+class CBus {
+public:
+	/* Тип обращения к памяти */
+	enum MemoryAccessType {
+		CPUAccess,
+		PPUAccess
+	};
+
+	/* Стандартные устройства */
+	enum StandardDevices {
+		CPU = 0,
+		APU,
+		PPU,
+		ROM,
+		StandardDevicesNum
+	};
+
+	/* Список стандартных устройств */
+	CDevice<CBus> *DevicesList[StandardDevicesNum];
+
+	inline explicit CBus() {}
+	inline ~CBus() {}
+	inline explicit CBus(CBus const &) {}
+
+	/* Обращение к памяти CPU */
+	inline uint8 ReadCPUMemory(uint16 Address) {}
+	inline void WriteCPUMemory(uint16 Address) {}
+
+	/* Обращение к памяти PPU */
+	inline uint8 ReadPPUMemory(uint16 Address) {}
+	inline void WritePPUMemory(uint16 Address) {}
+
+};
+
+}
+
 #endif
