@@ -33,7 +33,7 @@ namespace vpnes {
 
 /* Стандартное утройство, работающие по тактам */
 template <class _Bus>
-class CClockedDevice: CDevice<_Bus> {
+class CClockedDevice: public CDevice<_Bus> {
 protected:
 	/* Текущие такты */
 	int Clocks;
@@ -44,7 +44,7 @@ public:
 	/* Получить такты */
 	inline int &GetClocks() const { return Clocks; }
 	/* Выполнить действие */
-	inline int Clock(int DoClocks) { return 0; }
+	inline void Clock(int DoClocks) {}
 };
 
 /* Стандартный тактовой генератор */
@@ -56,15 +56,15 @@ private:
 	/* Текущие такты */
 	int Clocks;
 public:
-	inline explicit CClock(_Bus *pBus):Bus(pBus), Clocks(0) {}
+	inline explicit CClock(_Bus *pBus): Bus(pBus), Clocks(0) {}
 	inline ~CClock() {}
 
 	/* Выполнить такт */
 	inline void Clock() {
 		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
-			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks());
+			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::PPU])->GetClocks());
 		static_cast<_CPU *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
-		static_cast<_PPU *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+		static_cast<_PPU *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
 	}
 };
 

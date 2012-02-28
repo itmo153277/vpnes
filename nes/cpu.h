@@ -26,4 +26,40 @@
 #include "config.h"
 #endif
 
+#include "device.h"
+#include "clock.h"
+
+namespace vpnes {
+
+/* CPU */
+template <class _Bus>
+class CCPU: public CClockedDevice<_Bus> {
+	using CClockedDevice<_Bus>::Clocks;
+public:
+	inline explicit CCPU(_Bus *pBus): CDevice<_Bus>::Bus(pBus) {}
+	inline ~CCPU() {}
+
+	/* Выполнить действие */
+	inline void Clock(int DoClocks) {
+		if ((Clocks -= DoClocks) == 0)
+			Clocks = PerformOperation();
+	}
+
+	/* Чтение памяти */
+	uint8 ReadAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти */
+	void WriteAddress(uint16 Address, uint8 Src) {}
+
+	/* Отработать команду */
+	int PerformOperation();
+};
+
+/* Отработать такт */
+template <class _Bus>
+inline int CCPU<_Bus>::PerformOperation() {
+	return 0;
+}
+
+}
+
 #endif
