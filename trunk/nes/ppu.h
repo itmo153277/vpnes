@@ -26,4 +26,45 @@
 #include "config.h"
 #endif
 
+#include "device.h"
+#include "clock.h"
+
+namespace vpnes {
+
+/* PPU */
+template <class _Bus>
+class CPPU: public CClockedDevice<_Bus>, public CPPUDevice {
+	using CClockedDevice<_Bus>::Clocks;
+public:
+	inline explicit CPPU(_Bus *pBus): CDevice<_Bus>::Bus(pBus) {}
+	inline ~CPPU() {}
+
+	/* Выполнить действие */
+	inline void Clock(int DoClocks) {
+		if ((Clocks -= DoClocks) == 0)
+			Clocks = PerformOperation();
+	}
+
+	/* Чтение памяти */
+	uint8 ReadAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти */
+	void WriteAddress(uint16 Address, uint8 Src) {}
+
+	/* Чтение памяти PPU */
+	uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти PPU */
+	void WritePPUAddress(uint16 Address, uint8 Src) {}
+
+	/* Отработать команду */
+	int PerformOperation();
+};
+
+/* Отработать такт */
+template <class _Bus>
+inline int CPPU<_Bus>::PerformOperation() {
+	return 0;
+}
+
+}
+
 #endif

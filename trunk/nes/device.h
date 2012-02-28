@@ -82,7 +82,7 @@ public:
 
 protected:
 	/* Список стандартных устройств */
-	CDevice<CBus> *DevicesList[StandardDevicesNum];
+	CDevice<CBus> *DeviceList[StandardDevicesNum];
 
 public:
 	inline explicit CBus() {}
@@ -98,7 +98,7 @@ public:
 	inline void WritePPUMemory(uint16 Address) {}
 
 	/* Список стандартных устройств */
-	inline CDevice<CBus> **GetDeviceList() { return DevicesList; }
+	inline CDevice<CBus> **GetDeviceList() { return DeviceList; }
 };
 
 }
