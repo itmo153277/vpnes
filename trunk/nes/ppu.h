@@ -35,8 +35,9 @@ namespace vpnes {
 template <class _Bus>
 class CPPU: public CClockedDevice<_Bus>, public CPPUDevice {
 	using CClockedDevice<_Bus>::Clocks;
+	using CDevice<_Bus>::Bus;
 public:
-	inline explicit CPPU(_Bus *pBus): CDevice<_Bus>::Bus(pBus) {}
+	inline explicit CPPU(_Bus *pBus) { Bus = pBus; }
 	inline ~CPPU() {}
 
 	/* Выполнить действие */
@@ -62,7 +63,7 @@ public:
 /* Отработать такт */
 template <class _Bus>
 inline int CPPU<_Bus>::PerformOperation() {
-	return 0;
+	return 1;
 }
 
 }

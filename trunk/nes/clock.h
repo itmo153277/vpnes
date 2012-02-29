@@ -42,7 +42,7 @@ public:
 	inline ~CClockedDevice() {}
 
 	/* Получить такты */
-	inline int &GetClocks() const { return Clocks; }
+	inline const int &GetClocks() const { return Clocks; }
 	/* Выполнить действие */
 	inline void Clock(int DoClocks) {}
 };

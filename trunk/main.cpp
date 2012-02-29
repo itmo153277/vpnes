@@ -20,12 +20,19 @@
 \****************************************************************************/
 
 #include <SDL.h>
+#include "nes/device.h"
+#include "nes/nes.h"
 
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
+	vpnes::CNES<vpnes::CBus> NES;
+
 	/* Инициализация SDL */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+	for (;;) {
+		NES.GetClock().Clock();
+	}
 	SDL_Quit();
 	return 0;
 }

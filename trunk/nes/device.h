@@ -64,12 +64,6 @@ public:
 /* Стандартная реализация шины */
 class CBus {
 public:
-	/* Тип обращения к памяти */
-	enum MemoryAccessType {
-		CPUAccess,
-		PPUAccess
-	};
-
 	/* Стандартные устройства */
 	enum StandardDevices {
 		CPU = 0,
