@@ -26,4 +26,46 @@
 #include "config.h"
 #endif
 
+#include "device.h"
+#include "clock.h"
+#include "cpu.h"
+#include "ppu.h"
+
+namespace vpnes {
+
+/* Стандартный NES (NTSC) */
+template <class _Bus>
+class CNES {
+public:
+	typedef _Bus BusClass;
+	typedef CCPU<BusClass> CPUClass;
+	typedef CPPU<BusClass> PPUClass;
+	typedef CClock<BusClass, CPUClass, PPUClass> ClockClass;
+private:
+	/* Шина */
+	BusClass Bus;
+	/* Тактовый генератор */
+	ClockClass Clock;
+	/* CPU */
+	CPUClass CPU;
+	/* PPU */
+	PPUClass PPU;
+public:
+	inline explicit CNES(): Bus(), Clock(&Bus), CPU(&Bus), PPU(&Bus) {
+		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
+		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
+	}
+	inline ~CNES() {}
+
+	/* Запуск */
+	inline int PowerUp() { return 0; }
+	/* Reset */
+	inline int Reset() { return 0; }
+
+	/* Доступ к тактовому генератору */
+	inline ClockClass &GetClock() { return Clock; }
+};
+
+}
+
 #endif
