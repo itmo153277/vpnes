@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
 #include <istream>
 #include "device.h"
 #include "nes.h"
@@ -62,7 +64,7 @@ struct NROM_rebind {
 };
 
 /* Стандартный NES на NROM */
-typedef CStdNES<NROM_rebind> CStdNES_NROM;
+typedef CNES< CBus<CPU_rebind, PPU_rebind, NROM_rebind> > CNES_NROM;
 
 }
 

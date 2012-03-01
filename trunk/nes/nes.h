@@ -33,19 +33,34 @@
 
 namespace vpnes {
 
-/* Стандартный NES (NTSC) */
-template <class _Bus>
-class CNES {
+/* Независимый интерфейс */
+class CBasicNES {
 public:
-	typedef _Bus BusClass;
-	typedef CCPU<BusClass> CPUClass;
-	typedef CPPU<BusClass> PPUClass;
-	typedef CClock<BusClass, CPUClass, PPUClass> ClockClass;
+	inline explicit CBasicNES() {}
+	inline virtual ~CBasicNES() {}
+
+	/* Запуск */
+	virtual int PowerOn() = 0;
+	/* Reset */
+	virtual int Reset() = 0;
 
 	/* *NOTE* */
-	/* По идее, мы можем достать классы устройств из BusClass, */
-	/* однако их определение в BusClass — недокументировано, и */
-	/* использование повлечет проблемы с реализацией других мапперов */
+	/* Предполагается, что работа приставки будет осуществляться */
+	/* с помощью функции PowerOn(), поскольку виртуальные функции */
+	/* не будут интерпретироваться как inline-функции. Для осуществления */
+	/* обратной связи вероятно будет введен callback-параметр, на данной */
+	/* стадии он не определен. */
+};
+
+/* Стандартный NES (NTSC) */
+template <class _Bus>
+class CNES: public CBasicNES {
+public:
+	typedef _Bus BusClass;
+	typedef class BusClass::CPUClass CPUClass;
+	typedef class BusClass::PPUClass PPUClass;
+	typedef CClock<BusClass> ClockClass;
+
 private:
 	/* Шина */
 	BusClass Bus;
@@ -66,64 +81,16 @@ public:
 	}
 
 	/* Запуск */
-	inline int PowerOn() { return 0; }
-	/* Reset */
-	inline int Reset() { return 0; }
-
-	/* Доступ к тактовому генератору */
-	inline ClockClass &GetClock() { return Clock; }
-	/* Доступ к шине */
-	inline BusClass &GetBus() { return Bus; }
-};
-
-/* Независимый интерфейс */
-class CBasicNES {
-public:
-	inline explicit CBasicNES() {}
-	inline virtual ~CBasicNES() {}
-
-	/* Запуск */
-	virtual int PowerOn() = 0;
-	/* Reset */
-	virtual int Reset() = 0;
-
-	/* *NOTE* */
-	/* Предполагается, что работа приставки будет осуществляться */
-	/* с помощью функции PowerOn(), поскольку виртуальные функции */
-	/* не будут интерпретироваться как inline-функции. Для осуществления */
-	/* обратной связи вероятно будет введен callback-параметр, на данной */
-	/* стадии он не определен. */
-};
-
-/* Стандартный NES (NTSC) на независимом интерфейсе */
-template <class _ROM_rebind>
-class CStdNES: public CBasicNES {
-public:
-	typedef CBus<CPU_rebind, PPU_rebind, _ROM_rebind> BusClass;
-	typedef CNES<BusClass> NESClass;
-private:
-	/* Стандартный NES (NTSC) на стандартной шине */
-	NESClass NES;
-public:
-	inline explicit CStdNES(): NES() {}
-	inline ~CStdNES() {}
-
-	/* Запуск */
-	int PowerOn() {
-		/* Включаем приставку */
-		NES.PowerOn();
-		/* И запускаем ее */
+	inline int PowerOn() {
 		for (;;)
-			NES.GetClock().Clock();
+			Clock.Clock();
 		return 0;
 	}
 	/* Reset */
-	int Reset() {
-		return NES.Reset();
-	}
+	inline int Reset() { return 0; }
 
 	/* Доступ к шине */
-	inline BusClass &GetBus() { return NES.GetBus(); }
+	inline BusClass &GetBus() { return Bus; }
 };
 
 }

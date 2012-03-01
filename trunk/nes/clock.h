@@ -48,8 +48,12 @@ public:
 };
 
 /* Стандартный тактовой генератор */
-template <class _Bus, class _CPU, class _PPU>
+template <class _Bus>
 class CClock {
+public:
+	typedef class _Bus::CPUClass CPUClass;
+	typedef class _Bus::PPUClass PPUClass;
+
 private:
 	/* Указатель на шину */
 	_Bus *Bus;
@@ -63,8 +67,8 @@ public:
 	inline void Clock() {
 		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
 			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::PPU])->GetClocks());
-		static_cast<_CPU *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
-		static_cast<_PPU *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
+		static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+		static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
 	}
 };
 

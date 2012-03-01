@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
 #include "device.h"
 #include "clock.h"
 
