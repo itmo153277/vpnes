@@ -27,10 +27,10 @@ using namespace vpnes;
 
 /* Открыть картридж */
 CBasicNES *OpenROM(std::istream &) {
-	CStdNES_NROM *NES;
+	CNES_NROM *NES;
 
 	/* Возвращаем стандартный NES на 0-маппере */
-	NES = new CStdNES_NROM();
-	NES->GetBus().GetDeviceList()[CStdNES_NROM::BusClass::ROM] = new CNROM<CStdNES_NROM::BusClass>();
+	NES = new CNES_NROM();
+	NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] = new CNROM<CNES_NROM::BusClass>();
 	return NES;
 }

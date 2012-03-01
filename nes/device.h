@@ -76,13 +76,20 @@ public:
 	};
 
 	/* Жесткие махинации для получения классов устройств */
-	typedef typename _CPU_rebind::template rebind<CBus>::rebinded CPUClass;
-	typedef typename _PPU_rebind::template rebind<CBus>::rebinded PPUClass;
-	typedef typename _ROM_rebind::template rebind<CBus>::rebinded ROMClass;
+	typedef class _CPU_rebind::template rebind<CBus>::rebinded CPUClass;
+//	typedef class _APU_rebind::template rebind<CBus>::rebinded APUClass;
+	typedef class _PPU_rebind::template rebind<CBus>::rebinded PPUClass;
+	typedef class _ROM_rebind::template rebind<CBus>::rebinded ROMClass;
 
 	/* *NOTE* */
 	/* Суть махинаций — и шина, и устройства теперь будут знать друг друга, */
 	/* а значит компилятор сможет использовать inline-методы */
+
+	/* Вообще по идее код компилироваться не должен... */
+
+private:
+	/* Маска для PPU */
+	uint16 MirrorMask;
 
 protected:
 	/* Список стандартных устройств */
@@ -91,18 +98,51 @@ protected:
 public:
 	inline explicit CBus() {}
 	inline ~CBus() {}
-	inline explicit CBus(CBus const &) {}
 
 	/* Обращение к памяти CPU */
-	inline uint8 ReadCPUMemory(uint16 Address) { return 0x00; }
-	inline void WriteCPUMemory(uint16 Address) {}
+	inline uint8 ReadCPUMemory(uint16 Address) {
+		if (Address < 0x2000) /* CPU internal RAM */
+			return static_cast<CPUClass *>(DeviceList[CPU])->ReadMemory(Address);
+		if (Address < 0x4000) /* PPU registers */
+			return static_cast<PPUClass *>(DeviceList[PPU])->ReadMemory(Address);
+//		if (Address < 0x4018) /* APU registers */
+//			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+		/* Mapper */
+		return static_cast<ROMClass *>(DeviceList[ROM])->ReadMemory(Address);
+	}
+	inline void WriteCPUMemory(uint16 Address) {
+		if (Address < 0x2000) /* CPU internal RAM */
+			static_cast<CPUClass *>(DeviceList[CPU])->WriteMemory(Address);
+		else if (Address < 0x4000) /* PPU registers */
+			static_cast<PPUClass *>(DeviceList[PPU])->WriteMemory(Address);
+//		else if (Address < 0x4018) /* APU registers */
+//			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+		else /* Mapper */
+			static_cast<ROMClass *>(DeviceList[ROM])->WriteMemory(Address);
+	}
 
 	/* Обращение к памяти PPU */
-	inline uint8 ReadPPUMemory(uint16 Address) { return 0x00; }
-	inline void WritePPUMemory(uint16 Address) {}
+	inline uint8 ReadPPUMemory(uint16 Address) {
+		if (Address < 0x2000) /* Mapper CHR data */
+			return static_cast<ROMClass *>(DeviceList[ROM])->ReadPPUMemory(Address);
+		if (Address < 0x3f00) /* PPU attributes/nametables */
+			return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUMemory(Address & MirrorMask);
+		/* PPU */
+		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUMemory(Address);
+	}
+	inline void WritePPUMemory(uint16 Address) {
+		if (Address < 0x2000) /* Mapper CHR data, forbidden */
+			static_cast<ROMClass *>(DeviceList[ROM])->WritePPUMemory(Address);
+		else if (Address < 0x3f00) /* PPU attributes/nametables */
+			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUMemory(Address & MirrorMask);
+		else /* PPU */
+			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUMemory(Address);
+	}
 
 	/* Список стандартных устройств */
 	inline CDevice<CBus> **GetDeviceList() { return DeviceList; }
+	/* Доступ к маске адресов PPU */
+	inline uint16 &GetMirrorMask() { return MirrorMask; }
 };
 
 }
