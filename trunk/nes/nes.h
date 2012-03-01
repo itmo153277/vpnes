@@ -41,6 +41,11 @@ public:
 	typedef CCPU<BusClass> CPUClass;
 	typedef CPPU<BusClass> PPUClass;
 	typedef CClock<BusClass, CPUClass, PPUClass> ClockClass;
+
+	/* *NOTE* */
+	/* По идее, мы можем достать классы устройств из BusClass, */
+	/* однако их определение в BusClass — недокументировано, и */
+	/* использование повлечет проблемы с реализацией других мапперов */
 private:
 	/* Шина */
 	BusClass Bus;
@@ -55,7 +60,10 @@ public:
 		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
 		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
 	}
-	inline ~CNES() {}
+	inline ~CNES() {
+		/* ROM добавляется маппером */
+		delete Bus.GetDeviceList()[BusClass::ROM];
+	}
 
 	/* Запуск */
 	inline int PowerOn() { return 0; }
@@ -64,6 +72,8 @@ public:
 
 	/* Доступ к тактовому генератору */
 	inline ClockClass &GetClock() { return Clock; }
+	/* Доступ к шине */
+	inline BusClass &GetBus() { return Bus; }
 };
 
 /* Независимый интерфейс */
@@ -86,10 +96,10 @@ public:
 };
 
 /* Стандартный NES (NTSC) на независимом интерфейсе */
-template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
+template <class _ROM_rebind>
 class CStdNES: public CBasicNES {
 public:
-	typedef CBus<_CPU_rebind, _PPU_rebind, _ROM_rebind> BusClass;
+	typedef CBus<CPU_rebind, PPU_rebind, _ROM_rebind> BusClass;
 	typedef CNES<BusClass> NESClass;
 private:
 	/* Стандартный NES (NTSC) на стандартной шине */
@@ -111,6 +121,9 @@ public:
 	int Reset() {
 		return NES.Reset();
 	}
+
+	/* Доступ к шине */
+	inline BusClass &GetBus() { return NES.GetBus(); }
 };
 
 }

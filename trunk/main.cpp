@@ -19,14 +19,23 @@
 
 \****************************************************************************/
 
+#include <iostream>
 #include <SDL.h>
+#include "nes/nes.h"
+#include "nes/mapper.h"
 
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
+	vpnes::CBasicNES *NES;
 
 	/* Инициализация SDL */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+	NES = OpenROM(std::cin);
+	if (NES != NULL) {
+		NES->PowerOn();
+		delete NES;
+	}
 	SDL_Quit();
 	return 0;
 }
