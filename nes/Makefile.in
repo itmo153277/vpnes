@@ -47,8 +47,8 @@ AR = ar
 ARFLAGS = cru
 libvpnes_a_AR = $(AR) $(ARFLAGS)
 libvpnes_a_LIBADD =
-am_libvpnes_a_OBJECTS = device.$(OBJEXT) clock.$(OBJEXT) cpu.$(OBJEXT) \
-	ppu.$(OBJEXT) mapper.$(OBJEXT) nes.$(OBJEXT)
+am_libvpnes_a_OBJECTS = device.$(OBJEXT) clock.$(OBJEXT) apu.$(OBJEXT) \
+	cpu.$(OBJEXT) ppu.$(OBJEXT) mapper.$(OBJEXT) nes.$(OBJEXT)
 libvpnes_a_OBJECTS = $(am_libvpnes_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -160,7 +160,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes.a
-libvpnes_a_SOURCES = device.cpp device.h clock.cpp clock.h cpu.cpp \
+libvpnes_a_SOURCES = device.cpp device.h clock.cpp clock.h apu.cpp apu.h cpu.cpp \
 					 cpu.h ppu.cpp ppu.h mapper.cpp mapper.h nes.cpp nes.h ../types.h
 
 all: all-am
@@ -211,6 +211,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/apu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clock.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cpu.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/device.Po@am__quote@

@@ -48,7 +48,8 @@ public:
 };
 
 /* Базовый класс шины */
-template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind, class _BusClass>
+template <class _CPU_rebind, class _APU_rebind, class _PPU_rebind,
+	class _ROM_rebind, class _BusClass>
 class CBus_Basic {
 public:
 	/* Стандартные устройства */
@@ -63,7 +64,7 @@ public:
 
 	/* Жесткие махинации для получения классов устройств */
 	typedef typename _CPU_rebind::template rebind<_BusClass>::rebinded CPUClass;
-//	typedef typename _APU_rebind::template rebind<_BusClass>::rebinded APUClass;
+	typedef typename _APU_rebind::template rebind<_BusClass>::rebinded APUClass;
 	typedef typename _PPU_rebind::template rebind<_BusClass>::rebinded PPUClass;
 	typedef typename _ROM_rebind::template rebind<_BusClass>::rebinded ROMClass;
 
@@ -91,8 +92,8 @@ public:
 			return static_cast<CPUClass *>(DeviceList[CPU])->ReadMemory(Address);
 		if (Address < 0x4000) /* PPU registers */
 			return static_cast<PPUClass *>(DeviceList[PPU])->ReadMemory(Address);
-//		if (Address < 0x4018) /* APU registers */
-//			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+		if (Address < 0x4018) /* APU registers */
+			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
 		/* Mapper */
 		return static_cast<ROMClass *>(DeviceList[ROM])->ReadMemory(Address);
 	}
@@ -101,8 +102,8 @@ public:
 			static_cast<CPUClass *>(DeviceList[CPU])->WriteMemory(Address);
 		else if (Address < 0x4000) /* PPU registers */
 			static_cast<PPUClass *>(DeviceList[PPU])->WriteMemory(Address);
-//		else if (Address < 0x4018) /* APU registers */
-//			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+		else if (Address < 0x4018) /* APU registers */
+			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
 		else /* Mapper */
 			static_cast<ROMClass *>(DeviceList[ROM])->WriteMemory(Address);
 	}
@@ -134,9 +135,9 @@ public:
 };
 
 /* Стандартная шина */
-template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
-class CBus: public CBus_Basic<_CPU_rebind, _PPU_rebind,
-	_ROM_rebind, CBus<_CPU_rebind, _PPU_rebind, _ROM_rebind> > {
+template <class _CPU_rebind, class _APU_rebind, class _PPU_rebind, class _ROM_rebind>
+class CBus: public CBus_Basic<_CPU_rebind, _APU_rebind, _PPU_rebind,
+	_ROM_rebind, CBus<_CPU_rebind, _APU_rebind, _PPU_rebind, _ROM_rebind> > {
 };
 
 }
