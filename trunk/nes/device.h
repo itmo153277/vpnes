@@ -42,9 +42,9 @@ public:
 	inline explicit CDevice(CDevice const &) {}
 
 	/* Чтение памяти */
-	virtual uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline virtual uint8 ReadAddress(uint16 Address) { return 0x00; }
 	/* Запись памяти */
-	virtual void WriteAddress(uint16 Address, uint8 Src) {}
+	inline virtual void WriteAddress(uint16 Address, uint8 Src) {}
 };
 
 /* Стандартное устройство PPU */
@@ -55,13 +55,14 @@ public:
 	inline explicit CPPUDevice(CPPUDevice const &) {}
 
 	/* Чтение памяти */
-	virtual uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	inline virtual uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
 	/* Запись памяти */
-	virtual void WritePPUAddress(uint16 Address, uint8 Src) {}
+	inline virtual void WritePPUAddress(uint16 Address, uint8 Src) {}
 };
 
 
 /* Стандартная реализация шины */
+template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
 class CBus {
 public:
 	/* Стандартные устройства */
@@ -73,6 +74,15 @@ public:
 		Input,
 		StandardDevicesNum
 	};
+
+	/* Жесткие махинации для получения классов устройств */
+	typedef typename _CPU_rebind::template rebind<CBus>::rebinded CPUClass;
+	typedef typename _PPU_rebind::template rebind<CBus>::rebinded PPUClass;
+	typedef typename _ROM_rebind::template rebind<CBus>::rebinded ROMClass;
+
+	/* *NOTE* */
+	/* Суть махинаций — и шина, и устройства теперь будут знать друг друга, */
+	/* а значит компилятор сможет использовать inline-методы */
 
 protected:
 	/* Список стандартных устройств */

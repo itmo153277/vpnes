@@ -47,17 +47,25 @@ public:
 	}
 
 	/* Чтение памяти */
-	uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
 	/* Запись памяти */
-	void WriteAddress(uint16 Address, uint8 Src) {}
+	inline void WriteAddress(uint16 Address, uint8 Src) {}
 
 	/* Чтение памяти PPU */
-	uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
 	/* Запись памяти PPU */
-	void WritePPUAddress(uint16 Address, uint8 Src) {}
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {}
 
 	/* Отработать команду */
 	int PerformOperation();
+};
+
+/* Махинации с классом */
+struct PPU_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CPPU<_Bus> rebinded;
+	};
 };
 
 /* Отработать такт */

@@ -19,14 +19,4 @@
 
 \****************************************************************************/
 
-#include <SDL.h>
-
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-
-	/* Инициализация SDL */
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-		return -1;
-	SDL_Quit();
-	return 0;
-}
+#include "mapper.h"
