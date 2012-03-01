@@ -19,7 +19,7 @@
 
 \****************************************************************************/
 
-#include <iostream>
+#include <fstream>
 #include <SDL.h>
 #include "nes/nes.h"
 #include "nes/mapper.h"
@@ -27,15 +27,23 @@
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 	vpnes::CBasicNES *NES;
+	std::fstream ROM;
 
+	/* Открываем образ */
+	if (argc != 2)
+		return 0;
+	ROM.open(argv[1], std::ios_base::in | std::ios_base::binary);
+	if (ROM.fail())
+		return 0;
+	NES = OpenROM(ROM);
+	if (NES == NULL)
+		return -1;
 	/* Инициализация SDL */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
-	NES = OpenROM(std::cin);
-	if (NES != NULL) {
-		NES->PowerOn();
-		delete NES;
-	}
+	/* Запуск */
+	NES->PowerOn();
+	delete NES;
 	SDL_Quit();
 	return 0;
 }

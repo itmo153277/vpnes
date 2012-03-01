@@ -35,7 +35,7 @@ namespace vpnes {
 
 /* PPU */
 template <class _Bus>
-class CPPU: public CClockedDevice<_Bus>, public CPPUDevice {
+class CPPU: public CClockedDevice<_Bus> {
 	using CClockedDevice<_Bus>::Clocks;
 	using CDevice<_Bus>::Bus;
 public:
