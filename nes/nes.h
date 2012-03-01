@@ -58,12 +58,59 @@ public:
 	inline ~CNES() {}
 
 	/* Запуск */
-	inline int PowerUp() { return 0; }
+	inline int PowerOn() { return 0; }
 	/* Reset */
 	inline int Reset() { return 0; }
 
 	/* Доступ к тактовому генератору */
 	inline ClockClass &GetClock() { return Clock; }
+};
+
+/* Независимый интерфейс */
+class CBasicNES {
+public:
+	inline explicit CBasicNES() {}
+	inline virtual ~CBasicNES() {}
+
+	/* Запуск */
+	virtual int PowerOn() = 0;
+	/* Reset */
+	virtual int Reset() = 0;
+
+	/* *NOTE* */
+	/* Предполагается, что работа приставки будет осуществляться */
+	/* с помощью функции PowerOn(), поскольку виртуальные функции */
+	/* не будут интерпретироваться как inline-функции. Для осуществления */
+	/* обратной связи вероятно будет введен callback-параметр, на данной */
+	/* стадии он не определен. */
+};
+
+/* Стандартный NES (NTSC) на независимом интерфейсе */
+template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
+class CStdNES: public CBasicNES {
+public:
+	typedef CBus<_CPU_rebind, _PPU_rebind, _ROM_rebind> BusClass;
+	typedef CNES<BusClass> NESClass;
+private:
+	/* Стандартный NES (NTSC) на стандартной шине */
+	NESClass NES;
+public:
+	inline explicit CStdNES(): NES() {}
+	inline ~CStdNES() {}
+
+	/* Запуск */
+	int PowerOn() {
+		/* Включаем приставку */
+		NES.PowerOn();
+		/* И запускаем ее */
+		for (;;)
+			NES.GetClock().Clock();
+		return 0;
+	}
+	/* Reset */
+	int Reset() {
+		return NES.Reset();
+	}
 };
 
 }

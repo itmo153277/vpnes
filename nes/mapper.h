@@ -19,14 +19,25 @@
 
 \****************************************************************************/
 
-#include <SDL.h>
+#ifndef __MAPPER_H_
+#define __MAPPER_H_
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-	/* Инициализация SDL */
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-		return -1;
-	SDL_Quit();
-	return 0;
+#include <istream>
+#include "device.h"
+#include "nes.h"
+
+/* Открыть картридж */
+vpnes::CBasicNES *OpenROM(std::istream &);
+
+namespace vpnes {
+
+/* Реализация 0-маппера */
+
+
 }
+
+#endif

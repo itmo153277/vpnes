@@ -47,12 +47,20 @@ public:
 	}
 
 	/* Чтение памяти */
-	uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
 	/* Запись памяти */
-	void WriteAddress(uint16 Address, uint8 Src) {}
+	inline void WriteAddress(uint16 Address, uint8 Src) {}
 
 	/* Отработать команду */
 	int PerformOperation();
+};
+
+/* Махинации с классом */
+struct CPU_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CCPU<_Bus> rebinded;
+	};
 };
 
 /* Отработать такт */
