@@ -36,7 +36,33 @@ vpnes::CBasicNES *OpenROM(std::istream &);
 namespace vpnes {
 
 /* Реализация 0-маппера */
+template <class _Bus>
+class CNROM: public CDevice<_Bus>, public CPPUDevice {
+public:
+	inline explicit CNROM() {}
+	inline ~CNROM() {}
 
+	/* Чтение памяти */
+	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {}
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {}
+};
+
+/* Махинации с классом */
+struct NROM_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CNROM<_Bus> rebinded;
+	};
+};
+
+/* Стандартный NES на NROM */
+typedef CStdNES<NROM_rebind> CStdNES_NROM;
 
 }
 

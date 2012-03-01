@@ -20,3 +20,17 @@
 \****************************************************************************/
 
 #include "mapper.h"
+#include "cpu.h"
+#include "ppu.h"
+
+using namespace vpnes;
+
+/* Открыть картридж */
+CBasicNES *OpenROM(std::istream &) {
+	CStdNES_NROM *NES;
+
+	/* Возвращаем стандартный NES на 0-маппере */
+	NES = new CStdNES_NROM();
+	NES->GetBus().GetDeviceList()[CStdNES_NROM::BusClass::ROM] = new CNROM<CStdNES_NROM::BusClass>();
+	return NES;
+}
