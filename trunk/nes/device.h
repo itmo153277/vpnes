@@ -38,7 +38,7 @@ protected:
 	_Bus *Bus;
 public:
 	inline explicit CDevice() {}
-	inline ~CDevice() {}
+	inline virtual ~CDevice() {}
 	inline explicit CDevice(CDevice const &) {}
 
 	/* Чтение памяти */
@@ -51,7 +51,7 @@ public:
 class CPPUDevice {
 public:
 	inline explicit CPPUDevice() {}
-	inline ~CPPUDevice() {}
+	inline virtual ~CPPUDevice() {}
 	inline explicit CPPUDevice(CPPUDevice const &) {}
 
 	/* Чтение памяти */
@@ -61,9 +61,9 @@ public:
 };
 
 
-/* Стандартная реализация шины */
-template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
-class CBus {
+/* Базовый класс шины */
+template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind, class _BusClass>
+class CBus_Basic {
 public:
 	/* Стандартные устройства */
 	enum StandardDevices {
@@ -76,10 +76,10 @@ public:
 	};
 
 	/* Жесткие махинации для получения классов устройств */
-	typedef class _CPU_rebind::template rebind<CBus>::rebinded CPUClass;
-//	typedef class _APU_rebind::template rebind<CBus>::rebinded APUClass;
-	typedef class _PPU_rebind::template rebind<CBus>::rebinded PPUClass;
-	typedef class _ROM_rebind::template rebind<CBus>::rebinded ROMClass;
+	typedef typename _CPU_rebind::template rebind<_BusClass>::rebinded CPUClass;
+//	typedef typename _APU_rebind::template rebind<_BusClass>::rebinded APUClass;
+	typedef typename _PPU_rebind::template rebind<_BusClass>::rebinded PPUClass;
+	typedef typename _ROM_rebind::template rebind<_BusClass>::rebinded ROMClass;
 
 	/* *NOTE* */
 	/* Суть махинаций — и шина, и устройства теперь будут знать друг друга, */
@@ -93,11 +93,11 @@ private:
 
 protected:
 	/* Список стандартных устройств */
-	CDevice<CBus> *DeviceList[StandardDevicesNum];
+	CDevice<_BusClass> *DeviceList[StandardDevicesNum];
 
 public:
-	inline explicit CBus() {}
-	inline ~CBus() {}
+	inline explicit CBus_Basic() {}
+	inline virtual ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPUMemory(uint16 Address) {
@@ -121,6 +121,8 @@ public:
 			static_cast<ROMClass *>(DeviceList[ROM])->WriteMemory(Address);
 	}
 
+	/* Код явно будет переписан... */
+
 	/* Обращение к памяти PPU */
 	inline uint8 ReadPPUMemory(uint16 Address) {
 		if (Address < 0x2000) /* Mapper CHR data */
@@ -140,9 +142,15 @@ public:
 	}
 
 	/* Список стандартных устройств */
-	inline CDevice<CBus> **GetDeviceList() { return DeviceList; }
+	inline CDevice<_BusClass> **GetDeviceList() { return DeviceList; }
 	/* Доступ к маске адресов PPU */
 	inline uint16 &GetMirrorMask() { return MirrorMask; }
+};
+
+/* Стандартная шина */
+template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind>
+class CBus: public CBus_Basic<_CPU_rebind, _PPU_rebind,
+	_ROM_rebind, CBus<_CPU_rebind, _PPU_rebind, _ROM_rebind> > {
 };
 
 }
