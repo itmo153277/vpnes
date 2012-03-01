@@ -57,8 +57,8 @@ template <class _Bus>
 class CNES: public CBasicNES {
 public:
 	typedef _Bus BusClass;
-	typedef class BusClass::CPUClass CPUClass;
-	typedef class BusClass::PPUClass PPUClass;
+	typedef typename BusClass::CPUClass CPUClass;
+	typedef typename BusClass::PPUClass PPUClass;
 	typedef CClock<BusClass> ClockClass;
 
 private:

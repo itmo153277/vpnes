@@ -51,8 +51,8 @@ public:
 template <class _Bus>
 class CClock {
 public:
-	typedef class _Bus::CPUClass CPUClass;
-	typedef class _Bus::PPUClass PPUClass;
+	typedef typename _Bus::CPUClass CPUClass;
+	typedef typename _Bus::PPUClass PPUClass;
 
 private:
 	/* Указатель на шину */
