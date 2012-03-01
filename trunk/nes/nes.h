@@ -29,6 +29,7 @@
 #include "device.h"
 #include "clock.h"
 #include "cpu.h"
+#include "apu.h"
 #include "ppu.h"
 
 namespace vpnes {
@@ -58,6 +59,7 @@ class CNES: public CBasicNES {
 public:
 	typedef _Bus BusClass;
 	typedef typename BusClass::CPUClass CPUClass;
+	typedef typename BusClass::APUClass APUClass;
 	typedef typename BusClass::PPUClass PPUClass;
 	typedef CClock<BusClass> ClockClass;
 
@@ -68,11 +70,14 @@ private:
 	ClockClass Clock;
 	/* CPU */
 	CPUClass CPU;
+	/* APU */
+	APUClass APU;
 	/* PPU */
 	PPUClass PPU;
 public:
-	inline explicit CNES(): Bus(), Clock(&Bus), CPU(&Bus), PPU(&Bus) {
+	inline explicit CNES(): Bus(), Clock(&Bus), CPU(&Bus), APU(), PPU(&Bus) {
 		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
+		Bus.GetDeviceList()[BusClass::APU] = &APU;
 		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
 	}
 	inline ~CNES() {

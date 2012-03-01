@@ -31,6 +31,9 @@
 #include <istream>
 #include "device.h"
 #include "nes.h"
+#include "cpu.h"
+#include "apu.h"
+#include "ppu.h"
 
 /* Открыть картридж */
 vpnes::CBasicNES *OpenROM(std::istream &ROM);
@@ -110,7 +113,7 @@ struct NROM_rebind {
 };
 
 /* Стандартный NES на NROM */
-typedef CNES< CBus<CPU_rebind, PPU_rebind, NROM_rebind> > CNES_NROM;
+typedef CNES< CBus<CPU_rebind, APU_rebind, PPU_rebind, NROM_rebind> > CNES_NROM;
 
 }
 
