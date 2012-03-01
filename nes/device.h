@@ -47,20 +47,6 @@ public:
 	inline virtual void WriteAddress(uint16 Address, uint8 Src) {}
 };
 
-/* Стандартное устройство PPU */
-class CPPUDevice {
-public:
-	inline explicit CPPUDevice() {}
-	inline virtual ~CPPUDevice() {}
-	inline explicit CPPUDevice(CPPUDevice const &) {}
-
-	/* Чтение памяти */
-	inline virtual uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
-	/* Запись памяти */
-	inline virtual void WritePPUAddress(uint16 Address, uint8 Src) {}
-};
-
-
 /* Базовый класс шины */
 template <class _CPU_rebind, class _PPU_rebind, class _ROM_rebind, class _BusClass>
 class CBus_Basic {
@@ -97,7 +83,7 @@ protected:
 
 public:
 	inline explicit CBus_Basic() {}
-	inline virtual ~CBus_Basic() {}
+	inline ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPUMemory(uint16 Address) {
