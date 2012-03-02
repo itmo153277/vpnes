@@ -110,6 +110,24 @@ public:
 	/* Зависание */
 	bool Halt;
 
+	/* Положить в стек */
+	inline void PushByte(uint8 Src) {
+		RAM[0x0100 + Registers.s--] = Src;
+	}
+	/* Достать из стека */
+	inline uint8 PopByte() {
+		return RAM[0x0100 + ++Registers.s];
+	}
+	/* Положить в стек слово */
+	inline void PushWord(uint16 Src) {
+		PushByte(Src >> 8);
+		PushByte(Src & 0xff);
+	}
+	/* Достать из стека слово */
+	inline uint16 PopWord() {
+		return PopByte() | (PopByte() << 8);
+	}
+
 	/* Типы адресации */
 
 	/* Аккумулятор */
@@ -162,7 +180,7 @@ public:
 
 	/* PC + значение */
 	struct Relative {
-		inline static uint16 ReadWord(CCPU &CPU) {
+		inline static uint16 GetAddr(CCPU &CPU) {
 			return CPU.Registers.pc + (sint8) CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1);
 		}
 	};
@@ -170,8 +188,8 @@ public:
 	/* Адрес + X */
 	struct AbsoluteX {
 		inline static uint16 GetAddr(CCPU &CPU) {
-			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
-				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.x;
+			return (CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
+				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8)) + CPU.Registers.x;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
 			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
@@ -184,8 +202,8 @@ public:
 	/* Адрес + Y */
 	struct AbsoluteY {
 		inline static uint16 GetAddr(CCPU &CPU) {
-			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
-				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.y;
+			return (CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
+				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8)) + CPU.Registers.y;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
 			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
@@ -494,10 +512,640 @@ struct CPU_rebind {
 /* Отработать такт */
 template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
-	return 3;
+	uint8 opcode;
+	int clocks;
+
+	opcode = Bus->ReadCPUMemory(Registers.pc);
+	clocks = OpCodes[opcode].Clocks;
+	Registers.pc += OpCodes[opcode].Length;
+	clocks += (this->*OpCodes[opcode].Handler)();
+	if (Halt)
+		return 0;
+	return clocks;
 }
 
-#if 0
+/* Команды */
+
+/* Неизвестный опкод */
+template <class _Bus>
+int CCPU<_Bus>::OpIllegal() {
+	/* Вызываем зависание */
+	Halt = true;
+	return 0;
+}
+
+/* Загрузить в A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpLDA() {
+	Registers.a = _Addr::ReadByte(*this);
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Загрузить в X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpLDX() {
+	Registers.x = _Addr::ReadByte(*this);
+	State.NFlag(Registers.x);
+	State.ZFlag(Registers.x);
+	return 0;
+}
+
+/* Загрузить в Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpLDY() {
+	Registers.y = _Addr::ReadByte(*this);
+	State.NFlag(Registers.y);
+	State.ZFlag(Registers.y);
+	return 0;
+}
+
+/* Сохранить A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSTA() {
+	_Addr::WriteByte(*this, Registers.a);
+	return 0;
+}
+
+/* Сохранить X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSTX() {
+	_Addr::WriteByte(*this, Registers.x);
+	return 0;
+}
+
+/* Сохранить Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSTY() {
+	_Addr::WriteByte(*this, Registers.y);
+	return 0;
+}
+
+/* Сложение */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpADC() {
+	uint16 temp, src;
+
+	src = _Addr::ReadByte(*this);
+	temp = src + Registers.a + (State.State & 0x01);
+	State.VFlag((((temp ^ src) & ~(Registers.a ^ src)) & 0x80) != 0);
+	State.CFlag(temp >= 0x100);
+	Registers.a = (uint8) temp;
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Вычитание */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSBC() {
+	uint16 temp, src;
+
+	src = _Addr::ReadByte(*this);
+	temp = src - Registers.a - (State.State & 0x01);
+	State.VFlag((((temp ^ src) & ~(Registers.a ^ src)) & 0x80) != 0);
+	State.CFlag(temp < 0x100);
+	Registers.a = (uint8) temp;
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Инкремент */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpINC() {
+	uint8 src;
+
+	src = _Addr::ReadByte(*this);
+	src++;
+	_Addr::WriteByte(*this, src);
+	State.NFlag(src);
+	State.ZFlag(src);
+	return 0;
+}
+
+/* Инкремент X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpINX() {
+	Registers.x++;
+	State.NFlag(Registers.x);
+	State.ZFlag(Registers.x);
+	return 0;
+}
+
+/* Инкремент Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpINY() {
+	Registers.y++;
+	State.NFlag(Registers.y);
+	State.ZFlag(Registers.y);
+	return 0;
+}
+
+/* Декремент */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpDEC() {
+	uint8 src;
+
+	src = _Addr::ReadByte(*this);
+	src--;
+	_Addr::WriteByte(*this, src);
+	State.NFlag(src);
+	State.ZFlag(src);
+	return 0;
+}
+
+/* Декремент X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpDEX() {
+	Registers.x--;
+	State.NFlag(Registers.x);
+	State.ZFlag(Registers.x);
+	return 0;
+}
+
+/* Декремент Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpDEY() {
+	Registers.y--;
+	State.NFlag(Registers.y);
+	State.ZFlag(Registers.y);
+	return 0;
+}
+
+/* Сдвиг влево */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpASL() {
+	uint8 src;
+
+	src = _Addr::ReadByte(*this);
+	State.CFlag((src & 0x80) != 0);
+	src <<= 1;
+	_Addr::WriteByte(*this, src);
+	State.NFlag(src);
+	State.ZFlag(src);
+	return 0;
+}
+
+/* Сдвиг вправо */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpLSR() {
+	uint8 src;
+
+	src = _Addr::ReadByte(*this);
+	State.CFlag((src & 0x01) != 0);
+	src >>= 1;
+	_Addr::WriteByte(*this, src);
+	State.NFlag(src);
+	State.ZFlag(src);
+	return 0;
+}
+
+/* Циклический сдвиг влево */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpROL() {
+	uint8 src, temp;
+
+	src = _Addr::ReadByte(*this);
+	temp = (src << 1) | (State.State & 0x01);
+	State.CFlag((src & 0x80) != 0);
+	_Addr::WriteByte(*this, temp);
+	State.NFlag(temp);
+	State.ZFlag(temp);
+	return 0;
+}
+
+/* Циклический сдвиг вправо */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpROR() {
+	uint8 src, temp;
+
+	src = _Addr::ReadByte(*this);
+	temp = (src >> 1) | ((State.State & 0x01) << 7);
+	State.CFlag((src & 0x01) != 0);
+	_Addr::WriteByte(*this, temp);
+	State.NFlag(temp);
+	State.ZFlag(temp);
+	return 0;
+}
+
+/* Логическое и */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpAND(){
+	Registers.a &= _Addr::ReadByte(*this);
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Логическое или */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpORA(){
+	Registers.a |= _Addr::ReadByte(*this);
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Исключающаее или */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpEOR() {
+	Registers.a ^= _Addr::ReadByte(*this);
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Сравнение с A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCMP() {
+	uint16 temp;
+
+	temp = Registers.a - _Addr::ReadByte(*this);
+	State.CFlag(temp < 0x100);
+	State.NFlag(temp);
+	State.ZFlag(temp);
+	return 0;
+}
+
+/* Сравнение с X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCPX() {
+	uint16 temp;
+
+	temp = Registers.x - _Addr::ReadByte(*this);
+	State.CFlag(temp < 0x100);
+	State.NFlag(temp);
+	State.ZFlag(temp);
+	return 0;
+}
+
+/* Сравнение с Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCPY() {
+	uint16 temp;
+
+	temp = Registers.y - _Addr::ReadByte(*this);
+	State.CFlag(temp < 0x100);
+	State.NFlag(temp);
+	State.ZFlag(temp);
+	return 0;
+}
+
+/* Битова проверка */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBIT() {
+	uint16 src;
+
+	src = _Addr::ReadByte(*this);
+	State.VFlag((src & 0x40) != 0);
+	State.NFlag(src);
+	State.ZFlag(Registers.a & src);
+	return 0;
+}
+
+/* Переход по !C */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBCC() {
+	uint16 lastpc;
+
+	if (!State.Carry()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по C */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBCS() {
+	uint16 lastpc;
+
+	if (State.Carry()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по !Z */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBNE() {
+	uint16 lastpc;
+
+	if (!State.Zero()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по Z */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBEQ() {
+	uint16 lastpc;
+
+	if (State.Zero()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по !N */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBPL() {
+	uint16 lastpc;
+
+	if (!State.Negative()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по N */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBMI() {
+	uint16 lastpc;
+
+	if (State.Negative()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по !V */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBVC() {
+	uint16 lastpc;
+
+	if (!State.Overflow()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* Переход по V */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBVS() {
+	uint16 lastpc;
+
+	if (State.Overflow()) {
+		lastpc = Registers.pc;
+		Registers.pc = _Addr::GetAddr(*this);
+		return ((lastpc & 0xff00) != (Registers.pc & 0xff00)) ? 2 : 1;
+	}
+	return 0;
+}
+
+/* A_Addr:: X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTAX() {
+	Registers.x = Registers.a;
+	State.NFlag(Registers.x);
+	State.ZFlag(Registers.x);
+	return 0;
+}
+
+/* X_Addr:: A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTXA() {
+	Registers.a = Registers.x;
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* A_Addr:: Y */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTAY() {
+	Registers.y = Registers.a;
+	State.NFlag(Registers.y);
+	State.ZFlag(Registers.y);
+	return 0;
+}
+
+/* Y_Addr:: A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTYA() {
+	Registers.a = Registers.y;
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* S_Addr:: X */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTSX() {
+	Registers.x = Registers.s;
+	State.NFlag(Registers.x);
+	State.ZFlag(Registers.x);
+	return 0;
+}
+
+/* X_Addr:: S */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpTXS() {
+	Registers.s = Registers.x;
+	State.NFlag(Registers.s);
+	State.ZFlag(Registers.s);
+	return 0;
+}
+
+/* Положить в стек A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpPHA() {
+	PushByte(Registers.a);
+	return 0;
+}
+
+/* Достать и з стека A */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpPLA() {
+	Registers.a = PopByte();
+	State.NFlag(Registers.a);
+	State.ZFlag(Registers.a);
+	return 0;
+}
+
+/* Положить в стек P */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpPHP() {
+	PushByte(State.State | 0x10); /* Флаг B не используется */
+	return 0;
+}
+
+/* Достать и з стека P */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpPLP() {
+	State.SetState(PopByte());
+	return 0;
+}
+
+/* Безусловный переход */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpJMP() {
+	Registers.pc = _Addr::GetAddr(*this);
+	return 0;
+}
+
+/* Вызов подпрограммы */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpJSR() {
+	PushWord(Registers.pc - 1);
+	Registers.pc = _Addr::GetAddr(*this);
+	return 0;
+}
+
+/* Выход из подпрограммы */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpRTS() {
+	Registers.pc = PopWord() + 1;
+	return 0;
+}
+
+/* Выход из прерывания */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpRTI() {
+	State.SetState(PopByte());
+	Registers.pc = PopWord() + 1;
+	return 0;
+}
+
+/* Установить C */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSEC() {
+	State.State |= 0x01;
+	return 0;
+}
+
+/* Установить D */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSED() {
+	State.State |= 0x08;
+	return 0;
+}
+
+/* Установить I */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpSEI() {
+	State.State |= 0x04;
+	return 0;
+}
+
+/* Сбросить C */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCLC() {
+	State.State &= 0xfe;
+	return 0;
+}
+
+/* Сбросить D */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCLD() {
+	State.State &= 0xf7;
+	return 0;
+}
+
+/* Сбросить I */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCLI() {
+	State.State &= 0xfb;
+	return 0;
+}
+
+/* Сбросить V */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpCLV() {
+	State.State &= 0xbf;
+	return 0;
+}
+
+/* Нет операции */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpNOP() {
+	return 0;
+}
+
+/* Вызвать прерывание */
+template <class _Bus>
+template <class _Addr>
+int CCPU<_Bus>::OpBRK() {
+	/* BRK использует только 4 такта. Все остальное в главном цикле */
+	PushWord(Registers.pc + 1);
+	State.State |= 0x10;
+	PushByte(State.State);
+	State.State |= 0x04;
+	CurBreak = true;
+	return 0;
+}
+
 /* Таблица опкодов */
 template <class _Bus>
 const typename CCPU<_Bus>::SOpCode CCPU<_Bus>::OpCodes[256] = {
@@ -756,9 +1404,8 @@ const typename CCPU<_Bus>::SOpCode CCPU<_Bus>::OpCodes[256] = {
 	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xfc */
 	{4, 3, true, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::AbsoluteX>},    /* 0xfd */ /* SBC */
 	{7, 3, false, &CCPU<_Bus>::OpINC<CCPU<_Bus>::AbsoluteX>},   /* 0xfe */ /* INC */
-	{0, 1, false, &CCPU<_Bus>::OpIllegal<CCPU<_Bus>::Implied>}  /* 0xff */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal}                       /* 0xff */
 };
-#endif
 
 }
 
