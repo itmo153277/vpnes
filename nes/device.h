@@ -89,23 +89,23 @@ public:
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPUMemory(uint16 Address) {
 		if (Address < 0x2000) /* CPU internal RAM */
-			return static_cast<CPUClass *>(DeviceList[CPU])->ReadMemory(Address);
+			return static_cast<CPUClass *>(DeviceList[CPU])->ReadAddress(Address);
 		if (Address < 0x4000) /* PPU registers */
-			return static_cast<PPUClass *>(DeviceList[PPU])->ReadMemory(Address);
+			return static_cast<PPUClass *>(DeviceList[PPU])->ReadAddress(Address);
 		if (Address < 0x4018) /* APU registers */
-			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+			return static_cast<APUClass *>(DeviceList[APU])->ReadAddress(Address);
 		/* Mapper */
-		return static_cast<ROMClass *>(DeviceList[ROM])->ReadMemory(Address);
+		return static_cast<ROMClass *>(DeviceList[ROM])->ReadAddress(Address);
 	}
-	inline void WriteCPUMemory(uint16 Address) {
+	inline void WriteCPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* CPU internal RAM */
-			static_cast<CPUClass *>(DeviceList[CPU])->WriteMemory(Address);
+			static_cast<CPUClass *>(DeviceList[CPU])->WriteAddress(Address, Src);
 		else if (Address < 0x4000) /* PPU registers */
-			static_cast<PPUClass *>(DeviceList[PPU])->WriteMemory(Address);
+			static_cast<PPUClass *>(DeviceList[PPU])->WriteAddress(Address, Src);
 		else if (Address < 0x4018) /* APU registers */
-			return static_cast<APUClass *>(DeviceList[APU])->ReadMemory(Address);
+			return static_cast<APUClass *>(DeviceList[APU])->WriteAddress(Address, Src);
 		else /* Mapper */
-			static_cast<ROMClass *>(DeviceList[ROM])->WriteMemory(Address);
+			static_cast<ROMClass *>(DeviceList[ROM])->WriteAddress(Address, Src);
 	}
 
 	/* Код явно будет переписан... */
@@ -119,13 +119,13 @@ public:
 		/* PPU */
 		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUMemory(Address);
 	}
-	inline void WritePPUMemory(uint16 Address) {
+	inline void WritePPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* Mapper CHR data, forbidden */
-			static_cast<ROMClass *>(DeviceList[ROM])->WritePPUMemory(Address);
+			static_cast<ROMClass *>(DeviceList[ROM])->WritePPUAddress(Address, Src);
 		else if (Address < 0x3f00) /* PPU attributes/nametables */
-			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUMemory(Address & MirrorMask);
+			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress(Address & MirrorMask, Src);
 		else /* PPU */
-			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUMemory(Address);
+			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress(Address, Src);
 	}
 
 	/* Список стандартных устройств */
