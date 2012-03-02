@@ -110,6 +110,8 @@ public:
 	bool IRQ;
 	/* Зависание */
 	bool Halt;
+	/* Переменная для кеширования адреса */
+	uint16 AddrCache;
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
@@ -139,6 +141,12 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Registers.a = Src;
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			return ReadByte(CPU);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			WriteByte(CPU, Src);
+		}
 	};
 
 	/* Без параметра */
@@ -152,6 +160,12 @@ public:
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(CPU.Registers.pc - 1);
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			return ReadByte(CPU);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			WriteByte(CPU, Src);
 		}
 	};
 
@@ -167,6 +181,13 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
+		}
 	};
 
 	/* ZP */
@@ -176,6 +197,12 @@ public:
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.RAM[CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)] = Src;
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			return ReadByte(CPU);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			WriteByte(CPU, Src);
 		}
 	};
 
@@ -198,6 +225,13 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
+		}
 	};
 
 	/* Адрес + Y */
@@ -212,6 +246,13 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
+		}
 	};
 
 	/* ZP + X */
@@ -224,6 +265,12 @@ public:
 			CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.x) & 0xff] = Src;
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			return ReadByte(CPU);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			WriteByte(CPU, Src);
+		}
 	};
 
 	/* ZP + Y */
@@ -235,6 +282,12 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.y) & 0xff] = Src;
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			return ReadByte(CPU);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			WriteByte(CPU, Src);
 		}
 	};
 
@@ -253,6 +306,13 @@ public:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
+		}
 	};
 
 	/* ZP + X + indirect */
@@ -267,6 +327,13 @@ public:
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
 		}
 	};
 
@@ -283,6 +350,13 @@ public:
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
 		}
 	};
 
@@ -301,6 +375,13 @@ public:
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
+		}
+		inline static uint8 ReReadByte(CCPU &CPU) {
+			CPU.AddrCache = GetAddr(CPU);
+			return CPU.Bus->ReadCPUMemory(CPU.AddrCache);
+		}
+		inline static void ReWriteByte(CCPU &CPU, uint8 Src) {
+			CPU.Bus->WriteCPUMemory(CPU.AddrCache, Src);
 		}
 	};
 
@@ -687,9 +768,9 @@ template <class _Addr>
 int CCPU<_Bus>::OpINC() {
 	uint8 src;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	src++;
-	_Addr::WriteByte(*this, src);
+	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
 	State.ZFlag(src);
 	return 0;
@@ -721,9 +802,9 @@ template <class _Addr>
 int CCPU<_Bus>::OpDEC() {
 	uint8 src;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	src--;
-	_Addr::WriteByte(*this, src);
+	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
 	State.ZFlag(src);
 	return 0;
@@ -755,10 +836,10 @@ template <class _Addr>
 int CCPU<_Bus>::OpASL() {
 	uint8 src;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	State.CFlag((src & 0x80) != 0);
 	src <<= 1;
-	_Addr::WriteByte(*this, src);
+	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
 	State.ZFlag(src);
 	return 0;
@@ -770,10 +851,10 @@ template <class _Addr>
 int CCPU<_Bus>::OpLSR() {
 	uint8 src;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	State.CFlag((src & 0x01) != 0);
 	src >>= 1;
-	_Addr::WriteByte(*this, src);
+	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
 	State.ZFlag(src);
 	return 0;
@@ -785,10 +866,10 @@ template <class _Addr>
 int CCPU<_Bus>::OpROL() {
 	uint8 src, temp;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	temp = (src << 1) | (State.State & 0x01);
 	State.CFlag((src & 0x80) != 0);
-	_Addr::WriteByte(*this, temp);
+	_Addr::ReWriteByte(*this, temp);
 	State.NFlag(temp);
 	State.ZFlag(temp);
 	return 0;
@@ -800,10 +881,10 @@ template <class _Addr>
 int CCPU<_Bus>::OpROR() {
 	uint8 src, temp;
 
-	src = _Addr::ReadByte(*this);
+	src = _Addr::ReReadByte(*this);
 	temp = (src >> 1) | ((State.State & 0x01) << 7);
 	State.CFlag((src & 0x01) != 0);
-	_Addr::WriteByte(*this, temp);
+	_Addr::ReWriteByte(*this, temp);
 	State.NFlag(temp);
 	State.ZFlag(temp);
 	return 0;
