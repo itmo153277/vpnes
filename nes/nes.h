@@ -84,8 +84,12 @@ public:
 
 	/* Запуск */
 	inline int PowerOn() {
-		for (;;)
+		CPU.Reset();
+		for (;;) {
 			Clock.Clock();
+			if (CPU.GetHaltState())
+				break;
+		}
 		return 0;
 	}
 	/* Reset */

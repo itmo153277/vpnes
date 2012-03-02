@@ -73,7 +73,7 @@ struct PPU_rebind {
 /* Отработать такт */
 template <class _Bus>
 inline int CPPU<_Bus>::PerformOperation() {
-	return 1;
+	return 341;
 }
 
 }
