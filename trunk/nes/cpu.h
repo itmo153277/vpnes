@@ -129,80 +129,80 @@ public:
 	/* В параметре значение */
 	struct Immediate {
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(CPU.Registers.pc - 1);
+			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1);
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(CPU.Registers.pc - 1);
+			CPU.Bus->WriteCPUMemory(CPU.Registers.pc - 1);
 		}
 	};
 
 	/* В параметре адрес */
 	struct Absolute {
 		inline static uint16 GetAddr(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(CPU.Registers.pc - 2) |
-				(CPU.Bus->ReadMemory(CPU.Registers.pc - 1) << 8);
+			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
+				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
 	/* ZP */
 	struct ZeroPage {
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.RAM[CPU.Bus->ReadMemory(CPU.Registers.pc - 1)];
+			return CPU.RAM[CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)];
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.RAM[CPU.Bus->ReadMemory(CPU.Registers.pc - 1)] = Src;
+			CPU.RAM[CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)] = Src;
 		}
 	};
 
 	/* PC + значение */
 	struct Relative {
 		inline static uint16 ReadWord(CCPU &CPU) {
-			return CPU.Registers.pc + (sint8) CPU.Bus->ReadMemory(CPU.Registers.pc - 1);
+			return CPU.Registers.pc + (sint8) CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1);
 		}
 	};
 
 	/* Адрес + X */
 	struct AbsoluteX {
 		inline static uint16 GetAddr(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(CPU.Registers.pc - 2) |
-				(CPU.Bus->ReadMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.x;
+			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
+				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.x;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
 	/* Адрес + Y */
 	struct AbsoluteY {
 		inline static uint16 GetAddr(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(CPU.Registers.pc - 2) |
-				(CPU.Bus->ReadMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.y;
+			return CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) |
+				(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8) + CPU.Registers.y;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
 	/* ZP + X */
 	struct ZeroPageX {
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.RAM[(CPU.Bus->ReadMemory(CPU.Registers.pc - 1)
+			return CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.x) & 0xff];
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.RAM[(CPU.Bus->ReadMemory(CPU.Registers.pc - 1)
+			CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.x) & 0xff] = Src;
 		}
 	};
@@ -210,11 +210,11 @@ public:
 	/* ZP + Y */
 	struct ZeroPageY {
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.RAM[(CPU.Bus->ReadMemory(CPU.Registers.pc - 1)
+			return CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.y) & 0xff];
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.RAM[(CPU.Bus->ReadMemory(CPU.Registers.pc - 1)
+			CPU.RAM[(CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1)
 				+ CPU.Registers.y) & 0xff] = Src;
 		}
 	};
@@ -223,16 +223,16 @@ public:
 	struct AbsoluteInd {
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint16 AddressPage, AddressOffset;
-			AddressOffset = CPU.Bus->ReadMemory(CPU.Registers.pc - 2) + CPU.Registers.x;
-			AddressPage = (CPU.Bus->ReadMemory(CPU.Registers.pc - 1) << 8) + (AddressOffset & 0x100);
-			return CPU.Bus->ReadMemory(AddressPage | (AddressOffset & 0xff)) |
-				(CPU.Bus->ReadMemory(AddressPage | ((AddressOffset + 1) & 0xff)) << 8);
+			AddressOffset = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2) + CPU.Registers.x;
+			AddressPage = (CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8) + (AddressOffset & 0x100);
+			return CPU.Bus->ReadCPUMemory(AddressPage | (AddressOffset & 0xff)) |
+				(CPU.Bus->ReadCPUMemory(AddressPage | ((AddressOffset + 1) & 0xff)) << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
@@ -240,14 +240,14 @@ public:
 	struct ZeroPageInd {
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint8 AddressOffset;
-			AddressOffset = CPU.Bus->ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
+			AddressOffset = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
 			return CPU.RAM[AddressOffset] | (CPU.RAM[(uint8) (AddressOffset + 1)] << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
@@ -255,15 +255,15 @@ public:
 	struct ZeroPageIndY {
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint8 AddressOffset;
-			AddressOffset = CPU.Bus->ReadMemory(CPU.Registers.pc - 1);
+			AddressOffset = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1);
 			return (CPU.RAM[(uint8) (AddressOffset + 1)] << 8) | (uint8) (CPU.RAM[AddressOffset]
 				+ CPU.Registers.y);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
@@ -272,16 +272,16 @@ public:
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint16 AddressPage;
 			uint8 AddressOffset;
-			AddressOffset = CPU.Bus->ReadMemory(CPU.Registers.pc - 2);
-			AddressPage = CPU.Bus->ReadMemory(CPU.Registers.pc - 1) << 8;
-			return CPU.Bus->ReadMemory(AddressPage | AddressOffset) |
-				(CPU.Bus->ReadMemory(AddressPage | ((uint8) (AddressOffset + 1))) << 8);
+			AddressOffset = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 2);
+			AddressPage = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1) << 8;
+			return CPU.Bus->ReadCPUMemory(AddressPage | AddressOffset) |
+				(CPU.Bus->ReadCPUMemory(AddressPage | ((uint8) (AddressOffset + 1))) << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.Bus->ReadMemory(GetAddr(CPU));
+			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.Bus->WriteMemory(GetAddr(CPU));
+			CPU.Bus->WriteCPUMemory(GetAddr(CPU), Src);
 		}
 	};
 
