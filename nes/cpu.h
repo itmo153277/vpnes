@@ -624,6 +624,7 @@ template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
+
 	if (NMI) { /* Подан сигнал NMI */
 		if (CurBreak) { /* Уже занимаемся обработкой */
 			CurBreak = false;

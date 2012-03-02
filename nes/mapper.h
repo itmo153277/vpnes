@@ -30,13 +30,14 @@
 
 #include <istream>
 #include "device.h"
+#include "clock.h"
 #include "nes.h"
 #include "cpu.h"
 #include "apu.h"
 #include "ppu.h"
 
 /* Открыть картридж */
-vpnes::CBasicNES *OpenROM(std::istream &ROM);
+vpnes::CBasicNES *OpenROM(std::istream &ROM, vpnes::clock::CallbackFunc CallBack);
 
 namespace vpnes {
 

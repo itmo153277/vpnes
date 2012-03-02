@@ -72,7 +72,8 @@ private:
 	/* PPU */
 	PPUClass PPU;
 public:
-	inline explicit CNES(): Bus(), Clock(&Bus), CPU(&Bus), APU(), PPU(&Bus) {
+	inline explicit CNES(clock::CallbackFunc CallBack): Bus(),
+		Clock(&Bus, CallBack), CPU(&Bus), APU(), PPU(&Bus) {
 		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
 		Bus.GetDeviceList()[BusClass::APU] = &APU;
 		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
@@ -86,7 +87,8 @@ public:
 	inline int PowerOn() {
 		CPU.Reset();
 		for (;;) {
-			Clock.Clock();
+			if (Clock.Clock() < 0)
+				break;
 			if (CPU.GetHaltState())
 				break;
 		}
