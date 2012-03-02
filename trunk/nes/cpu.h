@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <cstring>
 #include "device.h"
 #include "clock.h"
 
@@ -304,13 +305,23 @@ public:
 	};
 
 public:
-	inline explicit CCPU(_Bus *pBus) { Bus = pBus; }
+	inline explicit CCPU(_Bus *pBus) {
+		Bus = pBus;
+		/* Стартовые значения */
+		memset(RAM, 0xff, 2048 * sizeof(uint8));
+		RAM[0x0008] = 0xf7;
+		RAM[0x0009] = 0xef;
+		RAM[0x000a] = 0xdf;
+		RAM[0x000f] = 0xbf;
+		memset(&Registers, 0, sizeof(SRegisters));
+		State.SetState(0);
+	}
 	inline ~CCPU() {}
 
 	/* Выполнить действие */
 	inline void Clock(int DoClocks) {
 		if ((Clocks -= DoClocks) == 0)
-			Clocks = PerformOperation();
+			Clocks = PerformOperation() * 3;
 	}
 
 	/* Чтение памяти */
@@ -322,10 +333,28 @@ public:
 		RAM[Address & 0x07ff] = Src;
 	}
 
-	/* Отработать команду */
-	int PerformOperation();
+	/* NMI pin */
+	inline bool &GetNMIPin() { return NMI; }
+	/* IRQ pin */
+	inline bool &GetIRQPin() { return IRQ; }
+	/* Halt flag */
+	inline bool &GetHaltState() { return Halt; }
+
+	/* Сброс */
+	inline void Reset() {
+		Registers.s -= 3;
+		State.State |= 0x04; /* Interrupt */
+		NMI = false;
+		IRQ = false;
+		Halt = false;
+		CurBreak = false;
+		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
+	}
 
 private:
+
+	/* Отработать команду */
+	inline int PerformOperation();
 
 	/* Команды CPU */
 
@@ -514,12 +543,44 @@ template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
-
-	opcode = Bus->ReadCPUMemory(Registers.pc);
+	if (NMI) { /* Подан сигнал NMI */
+		if (CurBreak) { /* Уже занимаемся обработкой */
+			CurBreak = false;
+			NMI = false;
+			/* Прыгаем */
+			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
+			return 3; /* + 3 такта */
+		} else {
+			PushWord(Registers.pc - 1); /* Следующая команда */
+			PushByte(State.State); /* Сохраняем состояние */
+			CurBreak = true;
+			return 4; /* 4 такта */
+		}
+	}
+	if (CurBreak) { /* Обрабатываем прерывание */
+		CurBreak = false;
+		/* Прыгаем */
+		Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
+		return 3; /* 3 такта */
+	}
+	if (IRQ) { /* Подан сигнал IRQ */
+		IRQ = false;
+		if (!State.Interrupt()) { /* Обработка разрешена */
+			PushWord(Registers.pc - 1); /* Следующая команда */
+			PushByte(State.State); /* Сохраняем состояние */
+			CurBreak = true;
+			return 4; /* 4 такта */
+		}
+	}
+	opcode = Bus->ReadCPUMemory(Registers.pc); /* Текущий опкод */
+	/* Число тактов + 1 такт на пересечение страницы */
 	clocks = OpCodes[opcode].Clocks;
+	if (OpCodes[opcode].Bound && (((Registers.pc & 0xff) +
+		OpCodes[opcode].Length) > 0x100))
+		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
-	if (Halt)
+	if (Halt) /* Зависли */
 		return 0;
 	return clocks;
 }
