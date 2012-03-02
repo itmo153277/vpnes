@@ -63,7 +63,7 @@ public:
 	typedef int (CCPU::*OpHandler)();
 
 	/* Описание опкода */
-	struct SOpcode {
+	struct SOpCode {
 		int Clocks; /* Число тактов */
 		int Length; /* Длина команды */
 		bool Bound; /* +1 такт при переходе страницы */
@@ -71,7 +71,7 @@ public:
 	};
 
 	/* Таблица опкодов */
-	static const SOpcode Opcodes[256];
+	static const SOpCode OpCodes[256];
 
 	/* Регистр состояния */
 	struct SState {
@@ -102,7 +102,7 @@ public:
 	/* Состояние прерывания */
 	bool CurBreak;
 	/* RAM */
-	uint8 *RAM;
+	uint8 RAM[0x0800];
 	/* NMI pin */
 	bool NMI;
 	/* IRQ pin */
@@ -296,12 +296,191 @@ public:
 	}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadAddress(uint16 Address) {
+		return RAM[Address & 0x07ff];
+	}
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {}
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		RAM[Address & 0x07ff] = Src;
+	}
 
 	/* Отработать команду */
 	int PerformOperation();
+
+private:
+
+	/* Команды CPU */
+
+	/* Неизвестная команда */
+	int OpIllegal();
+	/* Загрузить в A */
+	template <class _Addr>
+	int OpLDA();
+	/* Загрузить в X */
+	template <class _Addr>
+	int OpLDX();
+	/* Загрузить в Y */
+	template <class _Addr>
+	int OpLDY();
+	/* Сохранить A */
+	template <class _Addr>
+	int OpSTA();
+	/* Сохранить X */
+	template <class _Addr>
+	int OpSTX();
+	/* Сохранить Y */
+	template <class _Addr>
+	int OpSTY();
+	/* Сложение */
+	template <class _Addr>
+	int OpADC();
+	/* Вычитание */
+	template <class _Addr>
+	int OpSBC();
+	/* Инкремент */
+	template <class _Addr>
+	int OpINC();
+	/* Инкремент X */
+	template <class _Addr>
+	int OpINX();
+	/* Инкремент Y */
+	template <class _Addr>
+	int OpINY();
+	/* Декремент */
+	template <class _Addr>
+	int OpDEC();
+	/* Декремент X */
+	template <class _Addr>
+	int OpDEX();
+	/* Декремент Y */
+	template <class _Addr>
+	int OpDEY();
+	/* Сдвиг влево */
+	template <class _Addr>
+	int OpASL();
+	/* Сдвиг вправо */
+	template <class _Addr>
+	int OpLSR();
+	/* Циклический сдвиг влево */
+	template <class _Addr>
+	int OpROL();
+	/* Циклический сдвиг вправо */
+	template <class _Addr>
+	int OpROR();
+	/* Логическое и */
+	template <class _Addr>
+	int OpAND();
+	/* Логическое или */
+	template <class _Addr>
+	int OpORA();
+	/* Исключающаее или */
+	template <class _Addr>
+	int OpEOR();
+	/* Сравнение с A */
+	template <class _Addr>
+	int OpCMP();
+	/* Сравнение с X */
+	template <class _Addr>
+	int OpCPX();
+	/* Сравнение с Y */
+	template <class _Addr>
+	int OpCPY();
+	/* Битова проверка */
+	template <class _Addr>
+	int OpBIT();
+	/* Переход по !C */
+	template <class _Addr>
+	int OpBCC();
+	/* Переход по C */
+	template <class _Addr>
+	int OpBCS();
+	/* Переход по !Z */
+	template <class _Addr>
+	int OpBNE();
+	/* Переход по Z */
+	template <class _Addr>
+	int OpBEQ();
+	/* Переход по !N */
+	template <class _Addr>
+	int OpBPL();
+	/* Переход по N */
+	template <class _Addr>
+	int OpBMI();
+	/* Переход по !V */
+	template <class _Addr>
+	int OpBVC();
+	/* Переход по V */
+	template <class _Addr>
+	int OpBVS();
+	/* A -> X */
+	template <class _Addr>
+	int OpTAX();
+	/* X -> A */
+	template <class _Addr>
+	int OpTXA();
+	/* A -> Y */
+	template <class _Addr>
+	int OpTAY();
+	/* Y -> A */
+	template <class _Addr>
+	int OpTYA();
+	/* S -> X */
+	template <class _Addr>
+	int OpTSX();
+	/* X -> S */
+	template <class _Addr>
+	int OpTXS();
+	/* Положить в стек A */
+	template <class _Addr>
+	int OpPHA();
+	/* Достать и з стека A */
+	template <class _Addr>
+	int OpPLA();
+	/* Положить в стек P */
+	template <class _Addr>
+	int OpPHP();
+	/* Достать и з стека P */
+	template <class _Addr>
+	int OpPLP();
+	/* Безусловный переход */
+	template <class _Addr>
+	int OpJMP();
+	/* Вызов подпрограммы */
+	template <class _Addr>
+	int OpJSR();
+	/* Выход из подпрограммы */
+	template <class _Addr>
+	int OpRTS();
+	/* Выход из прерывания */
+	template <class _Addr>
+	int OpRTI();
+	/* Установить C */
+	template <class _Addr>
+	int OpSEC();
+	/* Установить D */
+	template <class _Addr>
+	int OpSED();
+	/* Установить I */
+	template <class _Addr>
+	int OpSEI();
+	/* Сбросить C */
+	template <class _Addr>
+	int OpCLC();
+	/* Сбросить D */
+	template <class _Addr>
+	int OpCLD();
+	/* Сбросить I */
+	template <class _Addr>
+	int OpCLI();
+	/* Сбросить V */
+	template <class _Addr>
+	int OpCLV();
+	/* Нет операции */
+	template <class _Addr>
+	int OpNOP();
+	/* Вызвать прерывание */
+	template <class _Addr>
+	int OpBRK();
 };
 
 /* Махинации с классом */
@@ -317,6 +496,269 @@ template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	return 3;
 }
+
+#if 0
+/* Таблица опкодов */
+template <class _Bus>
+const typename CCPU<_Bus>::SOpCode CCPU<_Bus>::OpCodes[256] = {
+	{4, 1, false, &CCPU<_Bus>::OpBRK<CCPU<_Bus>::Implied>},     /* 0x00 */ /* BRK */
+	{6, 2, false, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageInd>}, /* 0x01 */ /* ORA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x02 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x03 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x04 */
+	{2, 2, false, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPage>},    /* 0x05 */ /* ORA */
+	{5, 2, false, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPage>},    /* 0x06 */ /* ASL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x07 */
+	{3, 1, false, &CCPU<_Bus>::OpPHP<CCPU<_Bus>::Implied>},     /* 0x08 */ /* PHP */
+	{2, 2, false, &CCPU<_Bus>::OpORA<CCPU<_Bus>::Immediate>},   /* 0x09 */ /* ORA */
+	{2, 1, false, &CCPU<_Bus>::OpASL<CCPU<_Bus>::Accumulator>}, /* 0x0a */ /* ASL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x0b */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x0c */
+	{4, 3, false, &CCPU<_Bus>::OpORA<CCPU<_Bus>::Absolute>},    /* 0x0d */ /* ORA */
+	{6, 3, false, &CCPU<_Bus>::OpASL<CCPU<_Bus>::Absolute>},    /* 0x0e */ /* ASL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x0f */
+	{2, 2, false, &CCPU<_Bus>::OpBPL<CCPU<_Bus>::Relative>},    /* 0x10 */ /* BPL */
+	{5, 2, true, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageIndY>}, /* 0x11 */ /* ORA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x12 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x13 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x14 */
+	{3, 2, false, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageX>},   /* 0x15 */ /* ORA */
+	{6, 2, false, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPageX>},   /* 0x16 */ /* ASL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x17 */
+	{2, 1, false, &CCPU<_Bus>::OpCLC<CCPU<_Bus>::Implied>},     /* 0x18 */ /* CLC */
+	{4, 3, true, &CCPU<_Bus>::OpORA<CCPU<_Bus>::AbsoluteY>},    /* 0x19 */ /* ORA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x1a */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x1b */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x1c */
+	{4, 3, true, &CCPU<_Bus>::OpORA<CCPU<_Bus>::AbsoluteX>},    /* 0x1d */ /* ORA */
+	{7, 3, false, &CCPU<_Bus>::OpASL<CCPU<_Bus>::AbsoluteX>},   /* 0x1e */ /* ASL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x1f */
+	{6, 3, false, &CCPU<_Bus>::OpJSR<CCPU<_Bus>::Absolute>},    /* 0x20 */ /* JSR */
+	{6, 2, false, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageInd>}, /* 0x21 */ /* AND */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x22 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x23 */
+	{3, 2, false, &CCPU<_Bus>::OpBIT<CCPU<_Bus>::ZeroPage>},    /* 0x24 */ /* BIT */
+	{2, 2, false, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPage>},    /* 0x25 */ /* AND */
+	{5, 2, false, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPage>},    /* 0x26 */ /* ROL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x27 */
+	{4, 1, false, &CCPU<_Bus>::OpPLP<CCPU<_Bus>::Implied>},     /* 0x28 */ /* PLP */
+	{2, 2, false, &CCPU<_Bus>::OpAND<CCPU<_Bus>::Immediate>},   /* 0x29 */ /* AND */
+	{2, 1, false, &CCPU<_Bus>::OpROL<CCPU<_Bus>::Accumulator>}, /* 0x2a */ /* ROL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x2b */
+	{4, 3, false, &CCPU<_Bus>::OpBIT<CCPU<_Bus>::Absolute>},    /* 0x2c */ /* BIT */
+	{4, 3, false, &CCPU<_Bus>::OpAND<CCPU<_Bus>::Absolute>},    /* 0x2d */ /* AND */
+	{6, 3, false, &CCPU<_Bus>::OpROL<CCPU<_Bus>::Absolute>},    /* 0x2e */ /* ROL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x2f */
+	{2, 2, false, &CCPU<_Bus>::OpBMI<CCPU<_Bus>::Relative>},    /* 0x30 */ /* BMI */
+	{5, 2, true, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageIndY>}, /* 0x31 */ /* AND */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x32 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x33 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x34 */
+	{3, 2, false, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageX>},   /* 0x35 */ /* AND */
+	{6, 2, false, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPageX>},   /* 0x36 */ /* ROL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x37 */
+	{2, 1, false, &CCPU<_Bus>::OpSEC<CCPU<_Bus>::Implied>},     /* 0x38 */ /* SEC */
+	{4, 3, true, &CCPU<_Bus>::OpAND<CCPU<_Bus>::AbsoluteY>},    /* 0x39 */ /* AND */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x3a */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x3b */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x3c */
+	{4, 3, true, &CCPU<_Bus>::OpAND<CCPU<_Bus>::AbsoluteX>},    /* 0x3d */ /* AMD */
+	{7, 3, false, &CCPU<_Bus>::OpROL<CCPU<_Bus>::AbsoluteX>},   /* 0x3e */ /* ROL */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x3f */
+	{6, 1, false, &CCPU<_Bus>::OpRTI<CCPU<_Bus>::Implied>},     /* 0x40 */ /* RTI */
+	{6, 2, false, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageInd>}, /* 0x41 */ /* EOR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x42 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x43 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x44 */
+	{3, 2, false, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPage>},    /* 0x45 */ /* EOR */
+	{5, 2, false, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::ZeroPage>},    /* 0x46 */ /* LSR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x47 */
+	{3, 1, false, &CCPU<_Bus>::OpPHA<CCPU<_Bus>::Implied>},     /* 0x48 */ /* PHA */
+	{2, 2, false, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::Immediate>},   /* 0x49 */ /* EOR */
+	{2, 1, false, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::Accumulator>}, /* 0x4a */ /* LSR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x4b */
+	{3, 3, false, &CCPU<_Bus>::OpJMP<CCPU<_Bus>::Absolute>},    /* 0x4c */ /* JMP */
+	{4, 3, false, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::Absolute>},    /* 0x4d */ /* EOR */
+	{6, 3, false, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::Absolute>},    /* 0x4e */ /* LSR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x4f */
+	{2, 2, false, &CCPU<_Bus>::OpBVC<CCPU<_Bus>::Relative>},    /* 0x50 */ /* BVC */
+	{5, 2, true, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageIndY>}, /* 0x51 */ /* EOR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x52 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x53 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x54 */
+	{4, 2, false, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageX>},   /* 0x55 */ /* EOR */
+	{6, 2, false, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::ZeroPageX>},   /* 0x56 */ /* LSR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x57 */
+	{2, 1, false, &CCPU<_Bus>::OpCLI<CCPU<_Bus>::Implied>},     /* 0x58 */ /* CLI */
+	{4, 3, true, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::AbsoluteY>},    /* 0x59 */ /* EOR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x5a */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x5b */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x5c */
+	{4, 3, true, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::AbsoluteX>},    /* 0x5d */ /* EOR */
+	{7, 3, false, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::AbsoluteX>},   /* 0x5e */ /* LSR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x5f */
+	{6, 1, false, &CCPU<_Bus>::OpRTS<CCPU<_Bus>::Implied>},     /* 0x60 */ /* RTS */
+	{6, 2, false, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageInd>}, /* 0x61 */ /* ADC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x62 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x63 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x64 */
+	{3, 2, false, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPage>},    /* 0x65 */ /* ADC */
+	{5, 2, false, &CCPU<_Bus>::OpROR<CCPU<_Bus>::ZeroPage>},    /* 0x66 */ /* ROR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x67 */
+	{4, 1, false, &CCPU<_Bus>::OpPLA<CCPU<_Bus>::Implied>},     /* 0x68 */ /* PLA */
+	{2, 2, false, &CCPU<_Bus>::OpADC<CCPU<_Bus>::Immediate>},   /* 0x69 */ /* ADC */
+	{2, 1, false, &CCPU<_Bus>::OpROR<CCPU<_Bus>::Accumulator>}, /* 0x6a */ /* ROR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x6b */
+	{5, 3, false, &CCPU<_Bus>::OpJMP<CCPU<_Bus>::Indirect>},    /* 0x6c */ /* JMP */
+	{4, 3, false, &CCPU<_Bus>::OpADC<CCPU<_Bus>::Absolute>},    /* 0x6d */ /* ADC */
+	{6, 3, false, &CCPU<_Bus>::OpROR<CCPU<_Bus>::Absolute>},    /* 0x6e */ /* ROR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x6f */
+	{2, 2, false, &CCPU<_Bus>::OpBVS<CCPU<_Bus>::Relative>},    /* 0x70 */ /* BVS */
+	{5, 2, true, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageIndY>}, /* 0x71 */ /* ADC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x72 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x73 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x74 */
+	{4, 2, false, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageX>},   /* 0x75 */ /* ADC */
+	{6, 2, false, &CCPU<_Bus>::OpROR<CCPU<_Bus>::ZeroPageX>},   /* 0x76 */ /* ROR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x77 */
+	{2, 1, false, &CCPU<_Bus>::OpSEI<CCPU<_Bus>::Implied>},     /* 0x78 */ /* SEI */
+	{4, 3, true, &CCPU<_Bus>::OpADC<CCPU<_Bus>::AbsoluteY>},    /* 0x79 */ /* ADC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x7a */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x7b */
+	{5, 3, true, &CCPU<_Bus>::OpJMP<CCPU<_Bus>::AbsoluteInd>},  /* 0x7c */ /* JMP */
+	{4, 3, true, &CCPU<_Bus>::OpADC<CCPU<_Bus>::AbsoluteX>},    /* 0x7d */ /* ADC */
+	{7, 3, false, &CCPU<_Bus>::OpROR<CCPU<_Bus>::AbsoluteX>},   /* 0x7e */ /* ROR */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x7f */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x80 */
+	{6, 2, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageInd>}, /* 0x81 */ /* STA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x82 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x83 */
+	{3, 2, false, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::ZeroPage>},    /* 0x84 */ /* STY */
+	{3, 2, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPage>},    /* 0x85 */ /* STA */
+	{3, 2, false, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::ZeroPage>},    /* 0x86 */ /* STX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x87 */
+	{2, 1, false, &CCPU<_Bus>::OpDEY<CCPU<_Bus>::Implied>},     /* 0x88 */ /* DEY */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x89 */
+	{2, 1, false, &CCPU<_Bus>::OpTXA<CCPU<_Bus>::Implied>},     /* 0x8a */ /* TXA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x8b */
+	{4, 3, false, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::Absolute>},    /* 0x8c */ /* STY */
+	{4, 3, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::Absolute>},    /* 0x8d */ /* STA */
+	{4, 3, false, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::Absolute>},    /* 0x8e */ /* STX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x8f */
+	{2, 2, false, &CCPU<_Bus>::OpBCC<CCPU<_Bus>::Relative>},    /* 0x90 */ /* BCC */
+	{6, 2, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageIndY>},/* 0x91 */ /* STA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x92 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x93 */
+	{4, 2, false, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::ZeroPageX>},   /* 0x94 */ /* STY */
+	{4, 2, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageX>},   /* 0x95 */ /* STA */
+	{4, 2, false, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::ZeroPageY>},   /* 0x96 */ /* STX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x97 */
+	{2, 1, false, &CCPU<_Bus>::OpTYA<CCPU<_Bus>::Implied>},     /* 0x98 */ /* TYA */
+	{5, 3, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::AbsoluteY>},   /* 0x99 */ /* STA */
+	{2, 1, false, &CCPU<_Bus>::OpTXS<CCPU<_Bus>::Implied>},     /* 0x9a */ /* TXS */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x9b */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x9c */
+	{5, 3, false, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::AbsoluteX>},   /* 0x9d */ /* STA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x9e */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0x9f */
+	{2, 2, false, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::Immediate>},   /* 0xa0 */ /* LDY */
+	{6, 2, false, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageInd>}, /* 0xa1 */ /* LDA */
+	{2, 2, false, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::Immediate>},   /* 0xa2 */ /* LDX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xa3 */
+	{3, 2, false, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::ZeroPage>},    /* 0xa4 */ /* LDY */
+	{3, 2, false, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPage>},    /* 0xa5 */ /* LDA */
+	{3, 2, false, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::ZeroPage>},    /* 0xa6 */ /* LDX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xa7 */
+	{2, 1, false, &CCPU<_Bus>::OpTAY<CCPU<_Bus>::Implied>},     /* 0xa8 */ /* TAY */
+	{2, 2, false, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::Immediate>},   /* 0xa9 */ /* LDA */
+	{2, 1, false, &CCPU<_Bus>::OpTAX<CCPU<_Bus>::Implied>},     /* 0xaa */ /* TAX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xab */
+	{4, 3, false, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::Absolute>},    /* 0xac */ /* LDY */
+	{4, 3, false, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::Absolute>},    /* 0xad */ /* LDA */
+	{4, 3, false, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::Absolute>},    /* 0xae */ /* LDX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xaf */
+	{2, 2, false, &CCPU<_Bus>::OpBCS<CCPU<_Bus>::Relative>},    /* 0xb0 */ /* BCS */
+	{5, 2, true, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageIndY>}, /* 0xb1 */ /* LDA */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xb2 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xb3 */
+	{4, 2, false, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::ZeroPageX>},   /* 0xb4 */ /* LDY */
+	{4, 2, false, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageX>},   /* 0xb5 */ /* LDA */
+	{4, 2, false, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::ZeroPageY>},   /* 0xb6 */ /* LDX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xb7 */
+	{2, 1, false, &CCPU<_Bus>::OpCLV<CCPU<_Bus>::Implied>},     /* 0xb8 */ /* CLV */
+	{4, 3, true, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::AbsoluteY>},    /* 0xb9 */ /* LDA */
+	{2, 1, false, &CCPU<_Bus>::OpTSX<CCPU<_Bus>::Implied>},     /* 0xba */ /* TSX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xbb */
+	{4, 3, true, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::AbsoluteX>},    /* 0xbc */ /* LDY */
+	{4, 3, true, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::AbsoluteX>},    /* 0xbd */ /* LDA */
+	{4, 3, true, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::AbsoluteY>},    /* 0xbe */ /* LDX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xbf */
+	{2, 2, false, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::Immediate>},   /* 0xc0 */ /* CPY */
+	{6, 2, false, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageInd>}, /* 0xc1 */ /* CMP */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xc2 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xc3 */
+	{3, 2, false, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::ZeroPage>},    /* 0xc4 */ /* CPY */
+	{3, 2, false, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPage>},    /* 0xc5 */ /* CMP */
+	{5, 2, false, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::ZeroPage>},    /* 0xc6 */ /* DEC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xc7 */
+	{2, 1, false, &CCPU<_Bus>::OpINY<CCPU<_Bus>::Implied>},     /* 0xc8 */ /* INY */
+	{2, 2, false, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::Immediate>},   /* 0xc9 */ /* CMP */
+	{2, 1, false, &CCPU<_Bus>::OpDEX<CCPU<_Bus>::Implied>},     /* 0xca */ /* DEX */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xcb */
+	{4, 3, false, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::Absolute>},    /* 0xcc */ /* CPY */
+	{4, 3, false, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::Absolute>},    /* 0xcd */ /* CMP */
+	{6, 3, false, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::Absolute>},    /* 0xce */ /* DEC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xcf */
+	{2, 2, false, &CCPU<_Bus>::OpBNE<CCPU<_Bus>::Relative>},    /* 0xd0 */ /* BNE */
+	{5, 2, true, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageIndY>}, /* 0xd1 */ /* CMP */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xd2 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xd3 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xd4 */
+	{4, 2, false, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageX>},   /* 0xd5 */ /* CMP */
+	{6, 2, false, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::ZeroPageX>},   /* 0xd6 */ /* DEC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xd7 */
+	{2, 1, false, &CCPU<_Bus>::OpCLD<CCPU<_Bus>::Implied>},     /* 0xd8 */ /* CLD */
+	{4, 3, true, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::AbsoluteY>},    /* 0xd9 */ /* CMP */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xda */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xdb */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xdc */
+	{4, 3, true, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::AbsoluteX>},    /* 0xdd */ /* CMP */
+	{7, 3, false, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::AbsoluteX>},   /* 0xde */ /* DEC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xdf */
+	{2, 2, false, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::Immediate>},   /* 0xe0 */ /* CPX */
+	{6, 2, false, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageInd>}, /* 0xe1 */ /* SBC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xe2 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xe3 */
+	{3, 2, false, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::ZeroPage>},    /* 0xe4 */ /* CPX */
+	{3, 2, false, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPage>},    /* 0xe5 */ /* SBC */
+	{5, 2, false, &CCPU<_Bus>::OpINC<CCPU<_Bus>::ZeroPage>},    /* 0xe6 */ /* INC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xe7 */
+	{2, 1, false, &CCPU<_Bus>::OpINX<CCPU<_Bus>::Implied>},     /* 0xe8 */ /* INX */
+	{2, 2, false, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::Immediate>},   /* 0xe9 */ /* SBC */
+	{2, 1, false, &CCPU<_Bus>::OpNOP<CCPU<_Bus>::Implied>},     /* 0xea */ /* NOP */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xeb */
+	{4, 3, false, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::Absolute>},    /* 0xec */ /* CPX */
+	{4, 3, false, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::Absolute>},    /* 0xed */ /* SBC */
+	{6, 3, false, &CCPU<_Bus>::OpINC<CCPU<_Bus>::Absolute>},    /* 0xee */ /* INC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xef */
+	{2, 2, false, &CCPU<_Bus>::OpBEQ<CCPU<_Bus>::Relative>},    /* 0xf0 */ /* BEQ */
+	{5, 2, true, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageIndY>}, /* 0xf1 */ /* SBC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xf2 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xf3 */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xf4 */
+	{4, 2, false, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageX>},   /* 0xf5 */ /* SBC */
+	{6, 2, false, &CCPU<_Bus>::OpINC<CCPU<_Bus>::ZeroPageX>},   /* 0xf6 */ /* INC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xf7 */
+	{2, 1, false, &CCPU<_Bus>::OpSED<CCPU<_Bus>::Implied>},     /* 0xf8 */ /* SED */
+	{4, 3, true, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::AbsoluteY>},    /* 0xf9 */ /* SBC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xfa */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xfb */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal},                      /* 0xfc */
+	{4, 3, true, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::AbsoluteX>},    /* 0xfd */ /* SBC */
+	{7, 3, false, &CCPU<_Bus>::OpINC<CCPU<_Bus>::AbsoluteX>},   /* 0xfe */ /* INC */
+	{0, 1, false, &CCPU<_Bus>::OpIllegal<CCPU<_Bus>::Implied>}  /* 0xff */
+};
+#endif
 
 }
 
