@@ -19,33 +19,26 @@
 
 \****************************************************************************/
 
-#include <SDL.h>
+#ifndef __WINDOW_H_
+#define __WINDOW_H_
 
-#include <fstream>
-#include "window.h"
-#include "nes/nes.h"
-#include "nes/mapper.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-	vpnes::CBasicNES *NES;
-	std::fstream ROM;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-	/* Открываем образ */
-	if (argc != 2)
-		return 0;
-	ROM.open(argv[1], std::ios_base::in | std::ios_base::binary);
-	if (ROM.fail())
-		return 0;
-	NES = OpenROM(ROM, &WindowCallback);
-	if (NES == NULL)
-		return -1;
-	/* Инициализация SDL */
-	if (InitMainWindow() < 0)
-		return -1;
-	/* Запуск */
-	NES->PowerOn();
-	delete NES;
-	AppQuit();
-	return 0;
+/* Инициализация SDL */
+int InitMainWindow(void);
+/* Выход */
+void AppQuit(void);
+/* Callback-функция */
+int WindowCallback(double Tim);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif

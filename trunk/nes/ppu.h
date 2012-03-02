@@ -38,8 +38,14 @@ template <class _Bus>
 class CPPU: public CClockedDevice<_Bus> {
 	using CClockedDevice<_Bus>::Clocks;
 	using CDevice<_Bus>::Bus;
+private:
+	/* Готовность кадра для вывода */
+	bool FrameReady;
+	/* Текущий scanline */
+	int scanline;
+
 public:
-	inline explicit CPPU(_Bus *pBus) { Bus = pBus; }
+	inline explicit CPPU(_Bus *pBus): FrameReady(false), scanline(0) { Bus = pBus; }
 	inline ~CPPU() {}
 
 	/* Выполнить действие */
@@ -60,6 +66,9 @@ public:
 
 	/* Отработать команду */
 	int PerformOperation();
+
+	/* Флаг вывода */
+	inline bool &IsFrameReady() { return FrameReady; }
 };
 
 /* Махинации с классом */
@@ -73,6 +82,11 @@ struct PPU_rebind {
 /* Отработать такт */
 template <class _Bus>
 inline int CPPU<_Bus>::PerformOperation() {
+	scanline++;
+	if (scanline == 243) {
+		FrameReady = true;
+		scanline = 0;
+	}
 	return 341;
 }
 

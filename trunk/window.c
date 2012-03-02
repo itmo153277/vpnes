@@ -19,33 +19,47 @@
 
 \****************************************************************************/
 
+#include "window.h"
 #include <SDL.h>
 
-#include <fstream>
-#include "window.h"
-#include "nes/nes.h"
-#include "nes/mapper.h"
+SDL_Surface *screen;
+Sint32 delaytime;
+Uint32 framestarttime = 0;
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-	vpnes::CBasicNES *NES;
-	std::fstream ROM;
-
-	/* Открываем образ */
-	if (argc != 2)
-		return 0;
-	ROM.open(argv[1], std::ios_base::in | std::ios_base::binary);
-	if (ROM.fail())
-		return 0;
-	NES = OpenROM(ROM, &WindowCallback);
-	if (NES == NULL)
+/* Инициализация SDL */
+int InitMainWindow(void) {
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
-	/* Инициализация SDL */
-	if (InitMainWindow() < 0)
+	SDL_WM_SetCaption("VPNES 0.1", NULL);
+	screen = SDL_SetVideoMode(256, 224, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	if (screen == NULL)
 		return -1;
-	/* Запуск */
-	NES->PowerOn();
-	delete NES;
-	AppQuit();
 	return 0;
+}
+
+/* Выход */
+void AppQuit(void) {
+	SDL_Quit();
+}
+
+/* Callback-функция */
+int WindowCallback(double Tim) {
+	SDL_Event event;
+	int quit = 0;
+	static int cur_frame = 0;
+	char buf[20];
+
+	while (SDL_PollEvent(&event))
+	switch (event.type) {
+		case SDL_QUIT:
+			quit = -1;
+	}
+	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime);
+	if (delaytime > 0)
+		SDL_Delay((Uint32) delaytime);
+	framestarttime = SDL_GetTicks();
+	itoa(cur_frame, buf, 10);
+	SDL_WM_SetCaption(buf, NULL);
+	cur_frame++;
+	return quit;
 }

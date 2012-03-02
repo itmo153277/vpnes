@@ -47,6 +47,10 @@ public:
 	inline void Clock(int DoClocks) {}
 };
 
+namespace clock {
+	typedef int (*CallbackFunc)(double);
+}
+
 /* Стандартный тактовой генератор */
 template <class _Bus>
 class CClock {
@@ -59,16 +63,31 @@ private:
 	_Bus *Bus;
 	/* Текущие такты */
 	int Clocks;
+	/* Callback */
+	clock::CallbackFunc CallBack;
+	/* Всего тактов */
+	int AllClocks;
 public:
-	inline explicit CClock(_Bus *pBus): Bus(pBus), Clocks(0) {}
+	inline explicit CClock(_Bus *pBus, clock::CallbackFunc pCallBack): Bus(pBus), Clocks(0),
+		CallBack(pCallBack), AllClocks(0) { }
 	inline ~CClock() {}
 
 	/* Выполнить такт */
-	inline void Clock() {
+	inline int Clock() {
+		double Tim;
+
 		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
 			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::PPU])->GetClocks());
 		static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
 		static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
+		AllClocks += Clocks;
+		if (static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {
+			static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady() = false;
+			Tim = 176.0 * AllClocks / 945000.0;
+			AllClocks = 0;
+			return CallBack(Tim);
+		}
+		return 0;
 	}
 };
 
