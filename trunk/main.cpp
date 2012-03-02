@@ -30,6 +30,7 @@
 int main(int argc, char *argv[]) {
 	vpnes::CBasicNES *NES;
 	std::fstream ROM;
+	void *buf;
 
 	/* Открываем образ */
 	if (argc != 2)
@@ -41,10 +42,9 @@ int main(int argc, char *argv[]) {
 	if (NES == NULL)
 		return -1;
 	/* Инициализация SDL */
-	if (InitMainWindow() < 0)
-		return -1;
-	/* Запуск */
-	NES->PowerOn();
+	buf = InitMainWindow(256, 224);
+	if (buf != NULL) /* Запуск */
+		NES->PowerOn();
 	delete NES;
 	AppQuit();
 	return 0;

@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 /* Инициализация SDL */
-int InitMainWindow(void);
+void *InitMainWindow(int Width, int Height);
 /* Выход */
 void AppQuit(void);
 /* Callback-функция */

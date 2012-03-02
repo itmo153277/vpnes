@@ -22,23 +22,43 @@
 #include "window.h"
 #include <SDL.h>
 
+
+#define rmask 0xff000000
+#define gmask 0x00ff0000
+#define bmask 0x0000ff00
+#define amask 0x000000ff
+
 SDL_Surface *screen;
+SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 
 /* Инициализация SDL */
-int InitMainWindow(void) {
+void *InitMainWindow(int Width, int Height) {
+	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-		return -1;
+		return NULL;
 	SDL_WM_SetCaption("VPNES 0.1", NULL);
-	screen = SDL_SetVideoMode(256, 224, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	screen = SDL_SetVideoMode(Width * 2, Height * 2, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
-		return -1;
-	return 0;
+		return NULL;
+	/* Буфер для PPU */
+	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, rmask, gmask, bmask, amask);
+	if (bufs == NULL)
+		return NULL;
+	/* Блокировка */
+	if (SDL_MUSTLOCK(bufs))
+		SDL_LockSurface(bufs);
+	return bufs->pixels;
 }
 
 /* Выход */
 void AppQuit(void) {
+	if (bufs != NULL) {
+		if (SDL_MUSTLOCK(bufs))
+			SDL_UnlockSurface(bufs);
+		SDL_FreeSurface(bufs);
+	}
 	SDL_Quit();
 }
 
@@ -49,15 +69,25 @@ int WindowCallback(double Tim) {
 	static int cur_frame = 0;
 	char buf[20];
 
+	/* Обновляем экран */
+	if (SDL_MUSTLOCK(bufs))
+		SDL_UnlockSurface(bufs);
+	SDL_BlitSurface(bufs, &bufs->clip_rect, screen, &screen->clip_rect);
+	SDL_Flip(screen);
+	if (SDL_MUSTLOCK(bufs))
+		SDL_LockSurface(bufs);
+	/* Обрабатываем сообщения */
 	while (SDL_PollEvent(&event))
-	switch (event.type) {
-		case SDL_QUIT:
-			quit = -1;
-	}
+		switch (event.type) {
+			case SDL_QUIT:
+				quit = -1;
+		}
+	/* Синхронизация */
 	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime);
 	if (delaytime > 0)
 		SDL_Delay((Uint32) delaytime);
 	framestarttime = SDL_GetTicks();
+	/* Текущий фрейм */
 	itoa(cur_frame, buf, 10);
 	SDL_WM_SetCaption(buf, NULL);
 	cur_frame++;
