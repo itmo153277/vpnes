@@ -28,9 +28,6 @@
 
 #include "device.h"
 #include "clock.h"
-#include "cpu.h"
-#include "apu.h"
-#include "ppu.h"
 
 namespace vpnes {
 
