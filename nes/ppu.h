@@ -125,8 +125,21 @@ private:
 		inline bool RenderingEnabled() { return ShowBackground || ShowSprites; }
 	} ControlRegisters;
 
+	/* Данные спрайтов */
+	struct SSprites {
+		int x; /* Координата */
+		uint8 ShiftRegA; /* Регистр сдвига A */
+		uint8 ShoftRegB; /* Регистр сдвига B */
+		uint8 Attrib; /* Аттрибуты */
+		uint8 Pal; /* Палитра */
+	} Sprites[8];
+
 	/* Память */
 	uint8 RAM[0x1000];
+	/* Спрайты */
+	uint8 OAM[0x0100];
+	/* Буфер для спрайтов */
+	uint8 Sec_OAM[0x20];
 	/* Указатель для пикселей */
 	uint32 *pixels;
 	/* Указатель на палитру */
@@ -139,9 +152,15 @@ private:
 	bool Trigger;
 	/* Внутренний буфер */
 	uint8 Buf_B;
+	/* Текущий адрес OAM */
+	uint8 OAM_addr;
+	/* Битовый образ чара */
 	uint8 TileA;
+	/* Битовый образ чара */
 	uint8 TileB;
+	/* Регистр сдвига */
 	uint8 ShiftRegA;
+	/* Регистр сдвига */
 	uint8 ShiftRegB;
 
 	/* Вывод точки */
@@ -162,6 +181,51 @@ private:
 		ShiftRegA = TileA << Registers.FH;
 		ShiftRegB = TileB << Registers.FH;
 	}
+	/* Определение спрайтов */
+	inline void EvaluteSprites(int y) {
+		uint8 *d = Sec_OAM;
+		uint8 *s = OAM;
+		int n = 0;
+		int m = 0;
+		int i = 0;
+
+		/* Волшебный код, который я нифига не понимаю */
+		memset(Sec_OAM, 0xff, 0x20 * sizeof(uint8));
+		while (true) {
+			n++;
+			if (n == 64)
+				break;
+			if (*s == y) {
+				*d = *s;
+				*(d + 1) = *(s + 1);
+				*(d + 2) = *(s + 2);
+				*(d + 3) = *(s + 3);
+				d += 4;
+				i++;
+				if (i == 8) {
+					while (true) {
+						if (*s == y) {
+							State.Overflow = true;
+							n++;
+							s += 4;
+						} else {
+							n++;
+							m++;
+							if (m == 4) {
+								m = 0;
+								s += 1;
+							} else
+								s += 5;
+						}
+						if (n == 64)
+							break;
+					}
+					break;
+				}
+			}
+			s += 4;
+		}
+	}
 
 	/* Отработать команду */
 	inline int PerformOperation();
@@ -169,10 +233,9 @@ private:
 	inline void RenderScanline();
 
 public:
-	inline explicit CPPU(_Bus *pBus): FrameReady(false), scanline(0),
-		Trigger(false) {
+	inline explicit CPPU(_Bus *pBus): pixels(NULL), FrameReady(false), scanline(0),
+		Trigger(false), OAM_addr(0) {
 		Bus = pBus;
-		pixels = NULL;
 		memset(&Registers, 0, sizeof(SRegisters));
 		memset(RAM, 0x00, 0x1000 * sizeof(uint8));
 	}
@@ -193,8 +256,11 @@ public:
 				Trigger = false;
 				Res = State.PackState();
 				State.VBlank = false;
-				State.Sprite0Hit = !State.Sprite0Hit;
+				State.Overflow = false;
+				State.Sprite0Hit = false;
 				return Res;
+			case 0x2004:
+				return OAM[OAM_addr];
 			case 0x2007:
 				Res = Buf_B;
 				Buf_B = Bus->ReadPPUMemory(Registers.Get2007Address());
@@ -215,6 +281,13 @@ public:
 				break;
 			case 0x2002:
 				State.Garbage = Src;
+				break;
+			case 0x2003:
+				OAM_addr = Src;
+				break;
+			case 0x2004:
+				OAM[OAM_addr] = Src;
+				OAM_addr++;
 				break;
 			case 0x2005:
 				Trigger = !Trigger;
@@ -251,6 +324,7 @@ public:
 	inline void Reset() {
 		memset(&ControlRegisters, 0, sizeof(SControlRegisters));
 		memset(&State, 0, sizeof(SState));
+		memset(OAM, 0x00, 0x0100 * sizeof(uint8));
 		Registers.BigReg1 = 0;
 		Registers.BigReg2 = 0;
 		Buf_B = 0;
