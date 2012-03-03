@@ -67,6 +67,8 @@ public:
 		FamilyBasic = flags & 0x02;
 		if (flags & 0x01)
 			pBus->GetMirrorMask() = 0x27ff;
+		else
+			pBus->GetMirrorMask() = 0x2bff;
 		PRG = new uint8[psize * 0x4000];
 		CHR = new uint8[csize * 0x2000];
 		ROM.seekg(16, std::ios_base::beg);

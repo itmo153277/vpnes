@@ -62,12 +62,12 @@ private:
 		/* Получить адрес для 0x2007 */
 		inline uint16 Get2007Address() { return RealReg1 & 0x3fff; }
 		/* Получить адрес для чтения NameTable */
-		inline uint16 GetNTAddress() { return (BigReg1 & 0x0fff) | 0x2000; }
+		inline uint16 GetNTAddress() { return (RealReg1 & 0x0fff) | 0x2000; }
 		/* Получить адрес для чтения AttributeTable */
-		inline uint16 GetATAddress() { return ((BigReg1 >> 2) & 0x0007) |
-			((BigReg1 >> 7) & 0x0007) | (BigReg1 & 0x0c00) | 0x23c0; }
+		inline uint16 GetATAddress() { return ((RealReg1 >> 2) & 0x0007) |
+			((RealReg1 >> 7) & 0x0007) | (RealReg1 & 0x0c00) | 0x23c0; }
 		/* Получить адрес для чтения PatternTable */
-		inline uint16 GetPTAddress() { return BigReg2 | (BigReg1 >> 12); }
+		inline uint16 GetPTAddress() { return BigReg2 | (RealReg1 >> 12); }
 		/* Запись в 0x2000 */
 		inline void Write2000(uint8 Src) { BigReg1 = (BigReg1 & 0xf3ff) |
 			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8); }
@@ -88,11 +88,11 @@ private:
 		/* Инкременты */
 		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
 			RealReg1 += 0x0020; else RealReg1++; }
-		inline void IncrementX() { uint16 Src = (BigReg1 & 0x001f); Src++; BigReg1 = (BigReg1 & 0xffe0)
-			| (Src & 0x001f); BigReg1 ^= (Src & 0x0020) << 5; }
-		inline void IncrementY() { uint16 Src = (BigReg1 >> 12) | ((BigReg1 & 0x03e0) >> 2); Src++;
-			BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); 
-			BigReg1 ^= ((Src & 0x0100) << 3) | 0x400; }
+		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++; RealReg1 = (RealReg1 & 0xffe0)
+			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
+		inline void IncrementY() { uint16 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2); Src++; if (Src == 240) Src = 0x100;
+			RealReg1 = (RealReg1 & 0x8c1f) | ((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); 
+			RealReg1 ^= ((Src & 0x0100) << 3) | 0x400; }
 		inline void BeginScanline() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f); }
 	} Registers;
 
@@ -174,7 +174,7 @@ public:
 		Bus = pBus;
 		pixels = NULL;
 		memset(&Registers, 0, sizeof(SRegisters));
-		memset(RAM, 0xff, 0x1000 * sizeof(uint8));
+		memset(RAM, 0x00, 0x1000 * sizeof(uint8));
 	}
 	inline ~CPPU() {}
 
@@ -284,7 +284,7 @@ inline void CPPU<_Bus>::RenderScanline() {
 		Registers.BeginScanline();
 		y = scanline - 21;
 		x = 0;
-		while (x < 256) {
+		while (true) {
 			if ((scanline > 28) && (scanline < 253)) {
 				while (Registers.FH < 8) {
 					col = 0;
@@ -306,6 +306,8 @@ inline void CPPU<_Bus>::RenderScanline() {
 			} else
 				x += 8;
 			Registers.IncrementX();
+			if (x == 256)
+				break;
 			FetchData();
 		}
 		Registers.IncrementY();
@@ -319,16 +321,13 @@ inline int CPPU<_Bus>::PerformOperation() {
 	scanline++;
 	if (scanline == 1) {
 		State.VBlank = true;
-		Registers.RealReg1 = Registers.BigReg1;
+		if (ControlRegisters.RenderingEnabled())
+			Registers.RealReg1 = Registers.BigReg1;
 		if (ControlRegisters.GenerateNMI)
 			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
 	} else if (scanline == 21) {
-		if (ControlRegisters.RenderingEnabled()) {
-			Registers.Write2006_1(0);
-			Registers.Write2006_2(0);
-		}
 		State.VBlank = false;
-	} else if (scanline == 263) {
+	} else if (scanline == 262) {
 		FrameReady = true;
 		scanline = 0;
 	}
