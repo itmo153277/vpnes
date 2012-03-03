@@ -32,6 +32,7 @@ SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
+double delta = 0.0;
 
 /* Инициализация SDL */
 void *InitMainWindow(int Width, int Height) {
@@ -67,7 +68,10 @@ int WindowCallback(double Tim) {
 	SDL_Event event;
 	int quit = 0;
 	static int cur_frame = 0;
+	static Uint32 fpst = 0;
 	char buf[20];
+	Sint32 passed;
+	double fps;
 
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(bufs))
@@ -76,6 +80,20 @@ int WindowCallback(double Tim) {
 	SDL_Flip(screen);
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);
+	/* Текущий фрейм */
+#if 0
+	itoa(cur_frame, buf, 10);
+	SDL_WM_SetCaption(buf, NULL);
+#endif
+	passed = SDL_GetTicks() - fpst;
+	if (passed > 1000) {
+		fps = cur_frame * 1000.0 / passed;
+		itoa((int) fps, buf, 10);
+		SDL_WM_SetCaption(buf, NULL);
+		fpst = SDL_GetTicks();
+		cur_frame = 0;
+	}
+	cur_frame++;
 	/* Обрабатываем сообщения */
 	while (SDL_PollEvent(&event))
 		switch (event.type) {
@@ -83,13 +101,11 @@ int WindowCallback(double Tim) {
 				quit = -1;
 		}
 	/* Синхронизация */
-	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime);
+	delta += Tim - (Uint32) Tim;
+	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime) + ((Uint32) delta);
+	delta -= (Uint32) delta;
 	if (delaytime > 0)
 		SDL_Delay((Uint32) delaytime);
 	framestarttime = SDL_GetTicks();
-	/* Текущий фрейм */
-	itoa(cur_frame, buf, 10);
-	SDL_WM_SetCaption(buf, NULL);
-	cur_frame++;
 	return quit;
 }
