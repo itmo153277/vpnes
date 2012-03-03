@@ -30,6 +30,8 @@
 extern "C" {
 #endif
 
+extern const void *pal;
+
 /* Инициализация SDL */
 void *InitMainWindow(int Width, int Height);
 /* Выход */

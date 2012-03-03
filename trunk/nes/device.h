@@ -113,11 +113,11 @@ public:
 	/* Обращение к памяти PPU */
 	inline uint8 ReadPPUMemory(uint16 Address) {
 		if (Address < 0x2000) /* Mapper CHR data */
-			return static_cast<ROMClass *>(DeviceList[ROM])->ReadPPUMemory(Address);
+			return static_cast<ROMClass *>(DeviceList[ROM])->ReadPPUAddress(Address);
 		if (Address < 0x3f00) /* PPU attributes/nametables */
-			return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUMemory(Address & MirrorMask);
+			return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress(Address & MirrorMask);
 		/* PPU */
-		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUMemory(Address);
+		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress(Address);
 	}
 	inline void WritePPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* Mapper CHR data, forbidden */
