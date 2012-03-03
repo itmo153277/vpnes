@@ -39,27 +39,7 @@ template <class _Bus>
 class CCPU: public CClockedDevice<_Bus> {
 	using CClockedDevice<_Bus>::Clocks;
 	using CDevice<_Bus>::Bus;
-public:
-#if 0
-	/* Типы адресации */
-	enum AddressingMode {
-		Accumulator, /* Аккумулятор */
-		Implied, /* Без параметра */
-		Immediate, /* В параметре значение */
-		Absolute, /* В параметре адрес */
-		ZeroPage, /* ZP */
-		Relative, /* PC + знаечние */
-		AbsoluteX, /* Адрес + X */
-		AbsoluteY, /* Адрес + Y */
-		ZeroPageX, /* ZP + X */
-		ZeroPageY, /* ZP + Y */
-		AbsoluteInd, /* Адрес + X + indirect */
-		ZeroPageInd, /* ZP + X + indirect */
-		ZeroPageIndY, /* ZP + indirect + Y */
-		Indirect /* Адрес + indirect */
-	};
-#endif
-
+private:
 	/* Обработчик инструкции */
 	typedef int (CCPU::*OpHandler)();
 
