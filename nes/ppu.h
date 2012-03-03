@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <cstring>
 #include "device.h"
 #include "clock.h"
 
@@ -54,11 +55,12 @@ private:
 	/* Внутренние регистры */
 	struct SRegisters {
 		uint16 BigReg1; /* Первая комбинация */
+		uint16 RealReg1; /* Настоящий регистр */
 		uint16 BigReg2; /* Вторая комбинация */
 		uint16 AR; /* Информация о аттрибутах */
 		uint16 FH; /* Точное смещение по горизонтали */
 		/* Получить адрес для 0x2007 */
-		inline uint16 Get2007Address() { return BigReg1 & 0x3fff; }
+		inline uint16 Get2007Address() { return RealReg1 & 0x3fff; }
 		/* Получить адрес для чтения NameTable */
 		inline uint16 GetNTAddress() { return (BigReg1 & 0x0fff) | 0x2000; }
 		/* Получить адрес для чтения AttributeTable */
@@ -76,20 +78,22 @@ private:
 		inline void Write2005_2(uint8 Src) { BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x07) << 12) |
 			((Src & 0xf8) << 2); }
 		/* Запись в 0x2006/1 */
-		inline void Write2006_1(uint8 Src) { BigReg1 = (BigReg1 & 0x80ff) | ((Src & 0x3f) << 8); }
+		inline void Write2006_1(uint8 Src) { BigReg1 = (BigReg1 & 0x00ff) | ((Src & 0x3f) << 8); }
 		/* Запись в 0x2006/2 */
-		inline void Write2006_2(uint8 Src) { BigReg1 = (BigReg1 & 0xff00) | Src; }
+		inline void Write2006_2(uint8 Src) { BigReg1 = (BigReg1 & 0xff00) | Src; RealReg1 = BigReg1; }
 		/* Прочитали NameTable */
 		inline void ReadNT(uint8 Src) { BigReg2 = (BigReg2 & 0x1000) | (Src << 4); }
 		/* Прочитали AttributeTable */
 		inline void ReadAT(uint8 Src) { AR = Src; }
 		/* Инкременты */
 		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
-			BigReg1 += 0x0020; else BigReg1++; }
+			RealReg1 += 0x0020; else RealReg1++; }
 		inline void IncrementX() { uint16 Src = (BigReg1 & 0x001f); Src++; BigReg1 = (BigReg1 & 0xffe0)
 			| (Src & 0x001f); BigReg1 ^= (Src & 0x0020) << 5; }
 		inline void IncrementY() { uint16 Src = (BigReg1 >> 12) | ((BigReg1 & 0x03e0) >> 2); Src++;
-			Write2005_2((uint8) Src); BigReg1 ^= (Src & 0x0100) << 3; }
+			BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); 
+			BigReg1 ^= ((Src & 0x0100) << 3) | 0x400; }
+		inline void BeginScanline() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f); }
 	} Registers;
 
 	/* Размер спрайта */
@@ -123,16 +127,55 @@ private:
 
 	/* Память */
 	uint8 RAM[0x1000];
+	/* Указатель для пикселей */
+	uint32 *pixels;
+	/* Указатель на палитру */
+	uint32 *palette;
 	/* Готовность кадра для вывода */
 	bool FrameReady;
 	/* Текущий scanline */
 	int scanline;
 	/* Внутренний флаг */
 	bool Trigger;
+	/* Внутренний буфер */
+	uint8 Buf_B;
+	uint8 TileA;
+	uint8 TileB;
+	uint8 ShiftRegA;
+	uint8 ShiftRegB;
+
+	/* Вывод точки */
+	inline void DrawPixel(int x, int y, uint32 color) {
+		if ((x >= 0) && (y >= 0) && (x <= 256) && (y <= 224))
+			pixels[x + y * 256] = color;
+	}
+	/* Фетчинг */
+	inline void FetchData() {
+		uint8 t;
+
+		t = Bus->ReadPPUMemory(Registers.GetNTAddress());
+		Registers.ReadNT(t);
+		t = Bus->ReadPPUMemory(Registers.GetATAddress());
+		Registers.ReadAT(t);
+		TileA = Bus->ReadPPUMemory(Registers.GetPTAddress());
+		TileB = Bus->ReadPPUMemory(Registers.GetPTAddress() + 8);
+		ShiftRegA = TileA << Registers.FH;
+		ShiftRegB = TileB << Registers.FH;
+	}
+
+	/* Отработать команду */
+	inline int PerformOperation();
+	/* Отработать команду */
+	inline void RenderScanline();
 
 public:
 	inline explicit CPPU(_Bus *pBus): FrameReady(false), scanline(0),
-		Trigger(false) { Bus = pBus; }
+		Trigger(false) {
+		Bus = pBus;
+		pixels = NULL;
+		memset(&Registers, 0, sizeof(SRegisters));
+		memset(RAM, 0xff, 0x1000 * sizeof(uint8));
+	}
 	inline ~CPPU() {}
 
 	/* Выполнить действие */
@@ -150,6 +193,12 @@ public:
 				Trigger = false;
 				Res = State.PackState();
 				State.VBlank = false;
+				State.Sprite0Hit = !State.Sprite0Hit;
+				return Res;
+			case 0x2007:
+				Res = Buf_B;
+				Buf_B = Bus->ReadPPUMemory(Registers.Get2007Address());
+				Registers.Increment2007(ControlRegisters.VerticalIncrement);
 				return Res;
 		}
 		return 0x00;
@@ -159,6 +208,7 @@ public:
 		switch (Address & 0x2007) {
 			case 0x2000:
 				ControlRegisters.Controller(Src);
+				Registers.Write2000(Src);
 				break;
 			case 0x2001:
 				ControlRegisters.Mask(Src);
@@ -168,25 +218,51 @@ public:
 				break;
 			case 0x2005:
 				Trigger = !Trigger;
+				if (Trigger)
+					Registers.Write2005_1(Src);
+				else
+					Registers.Write2005_2(Src);
 				break;
 			case 0x2006:
 				Trigger = !Trigger;
+				if (Trigger)
+					Registers.Write2006_1(Src);
+				else
+					Registers.Write2006_2(Src);
 				break;
 			case 0x2007:
-				;
+				Buf_B = Src;
+				Bus->WritePPUMemory(Registers.Get2007Address(), Src);
+				Registers.Increment2007(ControlRegisters.VerticalIncrement);
+				break;
 		}
 	}
 
 	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return RAM[Address & 0x0fff];
+	}
 	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) {}
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		RAM[Address & 0x0fff] = Src;
+	}
 
-	/* Отработать команду */
-	int PerformOperation();
+	/* Сброс */
+	inline void Reset() {
+		memset(&ControlRegisters, 0, sizeof(SControlRegisters));
+		memset(&State, 0, sizeof(SState));
+		Registers.BigReg1 = 0;
+		Registers.BigReg2 = 0;
+		Buf_B = 0;
+		scanline = 21;
+	}
 
 	/* Флаг вывода */
 	inline bool &IsFrameReady() { return FrameReady; }
+	/* Буфер для вывода */
+	inline uint32 *&GetBuf() { return pixels; }
+	/* Палитра */
+	inline uint32 *&GetPalette() { return palette; }
 };
 
 /* Махинации с классом */
@@ -197,20 +273,66 @@ struct PPU_rebind {
 	};
 };
 
+/* Рендер */
+/* Код очень приблизительный, надо переписать полностью */
+template <class _Bus>
+inline void CPPU<_Bus>::RenderScanline() {
+	int x, y;
+	int col;
+
+	if (ControlRegisters.RenderingEnabled() && (scanline >= 21) && (scanline <= 261)) {
+		Registers.BeginScanline();
+		y = scanline - 21;
+		x = 0;
+		while (x < 256) {
+			if ((scanline > 28) && (scanline < 253)) {
+				while (Registers.FH < 8) {
+					col = 0;
+					if (ShiftRegA & 0x80)
+						col |= 1;
+					if (ShiftRegB & 0x80)
+						col |= 2;
+					DrawPixel(x, y-8, palette[col]);
+					x++;
+					ShiftRegA <<= 1;
+					ShiftRegB <<= 1;
+					Registers.FH++;
+					if (x == 256)
+						break;
+				}
+				if (Registers.FH != 8)
+					break;
+				Registers.FH = 0;
+			} else
+				x += 8;
+			Registers.IncrementX();
+			FetchData();
+		}
+		Registers.IncrementY();
+		FetchData();
+	}
+}
+
 /* Отработать такт */
 template <class _Bus>
 inline int CPPU<_Bus>::PerformOperation() {
 	scanline++;
 	if (scanline == 1) {
 		State.VBlank = true;
+		Registers.RealReg1 = Registers.BigReg1;
 		if (ControlRegisters.GenerateNMI)
 			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
 	} else if (scanline == 21) {
+		if (ControlRegisters.RenderingEnabled()) {
+			Registers.Write2006_1(0);
+			Registers.Write2006_2(0);
+		}
 		State.VBlank = false;
 	} else if (scanline == 263) {
 		FrameReady = true;
 		scanline = 0;
 	}
+	RenderScanline();
 	return 341;
 }
 

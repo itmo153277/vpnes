@@ -103,6 +103,13 @@ public:
 		if ((Address >= 0x6000) && (Address <= 0x7fff))
 			SRAM[Address & 0x5fff] = Src;
 	}
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return CHR[Address];
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) { }
 };
 
 /* Махинации с классом */

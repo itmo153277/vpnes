@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
 #include "device.h"
 #include "clock.h"
 
@@ -41,13 +43,10 @@ public:
 	virtual int PowerOn() = 0;
 	/* Reset */
 	virtual int Reset() = 0;
-
-	/* *NOTE* */
-	/* Предполагается, что работа приставки будет осуществляться */
-	/* с помощью функции PowerOn(), поскольку виртуальные функции */
-	/* не будут интерпретироваться как inline-функции. Для осуществления */
-	/* обратной связи вероятно будет введен callback-параметр, на данной */
-	/* стадии он не определен. */
+	/* Установить указатель на буфер */
+	virtual void SetBuf(uint32 *Buf) = 0;
+	/* Установить указатель на палитру */
+	virtual void SetPal(uint32 *Pal) = 0;
 };
 
 /* Стандартный NES (NTSC) */
@@ -83,9 +82,17 @@ public:
 		delete Bus.GetDeviceList()[BusClass::ROM];
 	}
 
+	/* Установить указатель на буфер */
+	inline void SetBuf(uint32 *Buf) {
+		PPU.GetBuf() = Buf;
+	}
+	/* Установить указатель на палитру */
+	inline void SetPal(uint32 *Pal) {
+		PPU.GetPalette() = Pal;
+	}
 	/* Запуск */
 	inline int PowerOn() {
-		CPU.Reset();
+		Reset();
 		for (;;) {
 			if (Clock.Clock() < 0)
 				break;
@@ -95,7 +102,11 @@ public:
 		return 0;
 	}
 	/* Reset */
-	inline int Reset() { return 0; }
+	inline int Reset() {
+		CPU.Reset();
+		PPU.Reset();
+		return 0;
+	}
 
 	/* Доступ к шине */
 	inline BusClass &GetBus() { return Bus; }

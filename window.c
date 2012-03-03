@@ -33,6 +33,8 @@ SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
+Uint32 Pal[4];
+const void *pal = Pal;
 
 /* Инициализация SDL */
 void *InitMainWindow(int Width, int Height) {
@@ -40,16 +42,21 @@ void *InitMainWindow(int Width, int Height) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return NULL;
 	SDL_WM_SetCaption("VPNES 0.1", NULL);
-	screen = SDL_SetVideoMode(Width * 2, Height * 2, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	screen = SDL_SetVideoMode(Width, Height, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return NULL;
 	/* Буфер для PPU */
 	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, rmask, gmask, bmask, amask);
+	bufs=screen;
 	if (bufs == NULL)
 		return NULL;
 	/* Блокировка */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);
+	Pal[0] = SDL_MapRGB(bufs->format, 0, 0, 0);
+	Pal[1] = SDL_MapRGB(bufs->format, 255, 255, 255);
+	Pal[2] = SDL_MapRGB(bufs->format, 0, 0, 255);
+	Pal[3] = SDL_MapRGB(bufs->format, 255, 0, 0);
 	return bufs->pixels;
 }
 
@@ -76,7 +83,7 @@ int WindowCallback(double Tim) {
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_UnlockSurface(bufs);
-	SDL_BlitSurface(bufs, &bufs->clip_rect, screen, &screen->clip_rect);
+	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);
@@ -100,6 +107,7 @@ int WindowCallback(double Tim) {
 			case SDL_QUIT:
 				quit = -1;
 		}
+#if 1
 	/* Синхронизация */
 	delta += Tim - (Uint32) Tim;
 	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime) + ((Uint32) delta);
@@ -107,5 +115,6 @@ int WindowCallback(double Tim) {
 	if (delaytime > 0)
 		SDL_Delay((Uint32) delaytime);
 	framestarttime = SDL_GetTicks();
+#endif
 	return quit;
 }

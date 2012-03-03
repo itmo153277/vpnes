@@ -20,6 +20,7 @@
 \****************************************************************************/
 
 #include <SDL.h>
+#include "types.h"
 
 #include <fstream>
 #include "window.h"
@@ -43,8 +44,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	/* Инициализация SDL */
 	buf = InitMainWindow(256, 224);
-	if (buf != NULL) /* Запуск */
+	if (buf != NULL) /* Запуск */ {
+		NES->SetBuf((uint32 *) buf);
+		NES->SetPal((uint32 *) pal);
 		NES->PowerOn();
+	}
 	delete NES;
 	AppQuit();
 	return 0;
