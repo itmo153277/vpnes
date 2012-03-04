@@ -256,7 +256,7 @@ public:
 			OAM[OAM_addr] = Bus->ReadCPUMemory(OAM_DMA);
 			OAM_DMA++;
 			OAM_addr++;
-			if (OAM_addr == 256) {
+			if (OAM_addr == 0) {
 				OAM_addr = 0;
 				DMA_use = false;
 				break;

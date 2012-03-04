@@ -39,7 +39,7 @@ template <class _Bus>
 class CCPU: public CClockedDevice<_Bus> {
 	using CClockedDevice<_Bus>::Clocks;
 	using CDevice<_Bus>::Bus;
-private:
+public:
 	/* Обработчик инструкции */
 	typedef int (CCPU::*OpHandler)();
 
@@ -324,8 +324,8 @@ private:
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint8 AddressOffset;
 			AddressOffset = CPU.Bus->ReadCPUMemory(CPU.Registers.pc - 1);
-			return (CPU.RAM[(uint8) (AddressOffset + 1)] << 8) | (uint8) (CPU.RAM[AddressOffset]
-				+ CPU.Registers.y);
+			return ((CPU.RAM[(uint8) (AddressOffset + 1)] << 8) | CPU.RAM[AddressOffset])
+				+ CPU.Registers.y;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
 			return CPU.Bus->ReadCPUMemory(GetAddr(CPU));
@@ -371,7 +371,7 @@ public:
 	inline explicit CCPU(_Bus *pBus) {
 		Bus = pBus;
 		/* Стартовые значения */
-		memset(RAM, 0xff, 2048 * sizeof(uint8));
+		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
 		RAM[0x0008] = 0xf7;
 		RAM[0x0009] = 0xef;
 		RAM[0x000a] = 0xdf;
@@ -610,6 +610,8 @@ inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
 
+	if (Halt) /* Зависли */
+		return 0;
 	if (OAM_DMA) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA();
 		OAM_DMA = -1;
@@ -622,7 +624,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
 			return 3; /* + 3 такта */
 		} else {
-			PushWord(Registers.pc - 1); /* Следующая команда */
+			PushWord(Registers.pc); /* Следующая команда */
 			PushByte(State.State); /* Сохраняем состояние */
 			CurBreak = true;
 			return 4; /* 4 такта */
@@ -637,7 +639,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 	if (IRQ) { /* Подан сигнал IRQ */
 		IRQ = false;
 		if (!State.Interrupt()) { /* Обработка разрешена */
-			PushWord(Registers.pc - 1); /* Следующая команда */
+			PushWord(Registers.pc); /* Следующая команда */
 			PushByte(State.State); /* Сохраняем состояние */
 			CurBreak = true;
 			return 4; /* 4 такта */
@@ -651,8 +653,6 @@ inline int CCPU<_Bus>::PerformOperation() {
 		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
-	if (Halt) /* Зависли */
-		return 0;
 	if (OAM_DMA > 0) /* DMA */
 		return 513;
 	return clocks;
@@ -730,7 +730,7 @@ int CCPU<_Bus>::OpADC() {
 
 	src = _Addr::ReadByte(*this);
 	temp = src + Registers.a + (State.State & 0x01);
-	State.VFlag((((temp ^ src) & ~(Registers.a ^ src)) & 0x80) != 0);
+	State.VFlag(((temp ^ Registers.a) & ~(Registers.a ^ src)) & 0x80);
 	State.CFlag(temp >= 0x100);
 	Registers.a = (uint8) temp;
 	State.NFlag(Registers.a);
@@ -745,8 +745,8 @@ int CCPU<_Bus>::OpSBC() {
 	uint16 temp, src;
 
 	src = _Addr::ReadByte(*this);
-	temp = src - Registers.a - (State.State & 0x01);
-	State.VFlag((((temp ^ src) & ~(Registers.a ^ src)) & 0x80) != 0);
+	temp = Registers.a - src - (~State.State & 0x01);
+	State.VFlag(((temp ^ Registers.a) & (Registers.a ^ src)) & 0x80);
 	State.CFlag(temp < 0x100);
 	Registers.a = (uint8) temp;
 	State.NFlag(Registers.a);
@@ -829,7 +829,7 @@ int CCPU<_Bus>::OpASL() {
 	uint8 src;
 
 	src = _Addr::ReReadByte(*this);
-	State.CFlag((src & 0x80) != 0);
+	State.CFlag(src & 0x80);
 	src <<= 1;
 	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
@@ -844,7 +844,7 @@ int CCPU<_Bus>::OpLSR() {
 	uint8 src;
 
 	src = _Addr::ReReadByte(*this);
-	State.CFlag((src & 0x01) != 0);
+	State.CFlag(src & 0x01);
 	src >>= 1;
 	_Addr::ReWriteByte(*this, src);
 	State.NFlag(src);
@@ -860,7 +860,7 @@ int CCPU<_Bus>::OpROL() {
 
 	src = _Addr::ReReadByte(*this);
 	temp = (src << 1) | (State.State & 0x01);
-	State.CFlag((src & 0x80) != 0);
+	State.CFlag(src & 0x80);
 	_Addr::ReWriteByte(*this, temp);
 	State.NFlag(temp);
 	State.ZFlag(temp);
@@ -875,7 +875,7 @@ int CCPU<_Bus>::OpROR() {
 
 	src = _Addr::ReReadByte(*this);
 	temp = (src >> 1) | ((State.State & 0x01) << 7);
-	State.CFlag((src & 0x01) != 0);
+	State.CFlag(src & 0x01);
 	_Addr::ReWriteByte(*this, temp);
 	State.NFlag(temp);
 	State.ZFlag(temp);
@@ -958,7 +958,7 @@ int CCPU<_Bus>::OpBIT() {
 	uint16 src;
 
 	src = _Addr::ReadByte(*this);
-	State.VFlag((src & 0x40) != 0);
+	State.VFlag(src & 0x40);
 	State.NFlag(src);
 	State.ZFlag(Registers.a & src);
 	return 0;
@@ -1131,8 +1131,6 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpTXS() {
 	Registers.s = Registers.x;
-	State.NFlag(Registers.s);
-	State.ZFlag(Registers.s);
 	return 0;
 }
 
@@ -1200,7 +1198,7 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpRTI() {
 	State.SetState(PopByte());
-	Registers.pc = PopWord() + 1;
+	Registers.pc = PopWord();
 	return 0;
 }
 

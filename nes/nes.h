@@ -96,8 +96,6 @@ public:
 		for (;;) {
 			if (Clock.Clock() < 0)
 				break;
-			if (CPU.GetHaltState())
-				break;
 		}
 		return 0;
 	}
