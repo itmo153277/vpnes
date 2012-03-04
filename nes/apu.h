@@ -35,14 +35,24 @@ namespace vpnes {
 /* APU */
 template <class _Bus>
 class CAPU: public CDevice<_Bus> {
+	using CDevice<_Bus>::Bus;
 public:
-	inline explicit CAPU() {}
+	inline explicit CAPU(_Bus *pBus) { Bus = pBus; }
 	inline ~CAPU() {}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadAddress(uint16 Address) {
+		return 0x00;
+	}
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {}
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		switch (Address) {
+			case 0x4014: /* OAM DMA */
+				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetDMA() = Src;
+				static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(Src);
+				break;
+		}
+	}
 };
 
 /* Махинации с классом */
