@@ -28,6 +28,8 @@
 
 #include "../types.h"
 
+#include <SDL.h>
+
 #include "device.h"
 
 namespace vpnes {
@@ -36,12 +38,36 @@ namespace vpnes {
 template <class _Bus>
 class CAPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
+private:
+	uint8 b;
 public:
-	inline explicit CAPU(_Bus *pBus) { Bus = pBus; }
+	inline explicit CAPU(_Bus *pBus) { Bus = pBus; b = 0; }
 	inline ~CAPU() {}
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
+		switch (Address) {
+			case 0x4016:
+				b++;
+				switch (b) {
+				case 1:
+					return SDL_GetKeyState(NULL)[SDLK_c];
+				case 2:
+					return SDL_GetKeyState(NULL)[SDLK_x];
+				case 3:
+					return SDL_GetKeyState(NULL)[SDLK_a];
+				case 4:
+					return SDL_GetKeyState(NULL)[SDLK_s];
+				case 5:
+					return SDL_GetKeyState(NULL)[SDLK_UP];
+				case 6:
+					return SDL_GetKeyState(NULL)[SDLK_DOWN];
+				case 7:
+					return SDL_GetKeyState(NULL)[SDLK_LEFT];
+				case 8:
+					return SDL_GetKeyState(NULL)[SDLK_RIGHT];
+				}
+		}
 		return 0x00;
 	}
 	/* Запись памяти */
@@ -50,6 +76,9 @@ public:
 			case 0x4014: /* OAM DMA */
 				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetDMA() = Src;
 				static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(Src);
+				break;
+			case 0x4016:
+				b = 0;
 				break;
 		}
 	}
