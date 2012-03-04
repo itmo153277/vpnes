@@ -162,6 +162,12 @@ private:
 	uint8 ShiftRegA;
 	/* Регистр сдвига */
 	uint8 ShiftRegB;
+	/* DMA */
+	uint16 OAM_DMA;
+	/* DMA pos */
+	int DMA_pos;
+	/* DMA flag */
+	bool DMA_use;
 
 	/* Вывод точки */
 	inline void DrawPixel(int x, int y, uint32 color) {
@@ -241,10 +247,38 @@ public:
 	}
 	inline ~CPPU() {}
 
+	/* Выполнить DMA */
+	inline void ProcessDMA() {
+		int num = DMA_pos / 6;
+
+		DMA_pos -= num * 6;
+		for (; num > 0; num--) {
+			OAM[OAM_addr] = Bus->ReadCPUMemory(OAM_DMA);
+			OAM_DMA++;
+			OAM_addr++;
+			if (OAM_addr == 256) {
+				OAM_addr = 0;
+				DMA_use = false;
+				break;
+			}
+		}
+	}
+
+	/* Установить DMA */
+	inline void SetDMA(sint16 DMA) {
+		OAM_DMA = DMA << 8;
+		OAM_addr = 0;
+		DMA_pos = 0;
+		DMA_use = true;
+	}
+
 	/* Выполнить действие */
 	inline void Clock(int DoClocks) {
-		if ((Clocks -= DoClocks) == 0)
+		if (DMA_use)
+			DMA_pos += DoClocks;
+		if ((Clocks -= DoClocks) == 0) {
 			Clocks = PerformOperation();
+		}
 	}
 
 	/* Чтение памяти */
@@ -329,6 +363,7 @@ public:
 		Registers.BigReg2 = 0;
 		Buf_B = 0;
 		scanline = 21;
+		DMA_use = false;
 	}
 
 	/* Флаг вывода */

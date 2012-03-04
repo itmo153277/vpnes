@@ -72,7 +72,7 @@ private:
 	PPUClass PPU;
 public:
 	inline explicit CNES(clock::CallbackFunc CallBack): Bus(),
-		Clock(&Bus, CallBack), CPU(&Bus), APU(), PPU(&Bus) {
+		Clock(&Bus, CallBack), CPU(&Bus), APU(&Bus), PPU(&Bus) {
 		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
 		Bus.GetDeviceList()[BusClass::APU] = &APU;
 		Bus.GetDeviceList()[BusClass::PPU] = &PPU;

@@ -92,6 +92,8 @@ private:
 	bool Halt;
 	/* Переменная для кеширования адреса */
 	uint16 AddrCache;
+	/* DMA */
+	sint16 OAM_DMA;
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
@@ -400,6 +402,8 @@ public:
 	inline bool &GetIRQPin() { return IRQ; }
 	/* Halt flag */
 	inline bool &GetHaltState() { return Halt; }
+	/* DMA */
+	inline sint16 &GetDMA() { return OAM_DMA; }
 
 	/* Сброс */
 	inline void Reset() {
@@ -410,6 +414,7 @@ public:
 		Halt = false;
 		CurBreak = false;
 		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
+		OAM_DMA = -1;
 	}
 
 private:
@@ -605,6 +610,10 @@ inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
 
+	if (OAM_DMA) { /* Выполнить DMA */
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA();
+		OAM_DMA = -1;
+	}
 	if (NMI) { /* Подан сигнал NMI */
 		if (CurBreak) { /* Уже занимаемся обработкой */
 			CurBreak = false;
@@ -644,6 +653,8 @@ inline int CCPU<_Bus>::PerformOperation() {
 	clocks += (this->*OpCodes[opcode].Handler)();
 	if (Halt) /* Зависли */
 		return 0;
+	if (OAM_DMA > 0) /* DMA */
+		return 513;
 	return clocks;
 }
 
