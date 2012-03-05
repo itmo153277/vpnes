@@ -64,7 +64,6 @@ void *InitMainWindow(int Width, int Height) {
 		return NULL;
 	/* Буфер для PPU */
 	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, rmask, gmask, bmask, amask);
-	bufs=screen;
 	if (bufs == NULL)
 		return NULL;
 	/* Блокировка */
@@ -98,7 +97,7 @@ int WindowCallback(double Tim) {
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_UnlockSurface(bufs);
-//	SDL_BlitSurface(bufs, NULL, screen, NULL);
+	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);
