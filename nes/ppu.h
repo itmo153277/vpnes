@@ -59,6 +59,7 @@ private:
 		uint16 BigReg2; /* Вторая комбинация */
 		uint16 AR; /* Информация о аттрибутах */
 		uint16 FH; /* Точное смещение по горизонтали */
+		uint16 SpritePage; /* Страница для спрайтов */
 		/* Получить адрес для 0x2007 */
 		inline uint16 Get2007Address() { return RealReg1 & 0x3fff; }
 		/* Получить адрес для чтения NameTable */
@@ -69,11 +70,15 @@ private:
 		/* Получить адрес для чтения PatternTable */
 		inline uint16 GetPTAddress() { return BigReg2 | (RealReg1 >> 12); }
 		/* Получить адрес для чтения Palette */
-		inline uint8 GetPALAddress(uint8 col) { if (col == 0) return 0x00; else
-			return ((AR & 0x3) << 2) | col; }
+		inline uint8 GetPALAddress(uint8 col, uint8 CAR) { if ((col & 0x03) == 0)
+			return 0x00; else return ((CAR & 0x03) << 2) | col; }
+		/* Получить адрес для чтения PatternTable спрайтов */
+		inline uint16 GetSpriteAddress(uint8 Tile, uint8 v, uint16 CurPage) {
+			return CurPage | (Tile << 4) | v; }
 		/* Запись в 0x2000 */
 		inline void Write2000(uint8 Src) { BigReg1 = (BigReg1 & 0xf3ff) |
-			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8); }
+			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8);
+			SpritePage = (Src & 0x80) << 5; }
 		/* Запись в 0x2005/1 */
 		inline void Write2005_1(uint8 Src) { FH = Src & 0x07; BigReg1 = (BigReg1 & 0xffe0) |
 			(Src >> 3); }
@@ -87,7 +92,7 @@ private:
 		/* Прочитали NameTable */
 		inline void ReadNT(uint8 Src) { BigReg2 = (BigReg2 & 0x1000) | (Src << 4); }
 		/* Прочитали AttributeTable */
-		inline void ReadAT(uint8 Src) { AR = Src >> (((RealReg1 >> 3) & 0x004) | (RealReg1 & 0x0002)); }
+		inline void ReadAT(uint8 Src) { AR = Src >> (((RealReg1 >> 4) & 0x004) | (RealReg1 & 0x0002)); }
 		/* Инкременты */
 		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
 			RealReg1 += 0x0020; else RealReg1++; }
@@ -101,8 +106,8 @@ private:
 
 	/* Размер спрайта */
 	enum SpriteSize {
-		Size8x8,
-		Size8x16
+		Size8x8 = 8,
+		Size8x16 = 16
 	};
 
 	/* Управляющие регистры */
@@ -130,11 +135,13 @@ private:
 
 	/* Данные спрайтов */
 	struct SSprites {
-		int x; /* Координата */
+		int x; /* Координаты */
+		int y;
+		int cx; /* Текущая x */
 		uint8 ShiftRegA; /* Регистр сдвига A */
-		uint8 ShoftRegB; /* Регистр сдвига B */
+		uint8 ShiftRegB; /* Регистр сдвига B */
 		uint8 Attrib; /* Аттрибуты */
-		uint8 Pal; /* Палитра */
+		uint8 Tile; /* Чар */
 	} Sprites[8];
 
 	/* Память */
@@ -181,19 +188,18 @@ private:
 	}
 	/* Фетчинг */
 	inline void FetchData() {
-		uint8 t;
+		uint16 t;
 
-		t = Bus->ReadPPUMemory(Registers.GetNTAddress());
-		Registers.ReadNT(t);
-		t = Bus->ReadPPUMemory(Registers.GetATAddress());
-		Registers.ReadAT(t);
-		TileA = Bus->ReadPPUMemory(Registers.GetPTAddress());
-		TileB = Bus->ReadPPUMemory(Registers.GetPTAddress() + 8);
+		Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
+		Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
+		t = Registers.GetPTAddress();
+		TileA = Bus->ReadPPUMemory(t);
+		TileB = Bus->ReadPPUMemory(t | 0x08);
 		ShiftRegA = TileA << Registers.FH;
 		ShiftRegB = TileB << Registers.FH;
 	}
 	/* Определение спрайтов */
-	inline void EvaluteSprites(int y) {
+	inline void EvaluateSprites(int y) {
 		uint8 *d = Sec_OAM;
 		uint8 *s = OAM;
 		int n = 0;
@@ -206,7 +212,7 @@ private:
 			n++;
 			if (n == 64)
 				break;
-			if (*s == y) {
+			if ((y >= *s) && ((y - *s) <= ControlRegisters.Size)) {
 				*d = *s;
 				*(d + 1) = *(s + 1);
 				*(d + 2) = *(s + 2);
@@ -215,7 +221,7 @@ private:
 				i++;
 				if (i == 8) {
 					while (true) {
-						if (*s == y) {
+						if ((y >= *s) && ((y - *s) <= ControlRegisters.Size)) {
 							State.Overflow = true;
 							n++;
 							s += 4;
@@ -364,7 +370,7 @@ public:
 	inline void Reset() {
 		memset(&ControlRegisters, 0, sizeof(SControlRegisters));
 		memset(&State, 0, sizeof(SState));
-		memset(OAM, 0x00, 0x0100 * sizeof(uint8));
+		memset(OAM, 0xff, 0x0100 * sizeof(uint8));
 		Registers.BigReg1 = 0;
 		Registers.BigReg2 = 0;
 		Buf_B = 0;
@@ -394,13 +400,16 @@ struct PPU_rebind {
 /* Код очень приблизительный, надо переписать полностью */
 template <class _Bus>
 inline void CPPU<_Bus>::RenderScanline() {
-	int x, y;
-	int col;
+	int x, y, i;
+	int col, scol;
+	uint8 *s = Sec_OAM;
+	uint16 t;
 
 	if (ControlRegisters.RenderingEnabled() && (scanline >= 21) && (scanline <= 261)) {
 		Registers.BeginScanline();
 		y = scanline - 21;
 		x = 0;
+		EvaluateSprites(y);
 		while (true) {
 			if ((scanline > 28) && (scanline < 253)) {
 				while (Registers.FH < 8) {
@@ -411,7 +420,43 @@ inline void CPPU<_Bus>::RenderScanline() {
 						col |= 2;
 					if (Registers.AR == 0x55)
 						Registers.AR = 0x55;
-					DrawPixel(x, y - 8, palette[PalMem[Registers.GetPALAddress(col)] & 0x3f]);
+					t = Registers.GetPALAddress(col, Registers.AR);
+					for (i = 0; i < 8; i++)
+						if (Sprites[i].x == x) {
+							Sprites[i].cx++;
+							if (Sprites[i].cx == 9) {
+								Sprites[i].x = -1;
+								continue;
+							}
+							scol = 0x10;
+							switch (Sprites[i].Attrib & 0x40) {
+								case 0x00:
+									if (Sprites[i].ShiftRegA & 0x80)
+										scol |= 1;
+									if (Sprites[i].ShiftRegB & 0x80)
+										scol |= 2;
+									Sprites[i].ShiftRegA <<= 1;
+									Sprites[i].ShiftRegB <<= 1;
+									break;
+								case 0x40:
+									if (Sprites[i].ShiftRegA & 0x01)
+										scol |= 1;
+									if (Sprites[i].ShiftRegB & 0x01)
+										scol |= 2;
+									Sprites[i].ShiftRegA >>= 1;
+									Sprites[i].ShiftRegB >>= 1;
+									break;
+							}
+							if ((scol != 0x10) && ((col == 0) ||
+								(~Sprites[i].Attrib & 0x20))) {
+								t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
+								if (col != 0)
+									State.Sprite0Hit = true;
+							}
+							Sprites[i].x++;
+							break;
+						}
+					DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 					x++;
 					ShiftRegA <<= 1;
 					ShiftRegB <<= 1;
@@ -428,6 +473,36 @@ inline void CPPU<_Bus>::RenderScanline() {
 			if (x == 256)
 				break;
 			FetchData();
+		}
+		i = 0;
+		while (*s != 0xff) {
+			Sprites[i].y = *(s++);
+			Sprites[i].Tile = *(s++);
+			Sprites[i].Attrib = *(s++);
+			Sprites[i].x = *(s++);
+			Sprites[i].cx = 0;
+			switch (ControlRegisters.Size) {
+			case Size8x8:
+//				if (Sprites[i].Attrib & 0x80)
+//					t = Registers.GetSpriteAddress(Sprites[i].Tile, 8 + Sprites[i].y - y);
+//				else
+					t = Registers.GetSpriteAddress(Sprites[i].Tile, y - Sprites[i].y, Registers.SpritePage);
+				break;
+			case Size8x16:
+				t = (Sprites[i].Tile & 0x01) << 8;
+//				if (Sprites[i].Attrib & 0x80)
+					if ((y - Sprites[i].y) > 8)
+						t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01, y - Sprites[i].y, t);
+					else
+						t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01, y - Sprites[i].y, t);
+					break;
+			}
+			Sprites[i].ShiftRegA = Bus->ReadPPUMemory(t);
+			Sprites[i].ShiftRegB = Bus->ReadPPUMemory(t | 0x08);
+			i++;
+			if (i == 8)
+				break;
+			Sprites[i].x = -1;
 		}
 		Registers.IncrementY();
 		FetchData();
