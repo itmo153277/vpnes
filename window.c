@@ -33,11 +33,28 @@ SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
-Uint32 Pal[4];
+Uint32 Pal[64];
 const void *pal = Pal;
+const Uint8 NES_Palette[64][3] = {
+	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132}, 
+	{168, 0,  32  }, {168, 16,  0  }, {136, 20,  0  }, {80,  48,  0  }, {0,   120, 0  }, 
+	{0,   104, 0  }, {0,   88,  0  }, {0,   64,  88 }, {0,   0,   0  }, {0,   0,   0  }, 
+	{0,   0,   0  }, {188, 188, 188}, {0,   120, 248}, {0,   88,  248}, {104, 68,  252}, 
+	{216, 0,   204}, {228, 0,   88 }, {248, 56,  0  }, {228, 92,  16 }, {172, 124, 0  }, 
+	{0,   184, 0  }, {0,   168, 0  }, {0,   168, 68 }, {0,   136, 136}, {0,   0,   0  }, 
+	{0,   0,   0  }, {0,   0,   0  }, {248, 248, 248}, {60,  188, 252}, {104, 136, 252}, 
+	{152, 120, 248}, {248, 120, 248}, {248, 88,  152}, {248, 120, 88 }, {252, 160, 68 }, 
+	{248, 184, 0  }, {184, 248, 24 }, {88,  216, 84 }, {88,  248, 152}, {0,   232, 216}, 
+	{120, 120, 120}, {0,   0,   0  }, {0,   0,   0  }, {252, 252, 252}, {164, 228, 252}, 
+	{184, 184, 248}, {216, 184, 248}, {248, 184, 248}, {248, 164, 192}, {240, 208, 176}, 
+	{252, 224, 168}, {248, 216, 120}, {216, 248, 120}, {184, 248, 184}, {184, 248, 216}, 
+	{0,   252, 252}, {216, 216, 216}, {0,   0,   0  }, {0,   0,   0  }
+};
 
 /* Инициализация SDL */
 void *InitMainWindow(int Width, int Height) {
+	int i;
+
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return NULL;
@@ -53,10 +70,8 @@ void *InitMainWindow(int Width, int Height) {
 	/* Блокировка */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);
-	Pal[0] = SDL_MapRGB(bufs->format, 0, 0, 0);
-	Pal[1] = SDL_MapRGB(bufs->format, 255, 255, 255);
-	Pal[2] = SDL_MapRGB(bufs->format, 0, 0, 255);
-	Pal[3] = SDL_MapRGB(bufs->format, 255, 0, 0);
+	for (i = 0; i < 64; i++)
+		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
 	return bufs->pixels;
 }
 
@@ -83,7 +98,7 @@ int WindowCallback(double Tim) {
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_UnlockSurface(bufs);
-	SDL_BlitSurface(bufs, NULL, screen, NULL);
+//	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
 	if (SDL_MUSTLOCK(bufs))
 		SDL_LockSurface(bufs);

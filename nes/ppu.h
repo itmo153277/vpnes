@@ -65,9 +65,12 @@ private:
 		inline uint16 GetNTAddress() { return (RealReg1 & 0x0fff) | 0x2000; }
 		/* Получить адрес для чтения AttributeTable */
 		inline uint16 GetATAddress() { return ((RealReg1 >> 2) & 0x0007) |
-			((RealReg1 >> 7) & 0x0007) | (RealReg1 & 0x0c00) | 0x23c0; }
+			((RealReg1 >> 4) & 0x0038) | (RealReg1 & 0x0c00) | 0x23c0; }
 		/* Получить адрес для чтения PatternTable */
 		inline uint16 GetPTAddress() { return BigReg2 | (RealReg1 >> 12); }
+		/* Получить адрес для чтения Palette */
+		inline uint8 GetPALAddress(uint8 col) { if (col == 0) return 0x00; else
+			return ((AR & 0x3) << 2) | col; }
 		/* Запись в 0x2000 */
 		inline void Write2000(uint8 Src) { BigReg1 = (BigReg1 & 0xf3ff) |
 			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8); }
@@ -84,7 +87,7 @@ private:
 		/* Прочитали NameTable */
 		inline void ReadNT(uint8 Src) { BigReg2 = (BigReg2 & 0x1000) | (Src << 4); }
 		/* Прочитали AttributeTable */
-		inline void ReadAT(uint8 Src) { AR = Src; }
+		inline void ReadAT(uint8 Src) { AR = Src >> (((RealReg1 >> 3) & 0x004) | (RealReg1 & 0x0002)); }
 		/* Инкременты */
 		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
 			RealReg1 += 0x0020; else RealReg1++; }
@@ -136,6 +139,8 @@ private:
 
 	/* Память */
 	uint8 RAM[0x1000];
+	/* Палитра */
+	uint8 PalMem[0x20];
 	/* Спрайты */
 	uint8 OAM[0x0100];
 	/* Буфер для спрайтов */
@@ -244,6 +249,7 @@ public:
 		Bus = pBus;
 		memset(&Registers, 0, sizeof(SRegisters));
 		memset(RAM, 0x00, 0x1000 * sizeof(uint8));
+		memset(PalMem, 0x00, 0x20 * sizeof(uint8));
 	}
 	inline ~CPPU() {}
 
@@ -372,6 +378,8 @@ public:
 	inline uint32 *&GetBuf() { return pixels; }
 	/* Палитра */
 	inline uint32 *&GetPalette() { return palette; }
+	/* Палитра */
+	inline uint8 *GetPalMem() { return PalMem; }
 };
 
 /* Махинации с классом */
@@ -401,7 +409,9 @@ inline void CPPU<_Bus>::RenderScanline() {
 						col |= 1;
 					if (ShiftRegB & 0x80)
 						col |= 2;
-					DrawPixel(x, y-8, palette[col]);
+					if (Registers.AR == 0x55)
+						Registers.AR = 0x55;
+					DrawPixel(x, y - 8, palette[PalMem[Registers.GetPALAddress(col)] & 0x3f]);
 					x++;
 					ShiftRegA <<= 1;
 					ShiftRegB <<= 1;

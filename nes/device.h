@@ -116,16 +116,19 @@ public:
 			return static_cast<ROMClass *>(DeviceList[ROM])->ReadPPUAddress(Address);
 		if (Address < 0x3f00) /* PPU attributes/nametables */
 			return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress(Address & MirrorMask);
-		/* PPU */
-		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress(Address);
+		if ((Address & 0x0003) == 0)
+			return static_cast<PPUClass *>(DeviceList[PPU])->GetPalMem()[Address & 0x000c];
+		return static_cast<PPUClass *>(DeviceList[PPU])->GetPalMem()[Address & 0x001f];
 	}
 	inline void WritePPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* Mapper CHR data, forbidden */
 			static_cast<ROMClass *>(DeviceList[ROM])->WritePPUAddress(Address, Src);
 		else if (Address < 0x3f00) /* PPU attributes/nametables */
 			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress(Address & MirrorMask, Src);
-		else /* PPU */
-			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress(Address, Src);
+		else if ((Address & 0x0003) == 0)
+			static_cast<PPUClass *>(DeviceList[PPU])->GetPalMem()[Address & 0x000c] = Src;
+		else
+			static_cast<PPUClass *>(DeviceList[PPU])->GetPalMem()[Address & 0x001f] = Src;
 	}
 
 	/* Список стандартных устройств */
