@@ -39,7 +39,7 @@ template <class _Bus>
 class CCPU: public CClockedDevice<_Bus> {
 	using CClockedDevice<_Bus>::Clocks;
 	using CDevice<_Bus>::Bus;
-public:
+private:
 	/* Обработчик инструкции */
 	typedef int (CCPU::*OpHandler)();
 
@@ -611,7 +611,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 	int clocks;
 
 	if (Halt) /* Зависли */
-		return 0;
+		return 1;
 	if (OAM_DMA) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA();
 		OAM_DMA = -1;

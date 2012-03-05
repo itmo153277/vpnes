@@ -430,12 +430,12 @@ inline int CPPU<_Bus>::PerformOperation() {
 	scanline++;
 	if (scanline == 1) {
 		State.VBlank = true;
-		if (ControlRegisters.RenderingEnabled())
-			Registers.RealReg1 = Registers.BigReg1;
 		if (ControlRegisters.GenerateNMI)
 			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
 	} else if (scanline == 21) {
 		State.VBlank = false;
+		if (ControlRegisters.RenderingEnabled())
+			Registers.RealReg1 = Registers.BigReg1;
 	} else if (scanline == 262) {
 		FrameReady = true;
 		scanline = 0;
