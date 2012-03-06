@@ -78,7 +78,7 @@ private:
 		/* Запись в 0x2000 */
 		inline void Write2000(uint8 Src) { BigReg1 = (BigReg1 & 0xf3ff) |
 			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8);
-			SpritePage = (Src & 0x80) << 5; }
+			SpritePage = (Src & 0x08) << 9; }
 		/* Запись в 0x2005/1 */
 		inline void Write2005_1(uint8 Src) { FH = Src & 0x07; BigReg1 = (BigReg1 & 0xffe0) |
 			(Src >> 3); }
@@ -98,9 +98,9 @@ private:
 			RealReg1 += 0x0020; else RealReg1++; }
 		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++; RealReg1 = (RealReg1 & 0xffe0)
 			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
-		inline void IncrementY() { uint16 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2); Src++; if (Src == 240) Src = 0x100;
-			RealReg1 = (RealReg1 & 0x8c1f) | ((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); 
-			RealReg1 ^= ((Src & 0x0100) << 3) | 0x400; }
+		inline void IncrementY() { uint8 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2);
+			if (Src == 239) { Src = 0; RealReg1 ^= 0x800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
+			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); RealReg1 ^= 0x0400; }
 		inline void BeginScanline() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f); }
 	} Registers;
 
@@ -180,23 +180,29 @@ private:
 	int DMA_pos;
 	/* DMA flag */
 	bool DMA_use;
+	int cur_frame;
 
 	/* Вывод точки */
 	inline void DrawPixel(int x, int y, uint32 color) {
-		if ((x >= 0) && (y >= 0) && (x <= 256) && (y <= 224))
+		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224))
 			pixels[x + y * 256] = color;
 	}
 	/* Фетчинг */
 	inline void FetchData() {
 		uint16 t;
 
-		Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
-		Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
-		t = Registers.GetPTAddress();
-		TileA = Bus->ReadPPUMemory(t);
-		TileB = Bus->ReadPPUMemory(t | 0x08);
-		ShiftRegA = TileA << Registers.FH;
-		ShiftRegB = TileB << Registers.FH;
+		if (ControlRegisters.ShowBackground) {
+			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
+			Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
+			t = Registers.GetPTAddress();
+			TileA = Bus->ReadPPUMemory(t);
+			TileB = Bus->ReadPPUMemory(t | 0x08);
+			ShiftRegA = TileA << Registers.FH;
+			ShiftRegB = TileB << Registers.FH;
+		} else {
+			ShiftRegA = 0;
+			ShiftRegB = 0;
+		}
 	}
 	/* Определение спрайтов */
 	inline void EvaluateSprites(int y) {
@@ -212,7 +218,7 @@ private:
 			n++;
 			if (n == 64)
 				break;
-			if ((y >= *s) && ((y - *s) <= ControlRegisters.Size)) {
+			if ((y >= *s) && (y < (*s + ControlRegisters.Size))) {
 				*d = *s;
 				*(d + 1) = *(s + 1);
 				*(d + 2) = *(s + 2);
@@ -220,8 +226,9 @@ private:
 				d += 4;
 				i++;
 				if (i == 8) {
+					s += 4;
 					while (true) {
-						if ((y >= *s) && ((y - *s) <= ControlRegisters.Size)) {
+						if ((y >= *s) && (y < (*s + ControlRegisters.Size))) {
 							State.Overflow = true;
 							n++;
 							s += 4;
@@ -350,6 +357,9 @@ public:
 					Registers.Write2006_2(Src);
 				break;
 			case 0x2007:
+				if (Registers.Get2007Address() == 0x2883) {
+					Buf_B = Src;
+				}
 				Buf_B = Src;
 				Bus->WritePPUMemory(Registers.Get2007Address(), Src);
 				Registers.Increment2007(ControlRegisters.VerticalIncrement);
@@ -369,6 +379,7 @@ public:
 	/* Сброс */
 	inline void Reset() {
 		memset(&ControlRegisters, 0, sizeof(SControlRegisters));
+		ControlRegisters.ShowBackground = true;
 		memset(&State, 0, sizeof(SState));
 		memset(OAM, 0xff, 0x0100 * sizeof(uint8));
 		Registers.BigReg1 = 0;
@@ -376,6 +387,7 @@ public:
 		Buf_B = 0;
 		scanline = 21;
 		DMA_use = false;
+		cur_frame = 0;
 	}
 
 	/* Флаг вывода */
@@ -405,107 +417,114 @@ inline void CPPU<_Bus>::RenderScanline() {
 	uint8 *s = Sec_OAM;
 	uint16 t;
 
-	if (ControlRegisters.RenderingEnabled() && (scanline >= 21) && (scanline <= 261)) {
-		Registers.BeginScanline();
+	if ((scanline >= 21) && (scanline <= 261)) {
 		y = scanline - 21;
 		x = 0;
-		EvaluateSprites(y);
-		while (true) {
-			if ((scanline > 28) && (scanline < 253)) {
-				while (Registers.FH < 8) {
-					col = 0;
-					if (ShiftRegA & 0x80)
-						col |= 1;
-					if (ShiftRegB & 0x80)
-						col |= 2;
-					if (Registers.AR == 0x55)
-						Registers.AR = 0x55;
-					t = Registers.GetPALAddress(col, Registers.AR);
-					for (i = 0; i < 8; i++)
-						if (Sprites[i].x == x) {
-							Sprites[i].cx++;
-							if (Sprites[i].cx == 9) {
-								Sprites[i].x = -1;
-								continue;
-							}
-							scol = 0x10;
-							switch (Sprites[i].Attrib & 0x40) {
-								case 0x00:
-									if (Sprites[i].ShiftRegA & 0x80)
-										scol |= 1;
-									if (Sprites[i].ShiftRegB & 0x80)
-										scol |= 2;
-									Sprites[i].ShiftRegA <<= 1;
-									Sprites[i].ShiftRegB <<= 1;
-									break;
-								case 0x40:
-									if (Sprites[i].ShiftRegA & 0x01)
-										scol |= 1;
-									if (Sprites[i].ShiftRegB & 0x01)
-										scol |= 2;
-									Sprites[i].ShiftRegA >>= 1;
-									Sprites[i].ShiftRegB >>= 1;
-									break;
-							}
-							if ((scol != 0x10) && ((col == 0) ||
-								(~Sprites[i].Attrib & 0x20))) {
-								t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
-								if (col != 0)
-									State.Sprite0Hit = true;
-							}
-							Sprites[i].x++;
+		if (ControlRegisters.RenderingEnabled()) {
+			Registers.BeginScanline();
+			if (ControlRegisters.ShowSprites)
+				EvaluateSprites(y);
+			while (true) {
+				if ((scanline > 28) && (scanline < 253)) {
+					while (Registers.FH < 8) {
+						col = 0;
+						if (ShiftRegA & 0x80)
+							col |= 1;
+						if (ShiftRegB & 0x80)
+							col |= 2;
+						if (Registers.AR == 0x55)
+							Registers.AR = 0x55;
+						t = Registers.GetPALAddress(col, Registers.AR);
+						if (ControlRegisters.ShowSprites)
+							for (i = 0; i < 8; i++)
+								if (Sprites[i].x == x) {
+									Sprites[i].cx++;
+									if (Sprites[i].cx == 9) {
+										Sprites[i].x = -1;
+										continue;
+									}
+									scol = 0x10;
+									switch (Sprites[i].Attrib & 0x40) {
+										case 0x00:
+											if (Sprites[i].ShiftRegA & 0x80)
+												scol |= 1;
+											if (Sprites[i].ShiftRegB & 0x80)
+												scol |= 2;
+											Sprites[i].ShiftRegA <<= 1;
+											Sprites[i].ShiftRegB <<= 1;
+											break;
+										case 0x40:
+											if (Sprites[i].ShiftRegA & 0x01)
+												scol |= 1;
+											if (Sprites[i].ShiftRegB & 0x01)
+												scol |= 2;
+											Sprites[i].ShiftRegA >>= 1;
+											Sprites[i].ShiftRegB >>= 1;
+											break;
+									}
+									Sprites[i].x++;
+									if ((scol != 0x10) && ((col == 0) ||
+										(~Sprites[i].Attrib & 0x20))) {
+										t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
+										if (col != 0)
+											State.Sprite0Hit = true;
+										break;
+									}
+								}
+						DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
+						x++;
+						ShiftRegA <<= 1;
+						ShiftRegB <<= 1;
+						Registers.FH++;
+						if (x == 256)
 							break;
-						}
-					DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
-					x++;
-					ShiftRegA <<= 1;
-					ShiftRegB <<= 1;
-					Registers.FH++;
-					if (x == 256)
+					}
+					if (Registers.FH != 8)
 						break;
-				}
-				if (Registers.FH != 8)
+					Registers.FH = 0;
+				} else
+					x += 8;
+				Registers.IncrementX();
+				if (x == 256)
 					break;
-				Registers.FH = 0;
-			} else
-				x += 8;
-			Registers.IncrementX();
-			if (x == 256)
-				break;
-			FetchData();
-		}
-		i = 0;
-		while (*s != 0xff) {
-			Sprites[i].y = *(s++);
-			Sprites[i].Tile = *(s++);
-			Sprites[i].Attrib = *(s++);
-			Sprites[i].x = *(s++);
-			Sprites[i].cx = 0;
-			switch (ControlRegisters.Size) {
-			case Size8x8:
-//				if (Sprites[i].Attrib & 0x80)
-//					t = Registers.GetSpriteAddress(Sprites[i].Tile, 8 + Sprites[i].y - y);
-//				else
-					t = Registers.GetSpriteAddress(Sprites[i].Tile, y - Sprites[i].y, Registers.SpritePage);
-				break;
-			case Size8x16:
-				t = (Sprites[i].Tile & 0x01) << 8;
-//				if (Sprites[i].Attrib & 0x80)
-					if ((y - Sprites[i].y) > 8)
-						t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01, y - Sprites[i].y, t);
-					else
-						t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01, y - Sprites[i].y, t);
-					break;
+				FetchData();
 			}
-			Sprites[i].ShiftRegA = Bus->ReadPPUMemory(t);
-			Sprites[i].ShiftRegB = Bus->ReadPPUMemory(t | 0x08);
-			i++;
-			if (i == 8)
-				break;
-			Sprites[i].x = -1;
-		}
-		Registers.IncrementY();
-		FetchData();
+			if (ControlRegisters.ShowSprites) {
+				i = 0;
+				while (*s != 0xff) {
+					Sprites[i].y = *(s++);
+					Sprites[i].Tile = *(s++);
+					Sprites[i].Attrib = *(s++);
+					Sprites[i].x = *(s++);
+					Sprites[i].cx = 0;
+					switch (ControlRegisters.Size) {
+					case Size8x8:
+						if (Sprites[i].Attrib & 0x80)
+							t = Registers.GetSpriteAddress(Sprites[i].Tile, 7 + Sprites[i].y - y, Registers.SpritePage);
+						else
+							t = Registers.GetSpriteAddress(Sprites[i].Tile, y - Sprites[i].y, Registers.SpritePage);
+						break;
+					case Size8x16:
+						t = (Sprites[i].Tile & 0x01) << 12;
+//						if (Sprites[i].Attrib & 0x80)
+							if ((y - Sprites[i].y) >= 8)
+								t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01, (y - Sprites[i].y) & 0x07, t);
+							else
+								t = Registers.GetSpriteAddress(Sprites[i].Tile & 0xfe, y - Sprites[i].y, t);
+							break;
+					}
+					Sprites[i].ShiftRegA = Bus->ReadPPUMemory(t);
+					Sprites[i].ShiftRegB = Bus->ReadPPUMemory(t | 0x08);
+					i++;
+					if (i == 8)
+						break;
+					Sprites[i].x = -1;
+				}
+			}
+			Registers.IncrementY();
+			FetchData();
+		} else
+			DrawPixel(x, y - 8, palette[0x0d]);
 	}
 }
 
@@ -524,6 +543,7 @@ inline int CPPU<_Bus>::PerformOperation() {
 	} else if (scanline == 262) {
 		FrameReady = true;
 		scanline = 0;
+		cur_frame++;
 	}
 	RenderScanline();
 	return 341;

@@ -21,7 +21,7 @@
 
 #include "window.h"
 #include <SDL.h>
-
+#include "sdlstretch/SDL_stretch.h"
 
 #define rmask 0xff000000
 #define gmask 0x00ff0000
@@ -30,6 +30,7 @@
 
 SDL_Surface *screen;
 SDL_Surface *bufs;
+SDL_Surface *backbuf;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
@@ -64,7 +65,8 @@ void *InitMainWindow(int Width, int Height) {
 		return NULL;
 	/* Буфер для PPU */
 	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, rmask, gmask, bmask, amask);
-	if (bufs == NULL)
+	backbuf = SDL_DisplayFormat(bufs);
+	if (backbuf == NULL)
 		return NULL;
 	/* Блокировка */
 	if (SDL_MUSTLOCK(bufs))
@@ -81,6 +83,8 @@ void AppQuit(void) {
 			SDL_UnlockSurface(bufs);
 		SDL_FreeSurface(bufs);
 	}
+	if (backbuf != NULL)
+		SDL_FreeSurface(backbuf);
 	SDL_Quit();
 }
 
@@ -97,6 +101,8 @@ int WindowCallback(double Tim) {
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(bufs))
 		SDL_UnlockSurface(bufs);
+//	SDL_BlitSurface(bufs, NULL, backbuf, NULL);
+//	SDL_StretchSurface_23(backbuf, NULL, screen, NULL);
 	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
 	if (SDL_MUSTLOCK(bufs))

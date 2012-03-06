@@ -4150,7 +4150,7 @@ CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 
 #Functions
 
-ac_config_files="$ac_config_files Makefile nes/Makefile"
+ac_config_files="$ac_config_files Makefile nes/Makefile sdlstretch/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4889,6 +4889,7 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "nes/Makefile") CONFIG_FILES="$CONFIG_FILES nes/Makefile" ;;
+    "sdlstretch/Makefile") CONFIG_FILES="$CONFIG_FILES sdlstretch/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5 ;;
   esac
