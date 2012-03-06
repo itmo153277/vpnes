@@ -27,5 +27,6 @@ CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 #Functions
 
 AC_CONFIG_FILES([Makefile
-                 nes/Makefile])
+                 nes/Makefile
+			  sdlstretch/Makefile])
 AC_OUTPUT
