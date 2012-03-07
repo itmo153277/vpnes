@@ -93,7 +93,7 @@ private:
 	/* Переменная для кеширования адреса */
 	uint16 AddrCache;
 	/* DMA */
-	sint16 OAM_DMA;
+	int OAM_DMA;
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
@@ -403,7 +403,9 @@ public:
 	/* Halt flag */
 	inline bool &GetHaltState() { return Halt; }
 	/* DMA */
-	inline sint16 &GetDMA() { return OAM_DMA; }
+	inline int &GetDMA() { return OAM_DMA; }
+	/* Direct Access */
+	inline uint8 *DirectAccess() { return RAM; }
 
 	/* Сброс */
 	inline void Reset() {
@@ -612,8 +614,8 @@ inline int CCPU<_Bus>::PerformOperation() {
 
 	if (Halt) /* Зависли */
 		return 1;
-	if (OAM_DMA) { /* Выполнить DMA */
-		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA();
+	if (OAM_DMA >= 0) { /* Выполнить DMA */
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
 		OAM_DMA = -1;
 	}
 	if (NMI) { /* Подан сигнал NMI */
@@ -654,7 +656,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
 	if (OAM_DMA > 0) /* DMA */
-		return 513;
+		return 513 + clocks;
 	return clocks;
 }
 
