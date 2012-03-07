@@ -665,8 +665,6 @@ enable_dependency_tracking
 with_sdl_prefix
 with_sdl_exec_prefix
 enable_sdltest
-enable_asmstretch
-enable_interprstr
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1298,8 +1296,6 @@ Optional Features:
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
   --disable-sdltest       Do not try to compile and run a test SDL program
-  --disable-asmstretch    Do not use assembler for stretching SDL surfaces
-  --enable-interprstr     Use interpreted code for stretching instead of native
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4148,28 +4144,13 @@ LIBS="$SDL_LIBS $LIBS"
 CFLAGS="$SDL_CFLAGS $CFLAGS"
 CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 
-# Check whether --enable-asmstretch was given.
-if test "${enable_asmstretch+set}" = set; then :
-  enableval=$enable_asmstretch;
-$as_echo "#define SDL_STRETCH_DISABLE_ASM 1" >>confdefs.h
-
-fi
-
-# Check whether --enable-interprstr was given.
-if test "${enable_interprstr+set}" = set; then :
-  enableval=$enable_interprstr;
-$as_echo "#define SDL_STRETCH_USE_INTERPRETED_CODE 1" >>confdefs.h
-
-fi
-
-
 #Headers
 
 #Compilator characterics
 
 #Functions
 
-ac_config_files="$ac_config_files Makefile nes/Makefile sdlstretch/Makefile"
+ac_config_files="$ac_config_files Makefile nes/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4908,7 +4889,6 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "nes/Makefile") CONFIG_FILES="$CONFIG_FILES nes/Makefile" ;;
-    "sdlstretch/Makefile") CONFIG_FILES="$CONFIG_FILES sdlstretch/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5 ;;
   esac

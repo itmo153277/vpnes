@@ -21,16 +21,9 @@
 
 #include "window.h"
 #include <SDL.h>
-#include "sdlstretch/SDL_stretch.h"
-
-#define rmask 0xff000000
-#define gmask 0x00ff0000
-#define bmask 0x0000ff00
-#define amask 0x000000ff
 
 SDL_Surface *screen;
 SDL_Surface *bufs;
-SDL_Surface *backbuf;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
@@ -60,13 +53,13 @@ void *InitMainWindow(int Width, int Height) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return NULL;
 	SDL_WM_SetCaption("VPNES 0.1", NULL);
-	screen = SDL_SetVideoMode(Width * 2, Height * 2, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	screen = SDL_SetVideoMode(Width * 2, Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return NULL;
 	/* Буфер для PPU */
-	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, rmask, gmask, bmask, amask);
-	backbuf = SDL_DisplayFormat(bufs);
-	if (backbuf == NULL)
+	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, screen->format->Rmask,
+		screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
+	if (bufs == NULL)
 		return NULL;
 	for (i = 0; i < 64; i++)
 		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
@@ -78,8 +71,6 @@ void AppQuit(void) {
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
 	}
-	if (backbuf != NULL)
-		SDL_FreeSurface(backbuf);
 	SDL_Quit();
 }
 
@@ -94,13 +85,11 @@ int WindowCallback(double Tim) {
 	double fps;
 
 	/* Обновляем экран */
-	SDL_BlitSurface(bufs, NULL, backbuf, NULL);
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
-	SDL_StretchSurfaceBlit(backbuf, NULL, screen, NULL);
+	SDL_SoftStretch(bufs, NULL, screen, NULL);
 	if (SDL_MUSTLOCK(screen))
 		SDL_UnlockSurface(screen);
-//	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
 	/* Текущий фрейм */
 #if 0

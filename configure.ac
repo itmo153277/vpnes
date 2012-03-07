@@ -20,11 +20,6 @@ LIBS="$SDL_LIBS $LIBS"
 CFLAGS="$SDL_CFLAGS $CFLAGS"
 CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 
-AC_ARG_ENABLE(asmstretch, [  --disable-asmstretch    Do not use assembler for stretching SDL surfaces],
-		    [AC_DEFINE([SDL_STRETCH_DISABLE_ASM], 1, [Disable using asm code for stretching])])
-AC_ARG_ENABLE(interprstr, [  --enable-interprstr     Use interpreted code for stretching instead of native],
-		    [AC_DEFINE([SDL_STRETCH_USE_INTERPRETED_CODE], 1, [Use interpreted code instead of native])])
-
 #Headers
 
 #Compilator characterics
@@ -32,6 +27,5 @@ AC_ARG_ENABLE(interprstr, [  --enable-interprstr     Use interpreted code for st
 #Functions
 
 AC_CONFIG_FILES([Makefile
-                 nes/Makefile
-                 sdlstretch/Makefile])
+                 nes/Makefile])
 AC_OUTPUT
