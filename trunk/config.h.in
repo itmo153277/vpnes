@@ -21,11 +21,5 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Disable using asm code for stretching */
-#undef SDL_STRETCH_DISABLE_ASM
-
-/* Use interpreted code instead of native */
-#undef SDL_STRETCH_USE_INTERPRETED_CODE
-
 /* Version number of package */
 #undef VERSION

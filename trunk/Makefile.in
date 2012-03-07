@@ -52,7 +52,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_vpnes_OBJECTS = main.$(OBJEXT) window.$(OBJEXT)
 vpnes_OBJECTS = $(am_vpnes_OBJECTS)
-vpnes_DEPENDENCIES = nes/libvpnes.a sdlstretch/libsdlstretch.a
+vpnes_DEPENDENCIES = nes/libvpnes.a
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -210,9 +210,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = nes sdlstretch
+SUBDIRS = nes
 vpnes_SOURCES = main.cpp window.c window.h
-vpnes_LDADD = nes/libvpnes.a sdlstretch/libsdlstretch.a
+vpnes_LDADD = nes/libvpnes.a
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
