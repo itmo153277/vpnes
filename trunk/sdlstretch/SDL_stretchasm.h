@@ -22,6 +22,10 @@
 #ifndef _SDL_STRETCHASM_IMPLEMENTATION_
 #define _SDL_STRETCHASM_IMPLEMENTATION_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 /* development header - do not use */
 
 #if (defined(WIN32) && !defined(_M_ALPHA) && !defined(_WIN32_WCE))
@@ -69,12 +73,18 @@ __asm {\
 #endif
 
 #if defined SDL_STRETCH_I386 && defined SDL_STRETCH_GAS
+#ifdef SDL_STRETCH_CALL
+#undef SDL_STRETCH_CALL
+#endif
 #define SDL_STRETCH_CALL(code, srcp, dstp) \
 __asm__ __volatile__ ("call *%%eax" \
                       :: "S" (dstp), "D" (srcp), "a" (code));
 #endif
 
 #if defined SDL_STRETCH_X86_64 && defined SDL_STRETCH_GAS
+#ifdef SDL_STRETCH_CALL
+#undef SDL_STRETCH_CALL
+#endif
 #define SDL_STRETCH_CALL(code, srcp, dstp) \
 __asm__ __volatile__ ("call *%%rax" \
                       :: "S" (dstp), "D" (srcp), "a" (code));

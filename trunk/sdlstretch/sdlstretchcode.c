@@ -24,7 +24,6 @@ static char rcsid =
  "@(#) $Id: sdlcode.c $";
 #endif
 
-#include "config.h"
 #include "SDL_error.h"
 #include "SDL_video.h"
 #include "SDL_stretchcode.h"

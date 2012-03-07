@@ -60,7 +60,7 @@ void *InitMainWindow(int Width, int Height) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return NULL;
 	SDL_WM_SetCaption("VPNES 0.1", NULL);
-	screen = SDL_SetVideoMode(Width, Height, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	screen = SDL_SetVideoMode(Width * 2, Height * 2, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return NULL;
 	/* Буфер для PPU */
@@ -68,9 +68,6 @@ void *InitMainWindow(int Width, int Height) {
 	backbuf = SDL_DisplayFormat(bufs);
 	if (backbuf == NULL)
 		return NULL;
-	/* Блокировка */
-	if (SDL_MUSTLOCK(bufs))
-		SDL_LockSurface(bufs);
 	for (i = 0; i < 64; i++)
 		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
 	return bufs->pixels;
@@ -79,8 +76,6 @@ void *InitMainWindow(int Width, int Height) {
 /* Выход */
 void AppQuit(void) {
 	if (bufs != NULL) {
-		if (SDL_MUSTLOCK(bufs))
-			SDL_UnlockSurface(bufs);
 		SDL_FreeSurface(bufs);
 	}
 	if (backbuf != NULL)
@@ -99,14 +94,14 @@ int WindowCallback(double Tim) {
 	double fps;
 
 	/* Обновляем экран */
-	if (SDL_MUSTLOCK(bufs))
-		SDL_UnlockSurface(bufs);
-//	SDL_BlitSurface(bufs, NULL, backbuf, NULL);
-//	SDL_StretchSurface_23(backbuf, NULL, screen, NULL);
-	SDL_BlitSurface(bufs, NULL, screen, NULL);
+	SDL_BlitSurface(bufs, NULL, backbuf, NULL);
+	if (SDL_MUSTLOCK(screen))
+		SDL_LockSurface(screen);
+	SDL_StretchSurfaceBlit(backbuf, NULL, screen, NULL);
+	if (SDL_MUSTLOCK(screen))
+		SDL_UnlockSurface(screen);
+//	SDL_BlitSurface(bufs, NULL, screen, NULL);
 	SDL_Flip(screen);
-	if (SDL_MUSTLOCK(bufs))
-		SDL_LockSurface(bufs);
 	/* Текущий фрейм */
 #if 0
 	itoa(cur_frame, buf, 10);
