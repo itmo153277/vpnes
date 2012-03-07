@@ -49,6 +49,8 @@ private:
 	bool PRGMirror;
 	/* FamilyBasic */
 	bool FamilyBasic;
+	/* CHR как RAM */
+	bool UseRAM;
 	/* PRG */
 	uint8 *PRG;
 	/* CHR */
@@ -69,11 +71,15 @@ public:
 			pBus->GetMirrorMask() = 0x27ff;
 		else
 			pBus->GetMirrorMask() = 0x2bff;
+		UseRAM = csize == 0;
+		if (UseRAM)
+			csize = 1;
 		PRG = new uint8[psize * 0x4000];
 		CHR = new uint8[csize * 0x2000];
 		ROM.seekg(16, std::ios_base::beg);
 		ROM.read((char *) PRG, psize * 0x4000);
-		ROM.read((char *) CHR, csize * 0x2000);
+		if (!UseRAM)
+			ROM.read((char *) CHR, csize * 0x2000);
 		if (FamilyBasic)
 			SRAM = new uint8[0x2000];
 	}
@@ -111,7 +117,10 @@ public:
 		return CHR[Address];
 	}
 	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) { }
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		if (UseRAM)
+			CHR[Address] = Src;
+	}
 };
 
 /* Махинации с классом */
