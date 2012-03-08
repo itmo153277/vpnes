@@ -75,7 +75,6 @@ public:
 		switch (Address) {
 			case 0x4014: /* OAM DMA */
 				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetDMA() = Src;
-				static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(Src);
 				break;
 			case 0x4016:
 				b = 0;

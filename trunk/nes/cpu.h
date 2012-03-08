@@ -615,8 +615,9 @@ inline int CCPU<_Bus>::PerformOperation() {
 	if (Halt) /* Зависли */
 		return 1;
 	if (OAM_DMA >= 0) { /* Выполнить DMA */
-		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
 		OAM_DMA = -1;
+		return 513;
 	}
 	if (NMI) { /* Подан сигнал NMI */
 		if (CurBreak) { /* Уже занимаемся обработкой */
@@ -655,8 +656,6 @@ inline int CCPU<_Bus>::PerformOperation() {
 		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
-	if (OAM_DMA > 0) /* DMA */
-		return 513 + clocks;
 	return clocks;
 }
 
