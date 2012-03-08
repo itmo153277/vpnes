@@ -208,7 +208,45 @@ private:
 	}
 	/* Определение спрайтов */
 	inline void EvaluateSprites(int y) {
-		//Выборка спрайтов
+		int i = 0; /* Всего найдено */
+		int n = 0; /* Текущий спрайт в буфере */
+		int m = 0; /* Бзик приставки */
+		uint8 *pOAM = OAM; /* Указатель на SPR */
+
+		Sprites[0].x = -1;
+		for (;;) {
+			if ((y >= *pOAM) && ((*pOAM + ControlRegisters.Size) > y)) { /* Спрайт попал в диапазон */
+				/* Заполняем данные */
+				Sprites[i].y = *(pOAM++);
+				Sprites[i].Tile =  *(pOAM++);
+				Sprites[i].Attrib = *(pOAM++);
+				Sprites[i].x = *(pOAM++);
+				Sprites[i].cx = 0;
+				i++;
+				if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */
+					break;
+				Sprites[i].x = -1; /* Конец списка */
+			} else
+				pOAM += 4;
+			 /* Следующий спрайт */
+			n++;
+			if (n == 64) /* Просмотрели все спрайты */
+				return;
+		}
+		/* Определяем Overflow флаг */
+		for (n++; n < 64; n++)
+			if ((y >= *pOAM) && ((*pOAM + ControlRegisters.Size) > y)) {
+				State.Overflow = true; /* Переполнение */
+				return; /* Больше тут делать нечего */
+			} else {
+				/* Абсолютно нелогичное изменение указателя */
+				m++;
+				if (m == 4) {
+					m = 0;
+					pOAM++;
+				} else
+					pOAM += 5;
+			}
 	}
 	/* Палитра */
 	inline uint8 ReadPalette(uint16 Address) {
@@ -423,7 +461,6 @@ inline void CPPU<_Bus>::RenderScanline() {
 							t = Registers.GetPALAddress(col, Registers.AR);
 						} else
 							t = 0;
-#if 0
 						if (ControlRegisters.ShowSprites)
 							for (i = 0; i < 8; i++)
 								if (Sprites[i].x == x) { /* Нашли спрайт на этом пикселе */
@@ -442,7 +479,7 @@ inline void CPPU<_Bus>::RenderScanline() {
 											Sprites[i].ShiftRegA <<= 1;
 											Sprites[i].ShiftRegB <<= 1;
 											break;
-										case 0x40:
+										case 0x40: /* Flip-H */
 											if (Sprites[i].ShiftRegA & 0x01)
 												scol |= 1;
 											if (Sprites[i].ShiftRegB & 0x01)
@@ -462,7 +499,6 @@ inline void CPPU<_Bus>::RenderScanline() {
 										break;
 									}
 								}
-#endif
 						/* Рисуем пискель */
 						DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 						x++;
@@ -486,7 +522,40 @@ inline void CPPU<_Bus>::RenderScanline() {
 			if (ControlRegisters.ShowSprites) {
 				/* Ищем первые 8 спрайтов в следующем сканлайне */
 				EvaluateSprites(y);
-				/* Фетчинг */
+				for (i = 0; i < 8; i++) {
+					if (Sprites[i].x < 0)
+						break; /* Конец списка */
+					switch (ControlRegisters.Size) {
+						case Size8x8:
+							if (Sprites[i].Attrib & 0x80) /* Flip-V */
+								t = Registers.GetSpriteAddress(Sprites[i].Tile, 7 + Sprites[i].y - y,
+									Registers.SpritePage);
+							else
+								t = Registers.GetSpriteAddress(Sprites[i].Tile, y - Sprites[i].y,
+									Registers.SpritePage);
+							break;
+						case Size8x16:
+							t = (Sprites[i].Tile & 0x01) << 12; /* Страница спрайтов */
+							if (Sprites[i].Attrib & 0x80) { /* Flip-V */
+								if ((y - Sprites[i].y) > 7)
+									t = Registers.GetSpriteAddress(Sprites[i].Tile & 0xfe,
+										15 + Sprites[i].y - y, t);
+								else
+									t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01,
+										7 + Sprites[i].y - y, t);
+							} else
+								if ((y - Sprites[i].y) > 7)
+									t = Registers.GetSpriteAddress(Sprites[i].Tile | 0x01,
+										8 + y - Sprites[i].y, t);
+								else
+									t = Registers.GetSpriteAddress(Sprites[i].Tile & 0xfe,
+										y - Sprites[i].y, t);
+							break;
+					}
+					/* Загружаем образ */
+					Sprites[i].ShiftRegA = Bus->ReadPPUMemory(t);
+					Sprites[i].ShiftRegB = Bus->ReadPPUMemory(t | 0x08);
+				}
 			}
 			Registers.IncrementY();
 			FetchData(); /* Образы для первых 8 пикселей следующего сканлайна */
@@ -519,8 +588,8 @@ inline int CPPU<_Bus>::PerformOperation() {
 	} else if (scanline == 262)
 		scanline = 0;
 	RenderScanline();
-	if ((scanline == 1) && !ShortScanline)
-		return 340;
+//	if ((scanline == 1) && !ShortScanline)
+//		return 340;
 	return 341;
 }
 
