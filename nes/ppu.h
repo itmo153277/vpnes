@@ -140,6 +140,7 @@ private:
 		int x; /* Координаты */
 		int y;
 		int cx; /* Текущая x */
+		int n;
 		uint8 ShiftRegA; /* Регистр сдвига A */
 		uint8 ShiftRegB; /* Регистр сдвига B */
 		uint8 Attrib; /* Аттрибуты */
@@ -210,7 +211,6 @@ private:
 	inline void EvaluateSprites(int y) {
 		int i = 0; /* Всего найдено */
 		int n = 0; /* Текущий спрайт в буфере */
-		int m = 0; /* Бзик приставки */
 		uint8 *pOAM = OAM; /* Указатель на SPR */
 
 		Sprites[0].x = -1;
@@ -222,9 +222,12 @@ private:
 				Sprites[i].Attrib = *(pOAM++);
 				Sprites[i].x = *(pOAM++);
 				Sprites[i].cx = 0;
+				Sprites[i].n = n;
 				i++;
-				if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */
+				if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
+					State.Overflow = true;
 					break;
+				}
 				Sprites[i].x = -1; /* Конец списка */
 			} else
 				pOAM += 4;
@@ -233,20 +236,6 @@ private:
 			if (n == 64) /* Просмотрели все спрайты */
 				return;
 		}
-		/* Определяем Overflow флаг */
-		for (n++; n < 64; n++)
-			if ((y >= *pOAM) && ((*pOAM + ControlRegisters.Size) > y)) {
-				State.Overflow = true; /* Переполнение */
-				return; /* Больше тут делать нечего */
-			} else {
-				/* Абсолютно нелогичное изменение указателя */
-				m++;
-				if (m == 4) {
-					m = 0;
-					pOAM++;
-				} else
-					pOAM += 5;
-			}
 	}
 	/* Палитра */
 	inline uint8 ReadPalette(uint16 Address) {
@@ -278,7 +267,7 @@ public:
 
 	/* Выполнить DMA */
 	inline void ProcessDMA(int Passed) {
-		int num = Passed / 6;
+		int num = (Passed + 3) / 6 - 1;
 
 		DMA_pos -= num * 6;
 		if (num > DMA_left)
@@ -450,7 +439,8 @@ inline void CPPU<_Bus>::RenderScanline() {
 				if ((scanline > 9) && (scanline < 234)) { /* Область рисования */
 					while (Registers.FH < 8) { /* Рисуем 8 пикселей */
 						col = 0;
-						if (ControlRegisters.ShowBackground) { /* Определяем идекс цвета */
+						if (ControlRegisters.ShowBackground &&
+							(ControlRegisters.BackgroundClip || (x > 7))) { /* Определяем идекс цвета */
 							if (ShiftRegA & 0x80)
 								col |= 1;
 							if (ShiftRegB & 0x80)
@@ -461,44 +451,46 @@ inline void CPPU<_Bus>::RenderScanline() {
 							t = Registers.GetPALAddress(col, Registers.AR);
 						} else
 							t = 0;
-						if (ControlRegisters.ShowSprites)
-							for (i = 0; i < 8; i++)
-								if (Sprites[i].x == x) { /* Нашли спрайт на этом пикселе */
-									Sprites[i].cx++;
-									if (Sprites[i].cx == 9) { /* Спрайт уже закончился */
-										Sprites[i].x = -1;
-										continue;
-									}
-									scol = 0x10; /* Определяем идекс цвета */
-									switch (Sprites[i].Attrib & 0x40) {
-										case 0x00:
-											if (Sprites[i].ShiftRegA & 0x80)
-												scol |= 1;
-											if (Sprites[i].ShiftRegB & 0x80)
-												scol |= 2;
-											Sprites[i].ShiftRegA <<= 1;
-											Sprites[i].ShiftRegB <<= 1;
-											break;
-										case 0x40: /* Flip-H */
-											if (Sprites[i].ShiftRegA & 0x01)
-												scol |= 1;
-											if (Sprites[i].ShiftRegB & 0x01)
-												scol |= 2;
-											Sprites[i].ShiftRegA >>= 1;
-											Sprites[i].ShiftRegB >>= 1;
-											break;
-									}
-									Sprites[i].x++;
+						/* Рисуем спрайты */
+						for (i = 0; i < 8; i++)
+							if (Sprites[i].x < 0)
+								break;
+							else if (Sprites[i].x == x) { /* Нашли спрайт на этом пикселе */
+								Sprites[i].cx++;
+								if (Sprites[i].cx == 9) /* Спрайт уже закончился */
+									continue;
+								scol = 0x10; /* Определяем идекс цвета */
+								switch (Sprites[i].Attrib & 0x40) {
+									case 0x00:
+										if (Sprites[i].ShiftRegA & 0x80)
+											scol |= 1;
+										if (Sprites[i].ShiftRegB & 0x80)
+											scol |= 2;
+										Sprites[i].ShiftRegA <<= 1;
+										Sprites[i].ShiftRegB <<= 1;
+										break;
+									case 0x40: /* Flip-H */
+										if (Sprites[i].ShiftRegA & 0x01)
+											scol |= 1;
+										if (Sprites[i].ShiftRegB & 0x01)
+											scol |= 2;
+										Sprites[i].ShiftRegA >>= 1;
+										Sprites[i].ShiftRegB >>= 1;
+										break;
+								}
+								if ((scol != 0x10) && ControlRegisters.ShowSprites &&
+									(ControlRegisters.SpriteClip || (x > 7))) {
+									if ((Sprites[i].n == 0) && (x != 255) &&
+										(col != 0))
+										State.Sprite0Hit = true;
 									/* Мы не прозрачны, фон пустой или у нас приоритет */
-									if ((scol != 0x10) && ((col == 0) ||
-										(~Sprites[i].Attrib & 0x20))) {
+									if ((col == 0) || (~Sprites[i].Attrib & 0x20)) {
 										/* Перекрываем пиксель фона */
 										t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
-										if (col != 0) /* Фон был не прозрачный */
-											State.Sprite0Hit = true;
-										//break;
 									}
 								}
+								Sprites[i].x++;
+							}
 						/* Рисуем пискель */
 						DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 						x++;
@@ -585,11 +577,11 @@ inline int CPPU<_Bus>::PerformOperation() {
 		FrameReady = true;
 		if (ControlRegisters.GenerateNMI) /* NMI по VBlank */
 			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
-	} else if (scanline == 262)
+	} else if (scanline == 263)
 		scanline = 0;
 	RenderScanline();
-//	if ((scanline == 1) && !ShortScanline)
-//		return 340;
+	if ((scanline == 1) && !ShortScanline)
+		return 340;
 	return 341;
 }
 
