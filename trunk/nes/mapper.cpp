@@ -21,14 +21,41 @@
 
 #include "mapper.h"
 
+#include <cstring>
+
 using namespace vpnes;
 
 /* Открыть картридж */
 CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
-	CNES_NROM *NES;
+	const char NesHead[] = "NES\032";
+	char Buf[4];
+	uint8 flags1, flags2, mapper;
 
-	/* Возвращаем стандартный NES на 0-маппере */
-	NES = new CNES_NROM(CallBack);
-	NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] = new CNROM<CNES_NROM::BusClass>(&NES->GetBus(), ROM);
-	return NES;
+	ROM.seekg(0, std::ios_base::beg);
+	ROM.read(Buf, 4 * sizeof(char));
+	if (strncmp(Buf, NesHead, 4))
+		return NULL;
+	ROM.seekg(6, std::ios_base::beg);
+	ROM.read((char *) &flags1, sizeof(uint8));
+	ROM.read((char *) &flags2, sizeof(uint8));
+	mapper = (flags1 >> 4) | (flags2 & 0xf0);
+	switch (mapper) {
+		case 0:
+			CNES_NROM *NROM_NES;
+
+			/* Возвращаем стандартный NES на 0-маппере */
+			NROM_NES = new CNES_NROM(CallBack);
+			NROM_NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] =
+				new CNROM<CNES_NROM::BusClass>(&NROM_NES->GetBus(), ROM);
+			return NROM_NES;
+		case 2:
+			CNES_UxROM *UxROM_NES;
+
+			/* Возвращаем стандартный NES на 0-маппере */
+			UxROM_NES = new CNES_UxROM(CallBack);
+			UxROM_NES->GetBus().GetDeviceList()[CNES_UxROM::BusClass::ROM] =
+				new CUxROM<CNES_UxROM::BusClass>(&UxROM_NES->GetBus(), ROM);
+			return UxROM_NES;
+	}
+	return NULL;
 }
