@@ -622,34 +622,15 @@ inline int CCPU<_Bus>::PerformOperation() {
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
 		OAM_DMA = -1;
 	}
-	if (NMI) { /* Подан сигнал NMI */
-		if (CurBreak) { /* Уже занимаемся обработкой */
-			CurBreak = false;
-			NMI = false;
-			/* Прыгаем */
-			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
-			return 3; /* + 3 такта */
-		} else {
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			CurBreak = true;
-			return 4; /* 4 такта */
-		}
-	}
 	if (CurBreak) { /* Обрабатываем прерывание */
-		CurBreak = false;
 		/* Прыгаем */
-		Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
+		if (NMI) {
+			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
+			NMI = false;
+		} else
+			Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
+		CurBreak = false;
 		return 3; /* 3 такта */
-	}
-	if (IRQ) { /* Подан сигнал IRQ */
-		IRQ = false;
-		if (!State.Interrupt()) { /* Обработка разрешена */
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			CurBreak = true;
-			return 4; /* 4 такта */
-		}
 	}
 	opcode = Bus->ReadCPUMemory(Registers.pc); /* Текущий опкод */
 	/* Число тактов + 1 такт на пересечение страницы */
@@ -659,6 +640,22 @@ inline int CCPU<_Bus>::PerformOperation() {
 		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
+	if (!CurBreak) {
+		if (NMI) {
+			PushWord(Registers.pc); /* Следующая команда */
+			PushByte(State.State); /* Сохраняем состояние */
+			CurBreak = true;
+			clocks += 4; /* 4 такта */
+		} else if (IRQ) { /* Подан сигнал IRQ */
+			IRQ = false;
+			if (!State.Interrupt()) { /* Обработка разрешена */
+				PushWord(Registers.pc); /* Следующая команда */
+				PushByte(State.State); /* Сохраняем состояние */
+				CurBreak = true;
+				clocks += 4; /* 4 такта */
+			}
+		}
+	}
 	return clocks;
 }
 
