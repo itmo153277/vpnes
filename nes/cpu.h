@@ -616,8 +616,11 @@ inline int CCPU<_Bus>::PerformOperation() {
 		return 1;
 	if (OAM_DMA >= 0) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
-		OAM_DMA = -1;
+		OAM_DMA = -2;
 		return 513;
+	} else if (OAM_DMA == -2) {
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
+		OAM_DMA = -1;
 	}
 	if (NMI) { /* Подан сигнал NMI */
 		if (CurBreak) { /* Уже занимаемся обработкой */

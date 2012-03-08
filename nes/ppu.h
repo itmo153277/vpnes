@@ -343,7 +343,7 @@ public:
 				Res = Buf_B;
 				Buf_B = Bus->ReadPPUMemory(t);
 				Registers.Increment2007(ControlRegisters.VerticalIncrement);
-				if (t > 0x3000)
+				if (t >= 0x3f00)
 					Res = ReadPalette(t);
 				return Res;
 		}
@@ -387,7 +387,7 @@ public:
 				break;
 			case 0x2007: /* Запись в VRAM память */
 				t = Registers.Get2007Address();
-				if (t < 0x3000)
+				if (t < 0x3f00)
 					Bus->WritePPUMemory(t, Src);
 				else
 					WritePalette(t, Src);
@@ -496,7 +496,7 @@ inline void CPPU<_Bus>::RenderScanline() {
 										t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
 										if (col != 0) /* Фон был не прозрачный */
 											State.Sprite0Hit = true;
-										break;
+										//break;
 									}
 								}
 						/* Рисуем пискель */
