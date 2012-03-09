@@ -140,7 +140,7 @@ private:
 		int x; /* Координаты */
 		int y;
 		int cx; /* Текущая x */
-		int n;
+		bool prim;
 		uint8 ShiftRegA; /* Регистр сдвига A */
 		uint8 ShiftRegB; /* Регистр сдвига B */
 		uint8 Attrib; /* Аттрибуты */
@@ -222,7 +222,7 @@ private:
 				Sprites[i].Attrib = *(pOAM++);
 				Sprites[i].x = *(pOAM++);
 				Sprites[i].cx = 0;
-				Sprites[i].n = n;
+				Sprites[i].prim = n == 0;
 				i++;
 				if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
 					State.Overflow = true;
@@ -269,6 +269,8 @@ public:
 	inline void ProcessDMA(int Passed) {
 		int num = (Passed + 3) / 6 - 1;
 
+		if (num <= 0)
+			return;
 		DMA_pos -= num * 6;
 		if (num > DMA_left)
 			num = DMA_left;
@@ -429,6 +431,8 @@ inline void CPPU<_Bus>::RenderScanline() {
 	int x, y, i;
 	int col, scol;
 	uint16 t;
+	uint8 oattr;
+	bool oprim;
 
 	if ((scanline >= 2) && (scanline <= 242)) { /* !VBlank */
 		y = scanline - 2;
@@ -452,6 +456,8 @@ inline void CPPU<_Bus>::RenderScanline() {
 						} else
 							t = 0;
 						/* Рисуем спрайты */
+						oprim = false;
+						scol = 0x10;
 						for (i = 0; i < 8; i++)
 							if (Sprites[i].x < 0)
 								break;
@@ -459,7 +465,9 @@ inline void CPPU<_Bus>::RenderScanline() {
 								Sprites[i].cx++;
 								if (Sprites[i].cx == 9) /* Спрайт уже закончился */
 									continue;
-								scol = 0x10; /* Определяем идекс цвета */
+								Sprites[i].x++;
+								if (scol != 0x10)
+									break;
 								switch (Sprites[i].Attrib & 0x40) {
 									case 0x00:
 										if (Sprites[i].ShiftRegA & 0x80)
@@ -478,19 +486,19 @@ inline void CPPU<_Bus>::RenderScanline() {
 										Sprites[i].ShiftRegB >>= 1;
 										break;
 								}
-								if ((scol != 0x10) && ControlRegisters.ShowSprites &&
-									(ControlRegisters.SpriteClip || (x > 7))) {
-									if ((Sprites[i].n == 0) && (x != 255) &&
-										(col != 0))
-										State.Sprite0Hit = true;
-									/* Мы не прозрачны, фон пустой или у нас приоритет */
-									if ((col == 0) || (~Sprites[i].Attrib & 0x20)) {
-										/* Перекрываем пиксель фона */
-										t = Registers.GetPALAddress(scol, Sprites[i].Attrib);
-									}
-								}
-								Sprites[i].x++;
+								oattr = Sprites[i].Attrib;
+								oprim = Sprites[i].prim;
 							}
+						if ((scol != 0x10) && ControlRegisters.ShowSprites &&
+							(ControlRegisters.SpriteClip || (x > 7))) {
+							if ((oprim) && (x != 255) &&
+								(col != 0))
+								State.Sprite0Hit = true;
+							/* Мы не прозрачны, фон пустой или у нас приоритет */
+							if ((col == 0) || (~oattr & 0x20))
+								/* Перекрываем пиксель фона */
+								t = Registers.GetPALAddress(scol, oattr);
+						}
 						/* Рисуем пискель */
 						DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 						x++;

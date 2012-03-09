@@ -77,13 +77,15 @@ public:
 private:
 	/* Маска для PPU */
 	uint16 MirrorMask;
+	/* Страница PPU */
+	uint16 PPUPage;
 
 protected:
 	/* Список стандартных устройств */
 	CDevice<_BusClass> *DeviceList[StandardDevicesNum];
 
 public:
-	inline explicit CBus_Basic() {}
+	inline explicit CBus_Basic(): MirrorMask(0), PPUPage(0) {}
 	inline ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
@@ -115,19 +117,21 @@ public:
 		if (Address < 0x2000) /* Mapper CHR data */
 			return static_cast<ROMClass *>(DeviceList[ROM])->ReadPPUAddress(Address);
 		/* PPU attributes/nametables */
-		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress(Address & MirrorMask);
+		return static_cast<PPUClass *>(DeviceList[PPU])->ReadPPUAddress((Address & MirrorMask) | PPUPage);
 	}
 	inline void WritePPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* Mapper CHR data */
 			static_cast<ROMClass *>(DeviceList[ROM])->WritePPUAddress(Address, Src);
 		else /* PPU attributes/nametables */
-			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress(Address & MirrorMask, Src);
+			static_cast<PPUClass *>(DeviceList[PPU])->WritePPUAddress((Address & MirrorMask) | PPUPage, Src);
 	}
 
 	/* Список стандартных устройств */
 	inline CDevice<_BusClass> **GetDeviceList() { return DeviceList; }
 	/* Доступ к маске адресов PPU */
 	inline uint16 &GetMirrorMask() { return MirrorMask; }
+	/* Доступ к странице PPU */
+	inline uint16 &GetPPUPage() { return PPUPage; }
 };
 
 /* Стандартная шина */

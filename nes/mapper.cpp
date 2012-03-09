@@ -51,11 +51,19 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 		case 2:
 			CNES_UxROM *UxROM_NES;
 
-			/* Возвращаем стандартный NES на 0-маппере */
+			/* Возвращаем стандартный NES UxROM */
 			UxROM_NES = new CNES_UxROM(CallBack);
 			UxROM_NES->GetBus().GetDeviceList()[CNES_UxROM::BusClass::ROM] =
 				new CUxROM<CNES_UxROM::BusClass>(&UxROM_NES->GetBus(), ROM);
 			return UxROM_NES;
+		case 7:
+			CNES_AxROM *AxROM_NES;
+
+			/* Возвращаем стандартный NES AxROM */
+			AxROM_NES = new CNES_AxROM(CallBack);
+			AxROM_NES->GetBus().GetDeviceList()[CNES_AxROM::BusClass::ROM] =
+				new CAxROM<CNES_AxROM::BusClass>(&AxROM_NES->GetBus(), ROM);
+			return AxROM_NES;
 	}
 	return NULL;
 }
