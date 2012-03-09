@@ -466,8 +466,16 @@ inline void CPPU<_Bus>::RenderScanline() {
 								if (Sprites[i].cx == 9) /* Спрайт уже закончился */
 									continue;
 								Sprites[i].x++;
-								if (scol != 0x10)
-									break;
+								if (scol != 0x10) {
+									if (Sprites[i].Attrib & 0x40) {
+										Sprites[i].ShiftRegA >>= 1;
+										Sprites[i].ShiftRegB >>= 1;
+									} else {
+										Sprites[i].ShiftRegA <<= 1;
+										Sprites[i].ShiftRegB <<= 1;
+									}
+									continue;
+								}
 								switch (Sprites[i].Attrib & 0x40) {
 									case 0x00:
 										if (Sprites[i].ShiftRegA & 0x80)
