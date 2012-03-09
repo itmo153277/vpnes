@@ -209,8 +209,80 @@ struct UxROM_rebind {
 	};
 };
 
-/* Стандартный NES на NROM */
+/* Стандартный NES на UxROM */
 typedef CNES< CBus<CPU_rebind, APU_rebind, PPU_rebind, UxROM_rebind> > CNES_UxROM;
+
+/* Реализация маппера 7 */
+template <class _Bus>
+class CAxROM: public CDevice<_Bus> {
+	using CDevice<_Bus>::Bus;
+private:
+	/* PRG */
+	uint8 *PRG;
+	/* Banks */
+	uint8 *PRGBanks;
+	/* CHR */
+	uint8 *CHR;
+	/* SwitchMask */
+	uint8 SwitchMask;
+public:
+	inline explicit CAxROM(_Bus *pBus, std::istream &ROM) {
+		uint8 psize;
+
+		Bus = pBus;
+		ROM.seekg(4, std::ios_base::beg);
+		ROM.read((char *) &psize, sizeof(uint8));
+		PRGBanks = new uint8[psize * 0x4000];
+		CHR = new uint8[0x2000];
+		ROM.seekg(16, std::ios_base::beg);
+		ROM.read((char *) PRGBanks, psize * 0x4000);
+		PRG = PRGBanks;
+		Bus->GetMirrorMask() = 0x23ff;
+	}
+	inline ~CAxROM() {
+		delete [] PRGBanks;
+		delete [] CHR;
+	}
+
+	/* Чтение памяти */
+	inline uint8 ReadAddress(uint16 Address) {
+		if (Address < 0x6000) /* Регистры */
+			return 0x00;
+		if (Address < 0x8000) /* SRAM */
+			return 0x00;
+		return PRG[Address & 0x7fff];
+	}
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address >= 0x8000) {
+			PRG = PRGBanks + ((Src & 0x07) << 15);
+			if (Src & 0x10)
+				Bus->GetPPUPage() = 0x0400;
+			else
+				Bus->GetPPUPage() = 0x0000;
+		}
+	}
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return CHR[Address];
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		CHR[Address] = Src;
+	}
+};
+
+/* Махинации с классом */
+struct AxROM_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CAxROM<_Bus> rebinded;
+	};
+};
+
+/* Стандартный NES на AxROM */
+typedef CNES< CBus<CPU_rebind, APU_rebind, PPU_rebind, AxROM_rebind> > CNES_AxROM;
 
 }
 
