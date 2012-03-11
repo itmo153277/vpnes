@@ -99,7 +99,7 @@ private:
 		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++; RealReg1 = (RealReg1 & 0xffe0)
 			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
 		inline void IncrementY() { uint8 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2);
-			if (Src == 239) { Src = 0; RealReg1 ^= 0x800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
+			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
 			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); RealReg1 ^= 0x0400; }
 		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f);
 			FH = TempFH; }
@@ -338,12 +338,13 @@ public:
 		if (num > DMA_left)
 			num = DMA_left;
 		DMA_left -= num;
-		if (OAM_DMA >= 0x2000) { /* Вышли за границы памяти CPU — обращаемся к шине */
+	//	if (OAM_DMA >= 0x2000) { /* Вышли за границы памяти CPU — обращаемся к шине */
 			for (; num > 0; num--) {
 				OAM[OAM_addr] = Bus->ReadCPUMemory(OAM_DMA);
 				OAM_DMA++;
 				OAM_addr++;
 			}
+#if 0
 		} else { /* Читаем данные напрямую из памяти */
 			if ((num + OAM_addr) > 256) {
 				memcpy(OAM + OAM_addr,
@@ -359,6 +360,7 @@ public:
 			OAM_addr += num;
 			OAM_DMA += num;
 		}
+#endif
 	}
 
 	/* Установить DMA */
@@ -478,6 +480,9 @@ inline void CPPU<_Bus>::FetchBackground() {
 			break;
 		case 6: /* Образ B */
 			TileB = Bus->ReadPPUMemory(Registers.GetPTAddress() | 0x08);
+			Registers.IncrementX();
+			ShiftRegA |= TileA;
+			ShiftRegB |= TileB;
 			break;
 	}
 }
@@ -485,9 +490,13 @@ inline void CPPU<_Bus>::FetchBackground() {
 /* Подгружаем образы */
 template <class _Bus>
 inline void CPPU<_Bus>::FetchNextBackground() {
+	if (!(CurClock & 0x07)) {
+		ShiftRegA <<= 8;
+		ShiftRegB <<= 8;
+		Registers.AR >>= 2;
+		Registers.AR |= Registers.TempAR;
+	}
 	FetchBackground();
-	ShiftRegA = (ShiftRegA << 8) | TileA;
-	ShiftRegB = (ShiftRegB << 8) | TileB;
 }
 
 /* Рисуем пиксель */
@@ -551,14 +560,16 @@ inline void CPPU<_Bus>::DrawScanline() {
 				oprim = Sprites[i].prim;
 			}
 		if ((scol != 0x10) && ControlRegisters.ShowSprites &&
-			(ControlRegisters.SpriteClip || (x > 7))) {
-			if (oprim && (x != 255) && (col != 0))
+			(ControlRegisters.SpriteClip || (x > 7)) && (x != 255)) {
+			if (oprim && (col != 0))
 				State.SetSprite0Hit();
 			/* Мы не прозрачны, фон пустой или у нас приоритет */
 			if ((col == 0) || (~oattr & 0x20))
 				/* Перекрываем пиксель фона */
 				t = Registers.GetPALAddress(scol, oattr);
 		}
+		if (PalMem[t] == 0)
+			PalMem[y] = 0;
 		DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 		ShiftRegA <<= 1;
 		ShiftRegB <<= 1;
@@ -567,10 +578,6 @@ inline void CPPU<_Bus>::DrawScanline() {
 			Registers.AR |= Registers.TempAR;
 		}
 		x++;
-		if (!(x & 0x07)) {
-			ShiftRegA |= TileA;
-			ShiftRegB |= TileB;
-		}
 	} while (x & 0x01);
 }
 
@@ -600,7 +607,7 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 					FetchSprite();
 			}
 			if (ControlRegisters.ShowBackground) {
-				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
+				if (CurClock == 320) { /* cc 304 обновляем скроллинг */
 					Registers.RealReg1 = Registers.BigReg1;
 					Registers.FH = Registers.TempFH;
 				}
@@ -633,9 +640,7 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 			if (ControlRegisters.ShowBackground) {
 				if (CurClock <= 255) /* cc 0-255 подгружаем данные */
 					FetchBackground(); /* Данные для _следующих_ 16 пикселей */
-				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
-					y++;
-					x = 0;
+				if (CurClock == 320) { /* cc 304 обновляем скроллинг */
 					Registers.IncrementY();
 					Registers.UpdateScroll();
 				}
