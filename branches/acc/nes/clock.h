@@ -31,22 +31,6 @@
 
 namespace vpnes {
 
-/* Стандартное утройство, работающие по тактам */
-template <class _Bus>
-class CClockedDevice: public CDevice<_Bus> {
-protected:
-	/* Текущие такты */
-	int Clocks;
-public:
-	inline explicit CClockedDevice():Clocks(0) {}
-	inline ~CClockedDevice() {}
-
-	/* Получить такты */
-	inline const int &GetClocks() const { return Clocks; }
-	/* Выполнить действие */
-	inline void Clock(int DoClocks) {}
-};
-
 namespace clock {
 	typedef int (*CallbackFunc)(double);
 }
@@ -76,10 +60,8 @@ public:
 	inline int Clock() {
 		double Tim;
 
-		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
-			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::PPU])->GetClocks());
+		Clocks = static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
 		static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
-		static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
 		AllClocks += Clocks;
 		if (static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {
 			static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady() = false;

@@ -73,7 +73,7 @@ public:
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		switch (Address) {
-			case 0x4014: /* OAM DMA */
+			case 0x4014:
 				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetDMA() = Src;
 				break;
 			case 0x4016:
