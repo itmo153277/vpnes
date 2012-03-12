@@ -110,6 +110,10 @@ int WindowCallback(double Tim) {
 		switch (event.type) {
 			case SDL_QUIT:
 				quit = -1;
+				break;
+			case SDL_KEYDOWN:
+				if (event.key.keysym.sym == SDLK_SPACE)
+					quit = 1;
 		}
 #if 1
 	/* Синхронизация */

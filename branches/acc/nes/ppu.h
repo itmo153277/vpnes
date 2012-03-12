@@ -100,7 +100,7 @@ private:
 			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
 		inline void IncrementY() { uint8 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2);
 			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
-			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); RealReg1 ^= 0x0400; }
+			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
 		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f);
 			FH = TempFH; }
 	} Registers;
@@ -321,7 +321,7 @@ public:
 		scanline = 261; /* Начинаем с пре-рендер сканлайна */
 		ClocksLeft = 0;
 		CurClock = 0;
-		ShortScanline = false;
+		ShortScanline = true;
 		TileA = 0;
 		TileB = 0;
 		ShiftRegA = 0;
@@ -338,13 +338,12 @@ public:
 		if (num > DMA_left)
 			num = DMA_left;
 		DMA_left -= num;
-	//	if (OAM_DMA >= 0x2000) { /* Вышли за границы памяти CPU — обращаемся к шине */
+		if (OAM_DMA >= 0x2000) { /* Вышли за границы памяти CPU — обращаемся к шине */
 			for (; num > 0; num--) {
 				OAM[OAM_addr] = Bus->ReadCPUMemory(OAM_DMA);
 				OAM_DMA++;
 				OAM_addr++;
 			}
-#if 0
 		} else { /* Читаем данные напрямую из памяти */
 			if ((num + OAM_addr) > 256) {
 				memcpy(OAM + OAM_addr,
@@ -360,7 +359,6 @@ public:
 			OAM_addr += num;
 			OAM_DMA += num;
 		}
-#endif
 	}
 
 	/* Установить DMA */
@@ -481,8 +479,6 @@ inline void CPPU<_Bus>::FetchBackground() {
 		case 6: /* Образ B */
 			TileB = Bus->ReadPPUMemory(Registers.GetPTAddress() | 0x08);
 			Registers.IncrementX();
-			ShiftRegA |= TileA;
-			ShiftRegB |= TileB;
 			break;
 	}
 }
@@ -490,22 +486,20 @@ inline void CPPU<_Bus>::FetchBackground() {
 /* Подгружаем образы */
 template <class _Bus>
 inline void CPPU<_Bus>::FetchNextBackground() {
-	if (!(CurClock & 0x07)) {
-		ShiftRegA <<= 8;
-		ShiftRegB <<= 8;
+	FetchBackground();
+	if ((CurClock & 0x07) == 6) {
+		ShiftRegA = (ShiftRegA << 8) | TileA;
+		ShiftRegB = (ShiftRegB << 8) | TileB;
 		Registers.AR >>= 2;
 		Registers.AR |= Registers.TempAR;
 	}
-	FetchBackground();
 }
 
 /* Рисуем пиксель */
 template <class _Bus>
 inline void CPPU<_Bus>::DrawScanline() {
-	int i, col, scol;
+	int i, rspr, col, scol;
 	uint16 t;
-	uint8 oattr;
-	bool oprim;
 
 	do {
 		col = 0;
@@ -515,7 +509,7 @@ inline void CPPU<_Bus>::DrawScanline() {
 				col |= 1;
 			if (ShiftRegB & (0x8000 >> Registers.FH))
 				col |= 2;
-			t = Registers.GetPALAddress(col, Registers.AR);
+			t = Registers.GetPALAddress(col, 0);//Registers.AR);
 		} else
 			t = 0;
 		/* Рисуем спрайты */
@@ -556,20 +550,17 @@ inline void CPPU<_Bus>::DrawScanline() {
 						Sprites[i].ShiftRegB >>= 1;
 						break;
 				}
-				oattr = Sprites[i].Attrib;
-				oprim = Sprites[i].prim;
+				rspr = i;
 			}
 		if ((scol != 0x10) && ControlRegisters.ShowSprites &&
-			(ControlRegisters.SpriteClip || (x > 7)) && (x != 255)) {
-			if (oprim && (col != 0))
+			(ControlRegisters.SpriteClip || (x > 7)) && (x != 255) && (Sprites[rspr].y != 255)) {
+			if (Sprites[rspr].prim && (col != 0))
 				State.SetSprite0Hit();
 			/* Мы не прозрачны, фон пустой или у нас приоритет */
-			if ((col == 0) || (~oattr & 0x20))
+			if ((col == 0) || (~Sprites[rspr].Attrib & 0x20))
 				/* Перекрываем пиксель фона */
-				t = Registers.GetPALAddress(scol, oattr);
+				t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
 		}
-		if (PalMem[t] == 0)
-			PalMem[y] = 0;
 		DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 		ShiftRegA <<= 1;
 		ShiftRegB <<= 1;
@@ -578,6 +569,10 @@ inline void CPPU<_Bus>::DrawScanline() {
 			Registers.AR |= Registers.TempAR;
 		}
 		x++;
+		if (!(x & 0x07)) {
+			ShiftRegA |= TileA;
+			ShiftRegB |= TileB;
+		}
 	} while (x & 0x01);
 }
 
@@ -597,7 +592,7 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				FrameReady = true;
 			}
 		}
-		if (ClocksLeft < 1)
+		if (ClocksLeft < 2)
 			break;
 		if (scanline == 261) { /* sc 261 пре-рендер сканлайн */
 			if (ControlRegisters.ShowSprites) {
@@ -607,17 +602,23 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 					FetchSprite();
 			}
 			if (ControlRegisters.ShowBackground) {
-				if (CurClock == 320) { /* cc 304 обновляем скроллинг */
+				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
 					Registers.RealReg1 = Registers.BigReg1;
 					Registers.FH = Registers.TempFH;
 				}
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 340-335 загружаем первые 16 пикселей */
 					FetchNextBackground();
 			}
+			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
+				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
+					Registers.RealReg1 = Registers.BigReg1;
+					Registers.FH = Registers.TempFH;
+				}
+			}
 			if (CurClock == 0) { /* cc 0 сброс VBlank и т.п.*/
 				State.State = 0;
 			}
-			if (CurClock == 304) {
+			if (CurClock == 320) {
 				y = 0;
 				x = 0;
 			}
@@ -640,16 +641,18 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 			if (ControlRegisters.ShowBackground) {
 				if (CurClock <= 255) /* cc 0-255 подгружаем данные */
 					FetchBackground(); /* Данные для _следующих_ 16 пикселей */
-				if (CurClock == 320) { /* cc 304 обновляем скроллинг */
-					Registers.IncrementY();
-					Registers.UpdateScroll();
-				}
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 320-335 загружаем 16 пикселей */
 					FetchNextBackground();
 			}
+			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
+				if (CurClock == 256) { /* cc 256 обновляем скроллинг */
+					Registers.IncrementY();
+					Registers.UpdateScroll();
+				}
+			}
 			if (CurClock <= 255) /* cc 0-255 рисуем сканлайн */
 				DrawScanline();
-			if (CurClock == 304) {
+			if (CurClock == 320) {
 				y++;
 				x = 0;
 			}
@@ -657,7 +660,8 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 		if (scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
 			if (CurClock == 0) {
 				State.SetVBlank();
-				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
+				if (ControlRegisters.GenerateNMI)
+					static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
 			}
 		}
 		CurClock += 2;
