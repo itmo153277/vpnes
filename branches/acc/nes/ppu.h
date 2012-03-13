@@ -32,6 +32,8 @@
 #include "device.h"
 #include "clock.h"
 
+#include <iostream>
+
 namespace vpnes {
 
 /* PPU */
@@ -92,7 +94,8 @@ private:
 		/* Прочитали NameTable */
 		inline void ReadNT(uint8 Src) { BigReg2 = (BigReg2 & 0x1000) | (Src << 4); }
 		/* Прочитали AttributeTable */
-		inline void ReadAT(uint8 Src) { TempAR = (Src >> (((RealReg1 >> 4) & 0x004) | (RealReg1 & 0x0002))) << 2; }
+		inline void ReadAT(uint8 Src) { TempAR = ((Src >> (((RealReg1 >> 4) & 0x004) |
+			(RealReg1 & 0x0002))) & 0x03) << 2; }
 		/* Инкременты */
 		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
 			RealReg1 += 0x0020; else RealReg1++; }
@@ -192,6 +195,9 @@ private:
 	int DMA_pos;
 	/* DMA осталось */
 	int DMA_left;
+	int totalclocks;
+	int precclocks;
+	bool SupressVBlank;
 
 	/* Вывод точки */
 	inline void DrawPixel(int x, int y, uint32 color) {
@@ -232,17 +238,23 @@ public:
 	inline uint8 ReadAddress(uint16 Address) {
 		uint8 Res;
 		uint16 t;
+	//	uint16 t1;
 
 		switch (Address & 0x2007) {
 			case 0x2002: /* Получить информаию о состоянии */
 				Trigger = false;
 				Res = State.State;
-				State.ClearVBlank();
+				SupressVBlank = true;
+	//			State.ClearVBlank();
 				/* Supression NMI */
-				static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = false;
+	//			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = false;
+	//			t1 = static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Registers.pc;
+	//			if ((t1 == 58119) || (t1 == 58190) || (t1 == 58193))
+	//				std::cout << "$2002 read\tClock " << precclocks << std::endl;
 				return Res;
 			case 0x2004: /* Взять байт из памяти SPR */
-				if (((scanline < 240) || (scanline == 0)) && (CurClock < 256))
+				if (ControlRegisters.ShowSprites && ((scanline < 240) || (scanline == 261))
+					&& (CurClock < 256))
 					return 0xff;
 				return OAM[OAM_addr];
 			case 0x2007: /* Взять байт из памяти PPU */
@@ -327,6 +339,9 @@ public:
 		ShiftRegA = 0;
 		ShiftRegB = 0;
 		DMA_left = 0;
+		totalclocks = 0;
+		precclocks = 0;
+		SupressVBlank = false;
 	}
 	/* Выполнить DMA */
 	inline void ProcessDMA(int Passed) {
@@ -509,7 +524,7 @@ inline void CPPU<_Bus>::DrawScanline() {
 				col |= 1;
 			if (ShiftRegB & (0x8000 >> Registers.FH))
 				col |= 2;
-			t = Registers.GetPALAddress(col, 0);//Registers.AR);
+			t = Registers.GetPALAddress(col, Registers.AR);
 		} else
 			t = 0;
 		/* Рисуем спрайты */
@@ -564,14 +579,13 @@ inline void CPPU<_Bus>::DrawScanline() {
 		DrawPixel(x, y - 8, palette[PalMem[t] & 0x3f]);
 		ShiftRegA <<= 1;
 		ShiftRegB <<= 1;
-		if ((x & 0x07) == (Registers.FH ^ 0x07)) {
+		if ((x & 0x07) == (Registers.FH ^ 0x07))
 			Registers.AR >>= 2;
-			Registers.AR |= Registers.TempAR;
-		}
 		x++;
 		if (!(x & 0x07)) {
 			ShiftRegA |= TileA;
 			ShiftRegB |= TileB;
+			Registers.AR |= Registers.TempAR;
 		}
 	} while (x & 0x01);
 }
@@ -582,15 +596,33 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 	if (DMA_left > 0)
 		ProcessDMA(DoClocks);
 	ClocksLeft += DoClocks;
+	precclocks += DoClocks;
 	for (;;) {
 		if ((ClocksLeft > 0) && (CurClock == 340)) {
 			ClocksLeft -= 1;
+			totalclocks++;
 			CurClock = 0;
 			scanline++;
 			if (scanline == 262) {
 				scanline = 0;
 				FrameReady = true;
 			}
+			if (scanline == 261) { /* sc 261 сброс VBlank и т.п. */
+				State.State = 0;
+	//			std::cout << "VBlank clear\tClock " << totalclocks << std::endl;
+			}
+			if (scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
+	//			std::cout << "VBlank set\tClock " << totalclocks << std::endl;
+	//			if (!SupressVBlank) {// || (ClocksLeft & 0x01)) {
+					State.SetVBlank();
+					if (ControlRegisters.GenerateNMI)
+						static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
+	//			}
+			}
+		}
+		if (SupressVBlank) {
+			State.ClearVBlank();
+			SupressVBlank = false;
 		}
 		if (ClocksLeft < 2)
 			break;
@@ -601,22 +633,13 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				if ((CurClock >= 256) && (CurClock <= 319)) /* cc 256-319 загружаем данные спрайтов */
 					FetchSprite();
 			}
-			if (ControlRegisters.ShowBackground) {
+			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
 				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
 					Registers.RealReg1 = Registers.BigReg1;
 					Registers.FH = Registers.TempFH;
 				}
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 340-335 загружаем первые 16 пикселей */
 					FetchNextBackground();
-			}
-			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
-				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
-					Registers.RealReg1 = Registers.BigReg1;
-					Registers.FH = Registers.TempFH;
-				}
-			}
-			if (CurClock == 0) { /* cc 0 сброс VBlank и т.п.*/
-				State.State = 0;
 			}
 			if (CurClock == 320) {
 				y = 0;
@@ -627,6 +650,7 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				if (ControlRegisters.ShowBackground) {
 					ShortScanline = !ShortScanline;
 					ClocksLeft++;
+					totalclocks--;
 				} else
 					ShortScanline = false;
 			}
@@ -638,13 +662,11 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				if ((CurClock >= 256) && (CurClock <= 319)) /* cc 256-319 загружаем данные спрайтов */
 					FetchSprite();
 			}
-			if (ControlRegisters.ShowBackground) {
+			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
 				if (CurClock <= 255) /* cc 0-255 подгружаем данные */
 					FetchBackground(); /* Данные для _следующих_ 16 пикселей */
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 320-335 загружаем 16 пикселей */
 					FetchNextBackground();
-			}
-			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
 				if (CurClock == 256) { /* cc 256 обновляем скроллинг */
 					Registers.IncrementY();
 					Registers.UpdateScroll();
@@ -657,15 +679,9 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				x = 0;
 			}
 		}
-		if (scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
-			if (CurClock == 0) {
-				State.SetVBlank();
-				if (ControlRegisters.GenerateNMI)
-					static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
-			}
-		}
 		CurClock += 2;
 		ClocksLeft -= 2;
+		totalclocks += 2;
 	}
 }
 

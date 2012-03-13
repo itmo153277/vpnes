@@ -40,6 +40,7 @@ template <class _Bus>
 class CClock {
 public:
 	typedef typename _Bus::CPUClass CPUClass;
+	typedef typename _Bus::APUClass APUClass;
 	typedef typename _Bus::PPUClass PPUClass;
 
 private:
@@ -61,6 +62,7 @@ public:
 		double Tim;
 
 		Clocks = static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+		static_cast<APUClass *>(Bus->GetDeviceList()[_Bus::APU])->Clock(Clocks);
 		static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
 		AllClocks += Clocks;
 		if (static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {

@@ -38,7 +38,7 @@ namespace vpnes {
 template <class _Bus>
 class CCPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
-private:
+public:
 	/* Обработчик инструкции */
 	typedef int (CCPU::*OpHandler)();
 
@@ -616,6 +616,7 @@ template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
+	bool raiseirq = false;
 
 	if (Halt) /* Зависли */
 		return 1;
@@ -624,10 +625,14 @@ inline int CCPU<_Bus>::PerformOperation() {
 		if (NMI) {
 			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
 			NMI = false;
-		} else
+		} else {
 			Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
+			IRQ = false;
+		}
 		CurBreak = false;
 		return 3; /* 3 такта */
+	} else if (NMI || (IRQ && !State.Interrupt())) {
+		raiseirq = true;
 	}
 	if (OAM_DMA >= 0) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
@@ -637,6 +642,8 @@ inline int CCPU<_Bus>::PerformOperation() {
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
 		OAM_DMA = -1;
 	}
+	if (Registers.pc == 0xe043)
+		 Registers.pc = 0xe043;
 	opcode = Bus->ReadCPUMemory(Registers.pc); /* Текущий опкод */
 	/* Число тактов + 1 такт на пересечение страницы */
 	clocks = OpCodes[opcode].Clocks;
@@ -645,21 +652,11 @@ inline int CCPU<_Bus>::PerformOperation() {
 		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
-	if (!CurBreak) {
-		if (NMI) {
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			CurBreak = true;
-			clocks += 4; /* 4 такта */
-		} else if (IRQ) { /* Подан сигнал IRQ */
-			IRQ = false;
-			if (!State.Interrupt()) { /* Обработка разрешена */
-				PushWord(Registers.pc); /* Следующая команда */
-				PushByte(State.State); /* Сохраняем состояние */
-				CurBreak = true;
-				clocks += 4; /* 4 такта */
-			}
-		}
+	if (!CurBreak && raiseirq) {
+		PushWord(Registers.pc); /* Следующая команда */
+		PushByte(State.State); /* Сохраняем состояние */
+		CurBreak = true;
+		clocks += 4; /* 4 такта */
 	}
 	return clocks;
 }

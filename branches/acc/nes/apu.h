@@ -40,9 +40,50 @@ class CAPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
 private:
 	uint8 b;
+	int CurClocks;
+	int n;
+	bool CounterReset;
+	int NextReady;
 public:
-	inline explicit CAPU(_Bus *pBus) { Bus = pBus; b = 0; }
+	inline explicit CAPU(_Bus *pBus) { Bus = pBus; b = 0; CurClocks = 0; n = 0; CounterReset = false;
+		NextReady = 0; }
 	inline ~CAPU() {}
+
+	inline void Clock(int DoClocks) {
+		if (CounterReset) {
+			CounterReset = false;
+			CurClocks = 14914;
+			if (NextReady)
+				CurClocks += (DoClocks / 6);
+			else
+				CurClocks += (DoClocks - 3) / 6;
+		} else {
+			NextReady ^= (DoClocks & 0x01);
+			CurClocks += DoClocks / 6;
+		}
+		if (CurClocks >= 14914)
+			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetIRQPin() = true;
+		if (CurClocks >= 14915)
+			CurClocks -= 14915;
+		if ((CurClocks >= 3728) && (n == 0)) {
+			//Envelopes & triangle's linear counter
+			n++;
+		}
+		if ((CurClocks >= 7456) && (n == 1)) {
+			//Envelopes & triangle's linear counter
+			//Length counters & sweep units
+			n++;
+		}
+		if ((CurClocks >= 11185) && (n == 2)) {
+			//Envelopes & triangle's linear counter
+			n++;
+		}
+		if ((CurClocks >= 14914) && (n == 3)) {
+			//Envelopes & triangle's linear counter
+			//Length counters & sweep units
+			n++;
+		}
+	}
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
@@ -78,6 +119,9 @@ public:
 				break;
 			case 0x4016:
 				b = 0;
+				break;
+			case 0x4017:
+				CounterReset = true;
 				break;
 		}
 	}
