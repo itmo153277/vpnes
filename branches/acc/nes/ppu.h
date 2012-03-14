@@ -599,7 +599,8 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 	precclocks += DoClocks;
 	for (;;) {
 		if ((ClocksLeft > 0) && (CurClock == 340)) {
-			ClocksLeft -= 1;
+	//		if (!ShortScanline || (scanline != 261))
+				ClocksLeft--;
 			totalclocks++;
 			CurClock = 0;
 			scanline++;
@@ -613,15 +614,16 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 			}
 			if (scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
 	//			std::cout << "VBlank set\tClock " << totalclocks << std::endl;
-	//			if (!SupressVBlank) {// || (ClocksLeft & 0x01)) {
+				if (!SupressVBlank) {// || (ClocksLeft & 0x01)) {
 					State.SetVBlank();
 					if (ControlRegisters.GenerateNMI)
 						static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
-	//			}
+				}
 			}
 		}
 		if (SupressVBlank) {
 			State.ClearVBlank();
+			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = false;
 			SupressVBlank = false;
 		}
 		if (ClocksLeft < 2)
@@ -645,12 +647,13 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				y = 0;
 				x = 0;
 			}
-			if (CurClock == 338) { /* cc 340 пропускается через кадр при включенном рендерере */
-				/* 340 такт проскакивает, поэтому делаем проверку за шаг до этого */
+			if (CurClock == 338) {
 				if (ControlRegisters.ShowBackground) {
+					if (ShortScanline) {
+						ClocksLeft++;
+						totalclocks--;
+					}
 					ShortScanline = !ShortScanline;
-					ClocksLeft++;
-					totalclocks--;
 				} else
 					ShortScanline = false;
 			}

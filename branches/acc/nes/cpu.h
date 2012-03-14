@@ -38,7 +38,7 @@ namespace vpnes {
 template <class _Bus>
 class CCPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
-public:
+private:
 	/* Обработчик инструкции */
 	typedef int (CCPU::*OpHandler)();
 
@@ -97,6 +97,7 @@ public:
 	int OAM_DMA;
 	/* DMA wrap */
 	int DMA_wrap;
+	bool raiseirq;
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
@@ -616,7 +617,6 @@ template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
 	int clocks;
-	bool raiseirq = false;
 
 	if (Halt) /* Зависли */
 		return 1;
@@ -625,15 +625,13 @@ inline int CCPU<_Bus>::PerformOperation() {
 		if (NMI) {
 			Registers.pc = Bus->ReadCPUMemory(0xfffa) | (Bus->ReadCPUMemory(0xfffb) << 8);
 			NMI = false;
-		} else {
+		} else
 			Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
-			IRQ = false;
-		}
 		CurBreak = false;
 		return 3; /* 3 такта */
-	} else if (NMI || (IRQ && !State.Interrupt())) {
-		raiseirq = true;
-	}
+	} else
+		raiseirq = NMI || (IRQ && !State.Interrupt());
+	IRQ = false;
 	if (OAM_DMA >= 0) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
 		OAM_DMA = -2;
@@ -1168,6 +1166,7 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpPLP() {
 	State.SetState(PopByte());
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->ForceIRQ();
 	return 0;
 }
 
@@ -1202,6 +1201,10 @@ template <class _Addr>
 int CCPU<_Bus>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->RaiseIRQ();
+	if (!NMI)
+		raiseirq = IRQ && !State.Interrupt();
+	IRQ = false;
 	return 0;
 }
 
@@ -1250,6 +1253,7 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpCLI() {
 	State.State &= 0xfb;
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->ForceIRQ();
 	return 0;
 }
 
