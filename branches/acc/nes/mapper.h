@@ -363,9 +363,12 @@ public:
 			RAM = new uint8[rsize * 0x2000];
 		if (psize == 32)
 			Mode = Mode_512;
-		else
+		else {
 			if (psize < 32 && UseRAM)
 				Mode = Mode_256_RAM;
+			else
+				Mode = ModeNormal;
+		}
 		CHRLow = CHRBanks + (csize - 1) * 0x2000;
 		CHRHi = CHRBanks + (csize - 1) * 0x2000 + 0x1000;
 		PRGLow = PRGBanks + (psize - 2) * 0x4000;
@@ -422,7 +425,7 @@ public:
 			PRGBank_Mode = FixedSecond;
 			return;
 		}
-		ShiftReg = (ShiftReg << 1) | (Src & 0x01);
+		ShiftReg |= (Src & 0x01) << ShiftIter;
 		if (++ShiftIter != 5)
 			return;
 		if (Address < 0xa000) { /* Control */
@@ -435,11 +438,13 @@ public:
 					break;
 				case 0x02:
 					/* Vertical */
-					Bus->GetMirrorMask() = 0x2bff;
+					Bus->GetMirrorMask() = 0x27ff;
+					Bus->GetPPUPage() = 0;
 					break;
 				case 0x03:
 					/* Horizontal */
-					Bus->GetMirrorMask() = 0x27ff;
+					Bus->GetMirrorMask() = 0x2bff;
+					Bus->GetPPUPage() = 0;
 					break;
 			}
 			switch (ShiftReg & 0x0c) { /* PRG Bank Mode */
@@ -505,7 +510,7 @@ public:
 					PRGHi = PRGBanks + (ShiftReg << 14);
 					break;
 				case FixedSecond:
-					PRGHi = PRGBanks + (ShiftReg << 14);
+					PRGLow = PRGBanks + (ShiftReg << 14);
 			}
 		}
 		ShiftIter = 0;
@@ -516,7 +521,7 @@ public:
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		if (Address < 0x1000)
 			return CHRLow[Address];
-		return CHRHi[Address];
+		return CHRHi[Address & 0x0fff];
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
@@ -524,7 +529,7 @@ public:
 			return;
 		if (Address < 0x1000)
 			CHRLow[Address] = Src;
-		CHRHi[Address] = Src;
+		CHRHi[Address & 0x0fff] = Src;
 	}
 };
 
