@@ -78,10 +78,10 @@ void AppQuit(void) {
 int WindowCallback(double Tim) {
 	SDL_Event event;
 	int quit = 0;
-#if 0
 	static int cur_frame = 0;
-	static Uint32 fpst = 0;
 	char buf[20];
+#if 0
+	static Uint32 fpst = 0;
 	Sint32 passed;
 	double fps;
 #endif
@@ -94,9 +94,9 @@ int WindowCallback(double Tim) {
 		SDL_UnlockSurface(screen);
 	SDL_Flip(screen);
 	/* Текущий фрейм */
-#if 0
 	itoa(cur_frame, buf, 10);
 	SDL_WM_SetCaption(buf, NULL);
+#if 0
 	passed = SDL_GetTicks() - fpst;
 	if (passed > 1000) {
 		fps = cur_frame * 1000.0 / passed;
@@ -105,8 +105,8 @@ int WindowCallback(double Tim) {
 		fpst = SDL_GetTicks();
 		cur_frame = 0;
 	}
-	cur_frame++;
 #endif
+	cur_frame++;
 	/* Обрабатываем сообщения */
 	while (SDL_PollEvent(&event))
 		switch (event.type) {

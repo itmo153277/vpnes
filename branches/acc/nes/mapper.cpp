@@ -48,6 +48,14 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 			NROM_NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] =
 				new CNROM<CNES_NROM::BusClass>(&NROM_NES->GetBus(), ROM);
 			return NROM_NES;
+		case 1:
+			CNES_MMC1 *MMC1_NES;
+
+			/* Возвращаем стандартный NES на MMC1 */
+			MMC1_NES = new CNES_MMC1(CallBack);
+			MMC1_NES->GetBus().GetDeviceList()[CNES_MMC1::BusClass::ROM] =
+				new CMMC1<CNES_MMC1::BusClass>(&MMC1_NES->GetBus(), ROM);
+			return MMC1_NES;
 		case 2:
 			CNES_UxROM *UxROM_NES;
 

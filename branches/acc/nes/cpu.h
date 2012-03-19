@@ -32,6 +32,8 @@
 #include "device.h"
 #include "clock.h"
 
+#include <iostream>
+
 namespace vpnes {
 
 /* CPU */
@@ -616,7 +618,7 @@ struct CPU_rebind {
 template <class _Bus>
 inline int CCPU<_Bus>::PerformOperation() {
 	uint8 opcode;
-	int clocks;
+	int clocks;int lastpc;
 
 	if (Halt) /* Зависли */
 		return 1;
@@ -631,7 +633,8 @@ inline int CCPU<_Bus>::PerformOperation() {
 		return 3; /* 3 такта */
 	} else
 		raiseirq = NMI || (IRQ && !State.Interrupt());
-	IRQ = false;
+	if (IRQ)
+		IRQ = false;
 	if (OAM_DMA >= 0) { /* Выполнить DMA */
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
 		OAM_DMA = -2;
@@ -640,14 +643,12 @@ inline int CCPU<_Bus>::PerformOperation() {
 		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
 		OAM_DMA = -1;
 	}
-	if (Registers.pc == 0xe043)
-		 Registers.pc = 0xe043;
 	opcode = Bus->ReadCPUMemory(Registers.pc); /* Текущий опкод */
 	/* Число тактов + 1 такт на пересечение страницы */
 	clocks = OpCodes[opcode].Clocks;
 	if (OpCodes[opcode].Bound && (((Registers.pc & 0xff) +
 		OpCodes[opcode].Length) > 0x100))
-		clocks++;
+		clocks++;lastpc = Registers.pc;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
 	if (!CurBreak && raiseirq) {
@@ -1204,6 +1205,8 @@ int CCPU<_Bus>::OpRTI() {
 	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->RaiseIRQ();
 	if (!NMI)
 		raiseirq = IRQ && !State.Interrupt();
+	if (raiseirq)
+		raiseirq = true;
 	IRQ = false;
 	return 0;
 }
