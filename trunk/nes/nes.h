@@ -102,6 +102,7 @@ public:
 	/* Reset */
 	inline int Reset() {
 		CPU.Reset();
+		APU.Reset();
 		PPU.Reset();
 		return 0;
 	}

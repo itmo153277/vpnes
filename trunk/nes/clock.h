@@ -31,22 +31,6 @@
 
 namespace vpnes {
 
-/* Стандартное утройство, работающие по тактам */
-template <class _Bus>
-class CClockedDevice: public CDevice<_Bus> {
-protected:
-	/* Текущие такты */
-	int Clocks;
-public:
-	inline explicit CClockedDevice():Clocks(0) {}
-	inline ~CClockedDevice() {}
-
-	/* Получить такты */
-	inline const int &GetClocks() const { return Clocks; }
-	/* Выполнить действие */
-	inline void Clock(int DoClocks) {}
-};
-
 namespace clock {
 	typedef int (*CallbackFunc)(double);
 }
@@ -54,37 +38,37 @@ namespace clock {
 /* Стандартный тактовой генератор */
 template <class _Bus>
 class CClock {
-public:
-	typedef typename _Bus::CPUClass CPUClass;
-	typedef typename _Bus::PPUClass PPUClass;
-
 private:
 	/* Указатель на шину */
 	_Bus *Bus;
-	/* Текущие такты */
-	int Clocks;
 	/* Callback */
 	clock::CallbackFunc CallBack;
 	/* Всего тактов */
 	int AllClocks;
 public:
-	inline explicit CClock(_Bus *pBus, clock::CallbackFunc pCallBack): Bus(pBus), Clocks(0),
+	inline explicit CClock(_Bus *pBus, clock::CallbackFunc pCallBack): Bus(pBus),
 		CallBack(pCallBack), AllClocks(0) { }
 	inline ~CClock() {}
 
 	/* Выполнить такт */
 	inline int Clock() {
 		double Tim;
+		int Clocks;
 
-		Clocks = std::min(static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::CPU])->GetClocks(),
-			static_cast<CClockedDevice<_Bus> *>(Bus->GetDeviceList()[_Bus::PPU])->GetClocks());
-		static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks);
-		static_cast<CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock(Clocks);
+		/* Выполняем команду CPU */
+		Clocks = static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock();
+		/* APU */
+		static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->Clock(Clocks);
+		/* PPU */
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks * 3);
 		AllClocks += Clocks;
-		if (static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {
-			static_cast<PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady() = false;
-			Tim = 176.0 * AllClocks / 945000.0;
+		if (static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {
+			static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady() = false;
+			/* Довыполнить рендеринг */
+			static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(0);
+			Tim = 528.0 * AllClocks / 945000.0;
 			AllClocks = 0;
+			/* Рисуем */
 			return CallBack(Tim);
 		}
 		return 0;

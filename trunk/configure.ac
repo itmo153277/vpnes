@@ -1,6 +1,6 @@
 AC_PREREQ([2.68])
 
-AC_INIT([vpnes], [0.1], [viktprog@gmail.com])
+AC_INIT([vpnes], [0.2], [viktprog@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 

@@ -58,7 +58,6 @@ public:
 		APU,
 		PPU,
 		ROM,
-		Input,
 		StandardDevicesNum
 	};
 
