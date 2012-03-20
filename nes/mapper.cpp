@@ -30,6 +30,7 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 	const char NesHead[] = "NES\032";
 	char Buf[4];
 	uint8 flags1, flags2, mapper;
+	uint32 last;
 
 	ROM.seekg(0, std::ios_base::beg);
 	ROM.read(Buf, 4 * sizeof(char));
@@ -38,7 +39,13 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 	ROM.seekg(6, std::ios_base::beg);
 	ROM.read((char *) &flags1, sizeof(uint8));
 	ROM.read((char *) &flags2, sizeof(uint8));
+	if ((flags2 & 0x0c) == 0x08) /* iNES 2.0 */
+		return NULL;
 	mapper = (flags1 >> 4) | (flags2 & 0xf0);
+	ROM.seekg(12, std::ios_base::beg);
+	ROM.read((char *) &last, sizeof(uint32));
+	if (last != 0) /* Old dump */
+		mapper &= 0x0f;
 	switch (mapper) {
 		case 0:
 			CNES_NROM *NROM_NES;
@@ -48,6 +55,14 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 			NROM_NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] =
 				new CNROM<CNES_NROM::BusClass>(&NROM_NES->GetBus(), ROM);
 			return NROM_NES;
+		case 1:
+			CNES_MMC1 *MMC1_NES;
+
+			/* Возвращаем стандартный NES на MMC1 */
+			MMC1_NES = new CNES_MMC1(CallBack);
+			MMC1_NES->GetBus().GetDeviceList()[CNES_MMC1::BusClass::ROM] =
+				new CMMC1<CNES_MMC1::BusClass>(&MMC1_NES->GetBus(), ROM);
+			return MMC1_NES;
 		case 2:
 			CNES_UxROM *UxROM_NES;
 

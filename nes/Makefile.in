@@ -161,7 +161,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes.a
 libvpnes_a_SOURCES = device.cpp device.h clock.cpp clock.h apu.cpp apu.h cpu.cpp \
-					 cpu.h ppu.cpp ppu.h mapper.cpp mapper.h nes.cpp nes.h ../types.h
+                     cpu.h ppu.cpp ppu.h mapper.cpp mapper.h nes.cpp nes.h ../types.h
 
 all: all-am
 

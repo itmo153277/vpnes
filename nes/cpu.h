@@ -36,8 +36,7 @@ namespace vpnes {
 
 /* CPU */
 template <class _Bus>
-class CCPU: public CClockedDevice<_Bus> {
-	using CClockedDevice<_Bus>::Clocks;
+class CCPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
 private:
 	/* Обработчик инструкции */
@@ -94,6 +93,10 @@ private:
 	uint16 AddrCache;
 	/* DMA */
 	int OAM_DMA;
+	/* DMA wrap */
+	int DMA_wrap;
+	/* Выполнить IRQ */
+	bool raiseirq;
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
@@ -381,11 +384,8 @@ public:
 	}
 	inline ~CCPU() {}
 
-	/* Выполнить действие */
-	inline void Clock(int DoClocks) {
-		if ((Clocks -= DoClocks) == 0)
-			Clocks = PerformOperation() * 3;
-	}
+	/* Отработать команду */
+	inline int Clock();
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
@@ -416,14 +416,10 @@ public:
 		Halt = false;
 		CurBreak = false;
 		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
-		OAM_DMA = -1;
+		DMA_wrap = 0;
 	}
 
 private:
-
-	/* Отработать команду */
-	inline int PerformOperation();
-
 	/* Команды CPU */
 
 	/* Неизвестная команда */
@@ -608,20 +604,12 @@ struct CPU_rebind {
 
 /* Отработать такт */
 template <class _Bus>
-inline int CCPU<_Bus>::PerformOperation() {
+inline int CCPU<_Bus>::Clock() {
 	uint8 opcode;
 	int clocks;
 
 	if (Halt) /* Зависли */
 		return 1;
-	if (OAM_DMA >= 0) { /* Выполнить DMA */
-		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
-		OAM_DMA = -2;
-		return 513;
-	} else if (OAM_DMA == -2) {
-		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
-		OAM_DMA = -1;
-	}
 	if (CurBreak) { /* Обрабатываем прерывание */
 		/* Прыгаем */
 		if (NMI) {
@@ -631,6 +619,17 @@ inline int CCPU<_Bus>::PerformOperation() {
 			Registers.pc = Bus->ReadCPUMemory(0xfffe) | (Bus->ReadCPUMemory(0xffff) << 8);
 		CurBreak = false;
 		return 3; /* 3 такта */
+	} else
+		raiseirq = NMI || (IRQ && !State.Interrupt());
+	if (IRQ)
+		IRQ = false;
+	if (OAM_DMA >= 0) { /* Выполнить DMA */
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->SetDMA(OAM_DMA);
+		OAM_DMA = -2;
+		return 513 + DMA_wrap;
+	} else if (OAM_DMA == -2) {
+		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->ProcessDMA(513 * 3);
+		OAM_DMA = -1;
 	}
 	opcode = Bus->ReadCPUMemory(Registers.pc); /* Текущий опкод */
 	/* Число тактов + 1 такт на пересечение страницы */
@@ -640,22 +639,13 @@ inline int CCPU<_Bus>::PerformOperation() {
 		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
-	if (!CurBreak) {
-		if (NMI) {
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			CurBreak = true;
-			clocks += 4; /* 4 такта */
-		} else if (IRQ) { /* Подан сигнал IRQ */
-			IRQ = false;
-			if (!State.Interrupt()) { /* Обработка разрешена */
-				PushWord(Registers.pc); /* Следующая команда */
-				PushByte(State.State); /* Сохраняем состояние */
-				CurBreak = true;
-				clocks += 4; /* 4 такта */
-			}
-		}
+	if (!CurBreak && raiseirq) {
+		PushWord(Registers.pc); /* Следующая команда */
+		PushByte(State.State); /* Сохраняем состояние */
+		CurBreak = true;
+		clocks += 4; /* 4 такта */
 	}
+	DMA_wrap ^= clocks & 0x01;
 	return clocks;
 }
 
@@ -1166,6 +1156,7 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpPLP() {
 	State.SetState(PopByte());
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->ForceIRQ();
 	return 0;
 }
 
@@ -1200,6 +1191,12 @@ template <class _Addr>
 int CCPU<_Bus>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->RaiseIRQ();
+	if (!NMI)
+		raiseirq = IRQ && !State.Interrupt();
+	if (raiseirq)
+		raiseirq = true;
+	IRQ = false;
 	return 0;
 }
 
@@ -1248,6 +1245,7 @@ template <class _Bus>
 template <class _Addr>
 int CCPU<_Bus>::OpCLI() {
 	State.State &= 0xfb;
+	static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->ForceIRQ();
 	return 0;
 }
 
