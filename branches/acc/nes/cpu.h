@@ -32,8 +32,6 @@
 #include "device.h"
 #include "clock.h"
 
-#include <iostream>
-
 namespace vpnes {
 
 /* CPU */
@@ -81,8 +79,6 @@ private:
 		uint16 pc; /* PC */
 	} Registers;
 
-	/* Осталось тактов */
-	int Clocks;
 	/* Состояние прерывания */
 	bool CurBreak;
 	/* RAM */
@@ -99,6 +95,7 @@ private:
 	int OAM_DMA;
 	/* DMA wrap */
 	int DMA_wrap;
+	/* Выполнить IRQ */
 	bool raiseirq;
 
 	/* Положить в стек */
@@ -374,7 +371,7 @@ private:
 	};
 
 public:
-	inline explicit CCPU(_Bus *pBus): Clocks(0) {
+	inline explicit CCPU(_Bus *pBus) {
 		Bus = pBus;
 		/* Стартовые значения */
 		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
@@ -387,13 +384,8 @@ public:
 	}
 	inline ~CCPU() {}
 
-	/* Выполнить действие */
-	inline int Clock(int DoClocks) {
-		DMA_wrap ^= ~DoClocks & 0x01;
-		if ((Clocks -= DoClocks) == 0)
-			Clocks = PerformOperation() * 3;
-		return Clocks;
-	}
+	/* Отработать команду */
+	inline int Clock();
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
@@ -428,10 +420,6 @@ public:
 	}
 
 private:
-
-	/* Отработать команду */
-	inline int PerformOperation();
-
 	/* Команды CPU */
 
 	/* Неизвестная команда */
@@ -616,9 +604,9 @@ struct CPU_rebind {
 
 /* Отработать такт */
 template <class _Bus>
-inline int CCPU<_Bus>::PerformOperation() {
+inline int CCPU<_Bus>::Clock() {
 	uint8 opcode;
-	int clocks;int lastpc;
+	int clocks;
 
 	if (Halt) /* Зависли */
 		return 1;
@@ -648,7 +636,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 	clocks = OpCodes[opcode].Clocks;
 	if (OpCodes[opcode].Bound && (((Registers.pc & 0xff) +
 		OpCodes[opcode].Length) > 0x100))
-		clocks++;lastpc = Registers.pc;
+		clocks++;
 	Registers.pc += OpCodes[opcode].Length;
 	clocks += (this->*OpCodes[opcode].Handler)();
 	if (!CurBreak && raiseirq) {
@@ -657,6 +645,7 @@ inline int CCPU<_Bus>::PerformOperation() {
 		CurBreak = true;
 		clocks += 4; /* 4 такта */
 	}
+	DMA_wrap ^= clocks & 0x01;
 	return clocks;
 }
 

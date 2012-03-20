@@ -27,16 +27,12 @@
 #include "nes/nes.h"
 #include "nes/mapper.h"
 
-#include <iostream>
-#include <iomanip>
-
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 	vpnes::CBasicNES *NES;
 	std::fstream ROM;
 	void *buf;
 
-	std::cout << std::hex;
 	/* Открываем образ */
 	if (argc != 2)
 		return 0;

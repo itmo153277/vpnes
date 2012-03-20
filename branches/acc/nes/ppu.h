@@ -32,25 +32,26 @@
 #include "device.h"
 #include "clock.h"
 
-#include <iostream>
-
 namespace vpnes {
 
 /* PPU */
 template <class _Bus>
 class CPPU: public CDevice<_Bus> {
 	using CDevice<_Bus>::Bus;
-public:
-	int precclocks;
 private:
 
 	/* Состояние PPU */
 	struct SState {
 		uint8 State;
+		/* 0 объект */
 		inline void SetSprite0Hit() { State |= 0x40; }
+		/* VBlank set */
 		inline void SetVBlank() { State |= 0x80; }
+		/* VBlank clear */
 		inline void ClearVBlank() { State &= 0x7f; }
+		/* Overflow set */
 		inline void SetOverflow() { State |= 0x20; }
+		/* Garbadge */
 		inline void SetGarbage(uint8 Src) { State = (State & 0xe0) | (Src & 0x1f); }
 	} State;
 
@@ -61,7 +62,7 @@ private:
 		uint16 BigReg2; /* Вторая комбинация */
 		uint16 TempAR;
 		uint16 AR; /* Информация о аттрибутах */
-		uint16 TempFH; /* Точное смещение по горизонтали */
+		uint16 FHMask; /* Маска регистра */
 		uint16 FH; /* Настоящий регистр */
 		uint16 SpritePage; /* Страница для спрайтов */
 		/* Получить адрес для 0x2007 */
@@ -84,7 +85,7 @@ private:
 			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8);
 			SpritePage = (Src & 0x08) << 9; }
 		/* Запись в 0x2005/1 */
-		inline void Write2005_1(uint8 Src) { TempFH = Src & 0x07; BigReg1 = (BigReg1 & 0xffe0) |
+		inline void Write2005_1(uint8 Src) { FH = Src & 0x07; BigReg1 = (BigReg1 & 0xffe0) |
 			(Src >> 3); }
 		/* Запись в 0x2005/2 */
 		inline void Write2005_2(uint8 Src) { BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x07) << 12) |
@@ -106,8 +107,9 @@ private:
 		inline void IncrementY() { uint8 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2);
 			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
 			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
+		/* Обновление скроллинга */
 		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f);
-			FH = TempFH; }
+			FHMask = 0x8000 >> FH; }
 	} Registers;
 
 	/* Размер спрайта */
@@ -197,7 +199,7 @@ private:
 	int DMA_pos;
 	/* DMA осталось */
 	int DMA_left;
-	int totalclocks;
+	/* Подавить VBlank */
 	bool SupressVBlank;
 
 	/* Вывод точки */
@@ -217,10 +219,15 @@ private:
 		else
 			PalMem[Address & 0x001f] = Src;
 	}
+	/* Выборка спрайтов */
 	inline void EvaluateSprites(int sy);
+	/* Загрузить спрайт */
 	inline void FetchSprite();
+	/* Загрузить фон */
 	inline void FetchBackground();
+	/* Загрузить фон следующего сканлайна */
 	inline void FetchNextBackground();
+	/* Рисуем сканалайн */
 	inline void DrawScanline();
 public:
 	inline explicit CPPU(_Bus *pBus): pixels(NULL), FrameReady(false), scanline(0), CurClock(0),
@@ -290,8 +297,6 @@ public:
 					Registers.Write2005_1(Src);
 				else
 					Registers.Write2005_2(Src);
-				//std::cout << "2005 write " << (int) Src << "\tScanline " << scanline << "\tClock " <<
-				//	precclocks << "\tRealReg1 " << Registers.RealReg1 << "\tBigReg1 " << Registers.BigReg1 << std::endl;
 				break;
 			case 0x2006: /* Установить VRAM указатель */
 				Trigger = !Trigger;
@@ -299,8 +304,6 @@ public:
 					Registers.Write2006_1(Src);
 				else
 					Registers.Write2006_2(Src);
-				//std::cout << "2006 write " << (int) Src << "\tScanline " << scanline << "\tClock " <<
-				//	precclocks << "\tRealReg1 " << Registers.RealReg1 << "\tBigReg1 " << Registers.BigReg1 << std::endl;
 				break;
 			case 0x2007: /* Запись в VRAM память */
 				t = Registers.Get2007Address();
@@ -337,8 +340,6 @@ public:
 		ShiftRegA = 0;
 		ShiftRegB = 0;
 		DMA_left = 0;
-		totalclocks = 0;
-		precclocks = 0;
 		SupressVBlank = false;
 	}
 	/* Выполнить DMA */
@@ -409,14 +410,15 @@ inline void CPPU<_Bus>::EvaluateSprites(int sy) {
 			/* Спрайт попал в диапазон */
 			/* Заполняем данные */
 			Sprites[i].y = *(pOAM++);
-			Sprites[i].Tile =  *(pOAM++);
+			Sprites[i].Tile = *(pOAM++);
 			Sprites[i].Attrib = *(pOAM++);
 			Sprites[i].x = *(pOAM++);
 			Sprites[i].cx = 0;
 			Sprites[i].prim = n == 0;
 			i++;
 			if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
-				State.SetOverflow();
+				if (sy != -1)
+					State.SetOverflow();
 				break;
 			}
 			Sprites[i].x = -1; /* Конец списка */
@@ -482,8 +484,6 @@ template <class _Bus>
 inline void CPPU<_Bus>::FetchBackground() {
 	switch (CurClock & 0x07) {
 		case 0: /* Символ чара */
-			//std::cout << "Fetch NT " << Registers.GetNTAddress() << "\tScanline " << scanline <<
-			//	"\tClock " << CurClock << std::endl;
 			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
 			break;
 		case 2: /* Атрибуты */
@@ -506,8 +506,7 @@ inline void CPPU<_Bus>::FetchNextBackground() {
 	if ((CurClock & 0x07) == 6) {
 		ShiftRegA = (ShiftRegA << 8) | TileA;
 		ShiftRegB = (ShiftRegB << 8) | TileB;
-		Registers.AR >>= 2;
-		Registers.AR |= Registers.TempAR;
+		Registers.AR = (Registers.AR >> 2) | Registers.TempAR;
 	}
 }
 
@@ -521,57 +520,55 @@ inline void CPPU<_Bus>::DrawScanline() {
 		col = 0;
 		if (ControlRegisters.ShowBackground &&
 			(ControlRegisters.BackgroundClip || (x > 7))) {
-			if (ShiftRegA & (0x8000 >> Registers.FH))
+			if (ShiftRegA & Registers.FHMask)
 				col |= 1;
-			if (ShiftRegB & (0x8000 >> Registers.FH))
+			if (ShiftRegB & Registers.FHMask)
 				col |= 2;
 			t = Registers.GetPALAddress(col, Registers.AR);
 		} else
 			t = 0;
 		/* Рисуем спрайты */
 		scol = 0x10;
-		for (i = 0; i < 8; i++)
-			if (Sprites[i].x < 0)
-				break;
-			else if (Sprites[i].x == x) { /* Нашли спрайт на этом пикселе */
-				Sprites[i].cx++;
-				if (Sprites[i].cx == 9) /* Спрайт уже закончился */
-					continue;
-				Sprites[i].x++;
-				if (scol != 0x10) {
-					if (Sprites[i].Attrib & 0x40) {
-						Sprites[i].ShiftRegA >>= 1;
-						Sprites[i].ShiftRegB >>= 1;
-					} else {
-						Sprites[i].ShiftRegA <<= 1;
-						Sprites[i].ShiftRegB <<= 1;
+		if (x < 255) {
+			for (i = 0; i < 8; i++)
+				if (Sprites[i].x < 0)
+					break;
+				else if (Sprites[i].x == x) { /* Нашли спрайт на этом пикселе */
+					Sprites[i].cx++;
+					if (Sprites[i].cx == 9) /* Спрайт уже закончился */
+						continue;
+					Sprites[i].x++;
+					if (scol != 0x10) {
+						if (Sprites[i].Attrib & 0x40) { /* H-Flip */
+							Sprites[i].ShiftRegA >>= 1;
+							Sprites[i].ShiftRegB >>= 1;
+						} else {
+							Sprites[i].ShiftRegA <<= 1;
+							Sprites[i].ShiftRegB <<= 1;
+						}
+						continue;
 					}
-					continue;
-				}
-				switch (Sprites[i].Attrib & 0x40) {
-					case 0x00:
-						if (Sprites[i].ShiftRegA & 0x80)
-							scol |= 1;
-						if (Sprites[i].ShiftRegB & 0x80)
-							scol |= 2;
-						Sprites[i].ShiftRegA <<= 1;
-						Sprites[i].ShiftRegB <<= 1;
-						break;
-					case 0x40:
+					if (Sprites[i].Attrib & 0x40) { /* H-Flip */
 						if (Sprites[i].ShiftRegA & 0x01)
 							scol |= 1;
 						if (Sprites[i].ShiftRegB & 0x01)
 							scol |= 2;
 						Sprites[i].ShiftRegA >>= 1;
 						Sprites[i].ShiftRegB >>= 1;
-						break;
+					} else {
+						if (Sprites[i].ShiftRegA & 0x80)
+							scol |= 1;
+						if (Sprites[i].ShiftRegB & 0x80)
+							scol |= 2;
+						Sprites[i].ShiftRegA <<= 1;
+						Sprites[i].ShiftRegB <<= 1;
+					}
+					rspr = i;
 				}
-				rspr = i;
-			}
+		}
 		if ((scol != 0x10) && ControlRegisters.ShowSprites &&
 			(ControlRegisters.SpriteClip || (x > 7))) {
 			if (Sprites[rspr].prim && (col != 0)) {
-//				std::cout << "Sprite0Hit\tClock " << totalclocks << std::endl;
 				State.SetSprite0Hit();
 			}
 			/* Мы не прозрачны, фон пустой или у нас приоритет */
@@ -585,7 +582,7 @@ inline void CPPU<_Bus>::DrawScanline() {
 		if ((x & 0x07) == (Registers.FH ^ 0x07))
 			Registers.AR >>= 2;
 		x++;
-		if (!(x & 0x07)) {
+		if (!(x & 0x07)) { /* Подгружаем тайлы */
 			ShiftRegA |= TileA;
 			ShiftRegB |= TileB;
 			Registers.AR |= Registers.TempAR;
@@ -599,33 +596,29 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 	if (DMA_left > 0)
 		ProcessDMA(DoClocks);
 	ClocksLeft += DoClocks;
-	precclocks += DoClocks;
 	for (;;) {
 		if ((ClocksLeft > 0) && (CurClock == 340)) {
 			ClocksLeft--;
-			totalclocks++;
 			CurClock = 0;
 			scanline++;
 			if (scanline == 262) {
 				scanline = 0;
-				FrameReady = true;
 			}
 			if (scanline == 261) { /* sc 261 сброс VBlank и т.п. */
 				State.State = 0;
-//				std::cout << "VBlank clear\tClock " << totalclocks << std::endl;
 			}
 			if (scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
-//				std::cout << "VBlank set\tClock " << totalclocks << std::endl;
-				if (!SupressVBlank) {// || (ClocksLeft & 0x01)) {
+				if (!SupressVBlank) {
 					State.SetVBlank();
 					if (ControlRegisters.GenerateNMI)
 						static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = true;
 				}
+				FrameReady = true;
+				return; /* Рисуем на экране */
 			}
 		}
-		if (SupressVBlank) {
+		if (SupressVBlank) { /* Подавляем VBlank (а как же NMI? T_T )*/
 			State.ClearVBlank();
-//			static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->GetNMIPin() = false;
 			SupressVBlank = false;
 		}
 		if (ClocksLeft < 2)
@@ -640,7 +633,7 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 			if (ControlRegisters.ShowSprites || ControlRegisters.ShowBackground) {
 				if (CurClock == 304) { /* cc 304 обновляем скроллинг */
 					Registers.RealReg1 = Registers.BigReg1;
-					Registers.FH = Registers.TempFH;
+					Registers.FHMask = 0x8000 >> Registers.FH;
 				}
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 340-335 загружаем первые 16 пикселей */
 					FetchNextBackground();
@@ -649,11 +642,10 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 				y = 0;
 				x = 0;
 			}
-			if (CurClock == 338) {
+			if (CurClock == 338) { /* Короткий сканлайн */
 				if (ControlRegisters.ShowBackground) {
 					if (ShortScanline) {
 						ClocksLeft++;
-						totalclocks--;
 					}
 					ShortScanline = !ShortScanline;
 				} else
@@ -672,9 +664,9 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 					FetchBackground(); /* Данные для _следующих_ 16 пикселей */
 				if ((CurClock >= 320) && (CurClock <= 335)) /* cc 320-335 загружаем 16 пикселей */
 					FetchNextBackground();
-				if (CurClock == 250)
+				if (CurClock == 250) /* cc 250 инкремент y */
 					Registers.IncrementY();
-				if (CurClock == 256) { /* cc 256 обновляем скроллинг */
+				if (CurClock == 256) { /* cc 257 обновляем скроллинг */
 					Registers.UpdateScroll();
 				}
 			}
@@ -687,7 +679,6 @@ inline void CPPU<_Bus>::Clock(int DoClocks) {
 		}
 		CurClock += 2;
 		ClocksLeft -= 2;
-		totalclocks += 2;
 	}
 }
 

@@ -30,6 +30,7 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 	const char NesHead[] = "NES\032";
 	char Buf[4];
 	uint8 flags1, flags2, mapper;
+	uint32 last;
 
 	ROM.seekg(0, std::ios_base::beg);
 	ROM.read(Buf, 4 * sizeof(char));
@@ -38,7 +39,13 @@ CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
 	ROM.seekg(6, std::ios_base::beg);
 	ROM.read((char *) &flags1, sizeof(uint8));
 	ROM.read((char *) &flags2, sizeof(uint8));
+	if ((flags2 & 0x0c) == 0x08) /* iNES 2.0 */
+		return NULL;
 	mapper = (flags1 >> 4) | (flags2 & 0xf0);
+	ROM.seekg(12, std::ios_base::beg);
+	ROM.read((char *) &last, sizeof(uint32));
+	if (last != 0) /* Old dump */
+		mapper &= 0x0f;
 	switch (mapper) {
 		case 0:
 			CNES_NROM *NROM_NES;
