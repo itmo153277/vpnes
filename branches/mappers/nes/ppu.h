@@ -406,7 +406,7 @@ inline void CPPU<_Bus>::EvaluateSprites(int sy) {
 
 	Sprites[0].x = -1;
 	for (;;) {
-		if ((((uint8) (sy - *pOAM)) < ControlRegisters.Size)) {
+		if ((((uint8) (sy - *pOAM)) < ControlRegisters.Size) && (*pOAM != 0xff)) {
 			/* Спрайт попал в диапазон */
 			/* Заполняем данные */
 			Sprites[i].y = *(pOAM++);
@@ -417,8 +417,7 @@ inline void CPPU<_Bus>::EvaluateSprites(int sy) {
 			Sprites[i].prim = n == 0;
 			i++;
 			if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
-				if (sy != -1)
-					State.SetOverflow();
+				State.SetOverflow();
 				break;
 			}
 			Sprites[i].x = -1; /* Конец списка */
