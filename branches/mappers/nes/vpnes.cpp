@@ -31,6 +31,24 @@ CBasicNES *vpnes::OpenROM(std::istream &ROM, CallbackFunc CallBack) {
 
 	if (ReadROM(ROM, &Data) < 0)
 		return NULL;
+	switch (Data.Header.Mapper) {
+		case 0:
+			CNES_NROM *NROM_NES;
+
+			/* Возвращаем стандартный NES на 0-маппере */
+			NROM_NES = new CNES_NROM(CallBack);
+			NROM_NES->GetBus().GetDeviceList()[CNES_NROM::BusClass::ROM] =
+				new CNROM<CNES_NROM::BusClass>(&NROM_NES->GetBus(), &Data);
+			return NROM_NES;
+		case 2:
+			CNES_UxROM *UxROM_NES;
+
+			/* Возвращаем стандартный NES на UxROM */
+			UxROM_NES = new CNES_UxROM(CallBack);
+			UxROM_NES->GetBus().GetDeviceList()[CNES_UxROM::BusClass::ROM] =
+				new CUxROM<CNES_UxROM::BusClass>(&UxROM_NES->GetBus(), &Data);
+			return UxROM_NES;
+	}
 	delete [] Data.PRG;
 	delete [] Data.CHR;
 	delete [] Data.Trainer;

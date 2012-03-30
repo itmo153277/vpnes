@@ -136,13 +136,13 @@ public:
 				case 4:
 					return SDL_GetKeyState(NULL)[SDLK_s];
 				case 5:
-					return SDL_GetKeyState(NULL)[SDLK_UP];
+					return SDL_GetKeyState(NULL)[SDLK_UP] && !SDL_GetKeyState(NULL)[SDLK_DOWN];
 				case 6:
-					return SDL_GetKeyState(NULL)[SDLK_DOWN];
+					return SDL_GetKeyState(NULL)[SDLK_DOWN] && !SDL_GetKeyState(NULL)[SDLK_UP];
 				case 7:
-					return SDL_GetKeyState(NULL)[SDLK_LEFT];
+					return SDL_GetKeyState(NULL)[SDLK_LEFT] && !SDL_GetKeyState(NULL)[SDLK_RIGHT];
 				case 8:
-					return SDL_GetKeyState(NULL)[SDLK_RIGHT];
+					return SDL_GetKeyState(NULL)[SDLK_RIGHT] && !SDL_GetKeyState(NULL)[SDLK_LEFT];
 				}
 				break;
 		}

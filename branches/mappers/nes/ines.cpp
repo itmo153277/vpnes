@@ -47,8 +47,8 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		Data->Header.TVSystem = Header.TV_system;
 	}
 	if (Header.Flags & 0x04) { /* Trainer */
-		Data->Trainer = new uint8[0x0100];
-		ROM.read((char *) Data->Trainer, 0x0100 * sizeof(uint8));
+		Data->Trainer = new uint8[0x0200];
+		ROM.read((char *) Data->Trainer, 0x0200 * sizeof(uint8));
 	} else
 		Data->Trainer = NULL;
 	/* PRG */

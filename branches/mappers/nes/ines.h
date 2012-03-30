@@ -45,6 +45,7 @@ typedef struct iNES_Header {
 	uint8 RAMSize;     /* Размер PRG RAM в 8 KB */
 	uint8 TV_system;   /* Система */
 	uint8 Flags_unofficial; /* Недокументировано */
+	uint8 Reserved;
 	uint32 BadROM;     /* Должно быть 0 */
 } iNES_Header;
 #pragma pack(pop)
