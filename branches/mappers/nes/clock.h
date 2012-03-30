@@ -26,14 +26,12 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
 #include <algorithm>
 #include "device.h"
 
 namespace vpnes {
-
-namespace clock {
-	typedef int (*CallbackFunc)(double);
-}
 
 /* Стандартный тактовой генератор */
 template <class _Bus>
@@ -42,11 +40,11 @@ private:
 	/* Указатель на шину */
 	_Bus *Bus;
 	/* Callback */
-	clock::CallbackFunc CallBack;
+	CallbackFunc CallBack;
 	/* Всего тактов */
 	int AllClocks;
 public:
-	inline explicit CClock(_Bus *pBus, clock::CallbackFunc pCallBack): Bus(pBus),
+	inline explicit CClock(_Bus *pBus, CallbackFunc pCallBack): Bus(pBus),
 		CallBack(pCallBack), AllClocks(0) { }
 	inline ~CClock() {}
 

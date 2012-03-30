@@ -19,13 +19,20 @@
 
 \****************************************************************************/
 
+#include "vpnes.h"
+#include "ines.h"
 #include "mapper.h"
-
-#include <cstring>
 
 using namespace vpnes;
 
 /* Открыть картридж */
-CBasicNES *OpenROM(std::istream &ROM, clock::CallbackFunc CallBack) {
+CBasicNES *vpnes::OpenROM(std::istream &ROM, CallbackFunc CallBack) {
+	ines::NES_ROM_Data Data;
+
+	if (ReadROM(ROM, &Data) < 0)
+		return NULL;
+	delete [] Data.PRG;
+	delete [] Data.CHR;
+	delete [] Data.Trainer;
 	return NULL;
 }
