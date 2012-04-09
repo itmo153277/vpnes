@@ -30,6 +30,8 @@
 extern "C" {
 #endif
 
+typedef int (*CallbackFunc)(double);
+
 typedef unsigned char uint8;
 typedef signed char sint8;
 typedef unsigned short int uint16;

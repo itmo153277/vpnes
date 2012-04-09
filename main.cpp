@@ -25,12 +25,12 @@
 #include <fstream>
 #include "window.h"
 #include "nes/nes.h"
-#include "nes/mapper.h"
+#include "nes/vpnes.h"
 
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 	vpnes::CBasicNES *NES;
-	std::fstream ROM;
+	std::ifstream ROM;
 	void *buf;
 
 	/* Открываем образ */
@@ -39,11 +39,12 @@ int main(int argc, char *argv[]) {
 	ROM.open(argv[1], std::ios_base::in | std::ios_base::binary);
 	if (ROM.fail())
 		return 0;
-	NES = OpenROM(ROM, &WindowCallback);
+	NES = vpnes::OpenROM(ROM, &WindowCallback);
+	ROM.close();
 	if (NES == NULL)
 		return -1;
 	/* Инициализация SDL */
-	buf = InitMainWindow(256, 224);
+	buf = InitMainWindow(NES->GetWidth(), NES->GetHeight());
 	if (buf != NULL) /* Запуск */ {
 		NES->SetBuf((uint32 *) buf);
 		NES->SetPal((uint32 *) pal);

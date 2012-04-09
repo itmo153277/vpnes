@@ -35,6 +35,9 @@ namespace vpnes {
 
 /* Независимый интерфейс */
 class CBasicNES {
+protected:
+	int Width;
+	int Height;
 public:
 	inline explicit CBasicNES() {}
 	inline virtual ~CBasicNES() {}
@@ -47,6 +50,9 @@ public:
 	virtual void SetBuf(uint32 *Buf) = 0;
 	/* Установить указатель на палитру */
 	virtual void SetPal(uint32 *Pal) = 0;
+	/* Размеры */
+	inline const int &GetWidth() const { return Width; }
+	inline const int &GetHeight() const { return Height; }
 };
 
 /* Стандартный NES (NTSC) */
@@ -71,11 +77,13 @@ private:
 	/* PPU */
 	PPUClass PPU;
 public:
-	inline explicit CNES(clock::CallbackFunc CallBack): Bus(),
+	inline explicit CNES(CallbackFunc CallBack): Bus(),
 		Clock(&Bus, CallBack), CPU(&Bus), APU(&Bus), PPU(&Bus) {
 		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
 		Bus.GetDeviceList()[BusClass::APU] = &APU;
 		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
+		Width = 256;
+		Height = 224;
 	}
 	inline ~CNES() {
 		/* ROM добавляется маппером */
