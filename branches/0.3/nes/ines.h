@@ -26,62 +26,7 @@
 #include "config.h"
 #endif
 
-#include "../types.h"
-
-#include <istream>
-
 namespace vpnes {
-
-namespace ines {
-
-/* iNES Header */
-#pragma pack(push, 1)
-typedef struct iNES_Header {
-	char Signature[4]; /* NES */
-	uint8 PRGSize;     /* Размер PRG ROM в 16 KB */
-	uint8 CHRSize;     /* Размер CHR ROM в 8 KB */
-	uint8 Flags;       /* Флаги */
-	uint8 Flags_ex;    /* Флаги */
-	uint8 RAMSize;     /* Размер PRG RAM в 8 KB */
-	uint8 TV_system;   /* Система */
-	uint8 Flags_unofficial; /* Недокументировано */
-	uint8 Reserved;
-	uint32 BadROM;     /* Должно быть 0 */
-} iNES_Header;
-#pragma pack(pop)
-
-/* SolderPad */
-enum SolderPad {
-	Horizontal = 0x00,
-	Vertical = 0x01,
-	SingleScreen_1 = 0x08,
-	SingleScreen_2 = 0x09
-};
-
-/* Header Data */
-struct NES_Header_Data {
-	int PRGSize; /* Размер PRG ROM */
-	int CHRSize; /* Размер CHR ROM */
-	int RAMSize; /* Размер PRG RAM */
-	int Mapper;  /* Номер маппера */
-	SolderPad Mirroring; /* Отображение */
-	bool HaveBattery; /* Сохранять память */
-	int TVSystem; /* Система */
-};
-
-/* NES ROM Data */
-struct NES_ROM_Data {
-	NES_Header_Data Header; /* Заголовок */
-	uint8 *PRG;     /* PRG ROM */
-	uint8 *CHR;     /* CHR ROM */
-	uint8 *Trainer; /* Trainer */
-};
-
-}
-
-/* Прочитать образ */
-int ReadROM(std::istream &ROM, ines::NES_ROM_Data *Data);
-
 }
 
 #endif

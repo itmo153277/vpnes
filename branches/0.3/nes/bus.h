@@ -19,23 +19,14 @@
 
 \****************************************************************************/
 
-#ifndef __VPNES_H_
-#define __VPNES_H_
+#ifndef __BUS_H_
+#define __BUS_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include "../types.h"
-
-#include <istream>
-#include "nes.h"
-
 namespace vpnes {
-
-/* Открыть картридж */
-CBasicNES *OpenROM(std::istream &ROM, CallbackFunc CallBack);
-
 }
 
 #endif

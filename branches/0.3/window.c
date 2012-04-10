@@ -28,7 +28,7 @@ Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
 Uint32 Pal[64];
-const void *pal = Pal;
+const void *pal = (void *) Pal;
 const Uint8 NES_Palette[64][3] = {
 	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132},
 	{168, 0,  32  }, {168, 16,  0  }, {136, 20,  0  }, {80,  48,  0  }, {0,   120, 0  },
@@ -75,56 +75,67 @@ void AppQuit(void) {
 }
 
 /* Callback-функция */
-int WindowCallback(double Tim) {
+int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	SDL_Event event;
 	int quit = 0;
-#if 0
+	double *Tim;
+#if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
 	char buf[20];
+#endif
+#if defined(VPNES_SHOW_FPS)
 	static Uint32 fpst = 0;
 	Sint32 passed;
 	double fps;
 #endif
 
-	/* Обновляем экран */
-	if (SDL_MUSTLOCK(screen))
-		SDL_LockSurface(screen);
-	SDL_SoftStretch(bufs, NULL, screen, NULL);
-	if (SDL_MUSTLOCK(screen))
-		SDL_UnlockSurface(screen);
-	SDL_Flip(screen);
-#if 0
-	/* Текущий фрейм */
-	itoa(cur_frame, buf, 10);
-	SDL_WM_SetCaption(buf, NULL);
-	passed = SDL_GetTicks() - fpst;
-	if (passed > 1000) {
-		fps = cur_frame * 1000.0 / passed;
-		itoa((int) fps, buf, 10);
-		SDL_WM_SetCaption(buf, NULL);
-		fpst = SDL_GetTicks();
-		cur_frame = 0;
+	switch (VPNES_CALLBACK_EVENT) {
+		case VPNES_CALLBACK_FRAME:
+			Tim = (VPNES_FRAME *) Data;
+			/* Обновляем экран */
+			if (SDL_MUSTLOCK(screen))
+				SDL_LockSurface(screen);
+			SDL_SoftStretch(bufs, NULL, screen, NULL);
+			if (SDL_MUSTLOCK(screen))
+				SDL_UnlockSurface(screen);
+			SDL_Flip(screen);
+#if defined(VPNES_SHOW_CURFRAME)
+			/* Текущий фрейм */
+			itoa(cur_frame, buf, 10);
+			SDL_WM_SetCaption(buf, NULL);
+			cur_frame++;
+#elif defined(VPNES_SHOW_FPS)
+			/* FPS */
+			passed = SDL_GetTicks() - fpst;
+			if (passed > 1000) {
+				fps = cur_frame * 1000.0 / passed;
+				itoa((int) fps, buf, 10);
+				SDL_WM_SetCaption(buf, NULL);
+				fpst = SDL_GetTicks();
+				cur_frame = 0;
+			}
+			cur_frame++;
+#endif
+			/* Обрабатываем сообщения */
+			while (SDL_PollEvent(&event))
+				switch (event.type) {
+					case SDL_QUIT:
+						quit = -1;
+						break;
+					case SDL_KEYDOWN:
+						if (event.key.keysym.sym == SDLK_SPACE)
+							quit = 1;
+				}
+#if !defined(VPNES_DISABLE_SYNC)
+			/* Синхронизация */
+			delta += *Tim - (Uint32) *Tim;
+			delaytime = ((Uint32) *Tim) - (SDL_GetTicks() - framestarttime) + ((Uint32) delta);
+			delta -= (Uint32) delta;
+			if (delaytime > 0)
+				SDL_Delay((Uint32) delaytime);
+			framestarttime = SDL_GetTicks();
+#endif
+			return quit;
 	}
-	cur_frame++;
-#endif
-	/* Обрабатываем сообщения */
-	while (SDL_PollEvent(&event))
-		switch (event.type) {
-			case SDL_QUIT:
-				quit = -1;
-				break;
-			case SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLK_SPACE)
-					quit = 1;
-		}
-#if 1
-	/* Синхронизация */
-	delta += Tim - (Uint32) Tim;
-	delaytime = ((Uint32) Tim) - (SDL_GetTicks() - framestarttime) + ((Uint32) delta);
-	delta -= (Uint32) delta;
-	if (delaytime > 0)
-		SDL_Delay((Uint32) delaytime);
-	framestarttime = SDL_GetTicks();
-#endif
-	return quit;
+	return -1;
 }

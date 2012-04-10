@@ -23,3 +23,12 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Disable frame synchronization */
+#undef VPNES_DISABLE_SYNC
+
+/* Show current frame number in window title */
+#undef VPNES_SHOW_CURFRAME
+
+/* Show fps in window title */
+#undef VPNES_SHOW_FPS

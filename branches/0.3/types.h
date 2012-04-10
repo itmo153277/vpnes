@@ -30,8 +30,7 @@
 extern "C" {
 #endif
 
-typedef int (*CallbackFunc)(double);
-
+/* Основные типы данных */
 typedef unsigned char uint8;
 typedef signed char sint8;
 typedef unsigned short int uint16;
@@ -40,6 +39,53 @@ typedef unsigned int uint32;
 typedef signed int sint32;
 typedef unsigned long long uint64;
 typedef signed long long sint64;
+
+/* Callback */
+typedef int (*CallbackFunc)(uint32, void *);
+
+/* Callback Events */
+#define VPNES_CALLBACK_FRAME       0x00000001
+#define VPNES_CALLBACK_CPUHALT     0x00000002
+#define VPNES_CALLBACK_PCM         0x00000004
+#define VPNES_CALLBACK_INPUT       0x00000008
+
+/* Input */
+
+#define VPNES_INPUT_UP        0x00000001
+#define VPNES_INPUT_DOWN      0x00000002
+#define VPNES_INPUT_LEFT      0x00000004
+#define VPNES_INPUT_RIGHT     0x00000008
+#define VPNES_INPUT_SELECT    0x00000010
+#define VPNES_INPUT_START     0x00000020
+#define VPNES_INPUT_A         0x00000040
+#define VPNES_INPUT_B         0x00000080
+
+typedef union VPNES_INPUT {
+	uint32 InputId;
+	int KeyPressed;
+} VPNES_INPUT;
+
+/* PCM */
+
+/* dunno lol */
+
+/* CPUHALT */
+
+/* Дампы можно получить из менеджера памяти */
+typedef struct VPNES_CPUHALT {
+	uint16 PC;
+	uint8 A;
+	uint8 X;
+	uint8 Y;
+	uint8 S;
+} VPNES_CPUHALT;
+
+/* Frame */
+
+typedef double VPNES_FRAME;
+/* Вернув отрицательное значение можно выйти из цикла эмуляции */
+/* Если необходимо производить манипуляции с объектом, вход из */
+/* цикла обязателен */
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 AC_PREREQ([2.68])
 
-AC_INIT([vpnes], [0.2], [viktprog@gmail.com])
+AC_INIT([vpnes], [0.3], [viktprog@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
@@ -25,6 +25,13 @@ CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 #Compilator characterics
 
 #Functions
+
+AC_ARG_ENABLE(showcurframe, [  --enable-showcurframe   show current frame number in window title],
+              [AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Show current frame number in window title])])
+AC_ARG_ENABLE(showfps, [  --enable-showfps        show fps in window title],
+              [AC_DEFINE([VPNES_SHOW_FPS], 1, [Show fps in window title])])
+AC_ARG_ENABLE(sync, [  --disable-sync          disable frame synchronization],
+              [AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Disable frame synchronization])])
 
 AC_CONFIG_FILES([Makefile
                  nes/Makefile])

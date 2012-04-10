@@ -19,30 +19,14 @@
 
 \****************************************************************************/
 
-#ifndef __WINDOW_H_
-#define __WINDOW_H_
+#ifndef __MANAGER_H_
+#define __MANAGER_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include "types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern const void *pal;
-
-/* Инициализация SDL */
-void *InitMainWindow(int Width, int Height);
-/* Выход */
-void AppQuit(void);
-/* Callback-функция */
-int WindowCallback(uint32, void *);
-
-#ifdef __cplusplus
+namespace vpnes {
 }
-#endif
 
 #endif
