@@ -26,7 +26,151 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include <iostream>
+#include "ines.h"
+#include "manager.h"
+
 namespace vpnes {
+
+/* Интерфейс для NES */
+class CBasicNES {
+protected:
+	/* Мендеджер памяти */
+	CMemoryManager Manager;
+public:
+	inline explicit CBasicNES() {}
+	inline virtual ~CBasicNES() {
+		/* Удаляем всю динамическую память */
+		/* (за статическую отвечает CNESConfig) */
+		Manager.FreeMemory<DynamicGroupID>();
+	}
+
+	/* Запустить цикл эмуляции */
+	virtual int PowerOn() = 0;
+	/* Программный сброс */
+	virtual int Reset() = 0;
+
+	/* Выключить приставку (сохранение памяти) */
+	inline int PowerOff(std::ostream &RamFile) {
+		Manager.SaveMemory<BatteryGroupID>(RamFile);
+		return 0;
+	}
+
+	/* Сохранить текущее состоянии приставки (сохранение */
+	/* всей динамической памяти) */
+	inline int SaveState(std::ostream &RamFile) {
+		Manager.SaveMemory<DynamicGroupID>(RamFile);
+		return 0;
+	}
+
+	/* Загрузить текущее состояние (загрузка всей динамической */
+	/* памяти в образе, т.е. можно использовть для загрузки */
+	/* PRG RAM питающейся от батареи */
+	inline int LoadState(std::istream &RamFile) {
+		Manager.LoadMemory<DynamicGroupID>(RamFile);
+		return 0;
+	}
+};
+
+/* Интерфейс для параметров NES */
+class CNESConfig {
+protected:
+	/* Длина */
+	int Width;
+	/* Высота */
+	int Height;
+public:
+	inline explicit CNESConfig() {}
+	inline virtual ~CNESConfig() {}
+
+	/* Длина экрана */
+	inline const int &GetWidth() const { return Width; }
+	/* Высота экрана */
+	inline const int &GetHeight() const { return Height; }
+	/* Получить приставку по нашим параметрам */
+	virtual CBasicNES *GetNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal) = 0;
+};
+
+/* Стандартный шаблон для параметров NES */
+template <class _Nes, int _Width, int _Height>
+class CNESConfigTemplate: public CNESConfig {
+private:
+	const ines::NES_ROM_Data *Data;
+public:
+	inline explicit CNESConfigTemplate(const ines::NES_ROM_Data *ROM) {
+		Width = _Width;
+		Height = _Height;
+		Data = ROM;
+	}
+	inline ~CNESConfigTemplate() {
+		FreeROMData(Data);
+	}
+
+	/* Получить новенький NES */
+	CBasicNES *GetNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal) {
+		_Nes *NES;
+
+		NES = new _Nes(Callback, Buf, Pal);
+		NES->GetBus()->GetROM() = new typename _Nes::BusClass::ROMClass(NES->GetBus(),
+			Data);
+		return NES;
+	}
+};
+
+/* Стандартный NES */
+template <class _Bus>
+class CNES: public CBasicNES {
+public:
+	typedef _Bus BusClass;
+private:
+	/* Шина */
+	BusClass Bus;
+	/* Генератор */
+	typename BusClass::ClockClass Clock;
+	/* CPU */
+	typename BusClass::CPUClass CPU;
+	/* APU */
+	typename BusClass::APUClass APU;
+	/* PPU */
+	typename BusClass::PPUClass PPU;
+public:
+	inline explicit CNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal): Bus(Callback, &Manager),
+		Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf, Pal) {
+		Bus->GetCPU() = &CPU;
+		Bus->GetAPU() = &APU;
+		Bus->GetPPU() = &PPU;
+	}
+	inline ~CNES() {
+		/* ROM добавляется маппером */
+		delete Bus->GetROM();
+	}
+
+	/* Запустить цикл эмуляции */
+	int PowerOn() {
+		Clock.Start();
+		return 0;
+	}
+
+	/* Программный сброс */
+	int Reset() {
+		CPU.Reset();
+		APU.Reset();
+		PPU.Reset();
+		return 0;
+	}
+
+	/* Доступ к шине */
+	inline BusClass &GetBus() { return Bus; }
+};
+
+/* Параметры стандартного NES */
+template <class _Bus>
+struct _NES_Config {
+	typedef CNESConfigTemplate<CNES<_Bus>, 256, 224> Config;
+};
+
 }
 
 #endif

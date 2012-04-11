@@ -26,7 +26,14 @@
 #include "config.h"
 #endif
 
+#include <istream>
+#include "nes.h"
+
 namespace vpnes {
+
+/* Открыть картридж */
+CNESConfig *OpenNES(std::istream &ROM);
+
 }
 
 #endif
