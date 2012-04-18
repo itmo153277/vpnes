@@ -39,7 +39,7 @@ class CMemoryManager {
 private:
 	/* Запись о блоке памяти */
 	struct SMemory {
-		char *ID; /* ID */
+		const char *ID; /* ID */
 		void *p; /* Pointer */
 		size_t Size; /* Size */
 	};
@@ -52,6 +52,18 @@ private:
 	template <class _ID>
 	inline static bool MemoryCompare(SMemory *Memory) {
 		return !strncmp(Memory->ID + _ID::Pos, _ID::ID, _ID::Length);
+	}
+	/* Новая запись */
+	template <class _ID>
+	inline void NewPointer(void *Pointer, size_t Size) {
+		/* Предполагается что блоков с таким ID нет */
+		SMemory *Block;
+
+		Block = new SMemory;
+		Block->ID = _ID::ID;
+		Block->Size = Size;
+		Block->p = Pointer;
+		MemoryBlocks.push_back(Block);
 	}
 public:
 	inline explicit CMemoryManager() {}
@@ -87,7 +99,7 @@ template <int _Length = 0, char c0 = 0, char c1 = 0, char c2 = 0, char c3 = 0,
 	char c4 = 0, char c5 = 0>
 struct UniversalIDTemplate {
 	/* ID */
-	static const char ID[6];
+	static const char ID[7];
 	/* Length */
 	static const int Length;
 	/* Position */
@@ -95,8 +107,8 @@ struct UniversalIDTemplate {
 };
 
 template <int _Length, char c0, char c1, char c2, char c3, char c4, char c5>
-const char UniversalIDTemplate<_Length, c0, c1, c2, c3, c4, c5>::ID[6] = {c0, c1,
-	c2, c3, c4, c5};
+const char UniversalIDTemplate<_Length, c0, c1, c2, c3, c4, c5>::ID[7] = {c0, c1,
+	c2, c3, c4, c5, 0};
 
 template <int _Length, char c0, char c1, char c2, char c3, char c4, char c5>
 const int UniversalIDTemplate<_Length, c0, c1, c2, c3, c4, c5>::Length = _Length;
@@ -108,7 +120,7 @@ const int UniversalIDTemplate<_Length, c0, c1, c2, c3, c4, c5>::Pos = 0;
 template <int _Pos, char c>
 struct UniversalGroupIDTemplate {
 	/* ID */
-	static const char ID[1];
+	static const char ID[2];
 	/* Length */
 	static const int Length;
 	/* Position */
@@ -116,7 +128,7 @@ struct UniversalGroupIDTemplate {
 };
 
 template <int _Pos, char c>
-const char UniversalGroupIDTemplate<_Pos, c>::ID[1] = {c};
+const char UniversalGroupIDTemplate<_Pos, c>::ID[2] = {c, 0};
 
 template <int _Pos, char c>
 const int UniversalGroupIDTemplate<_Pos, c>::Length = 1;
@@ -153,6 +165,18 @@ typedef UniversalGroupIDTemplate<1, 'N'> NoBatteryGroupID;
 template <int Length = 0, char c0 = 0, char c1 = 0, char c2 = 0, char c3 = 0>
 struct NoBatteryGroupTemplate {
 	typedef typename DynamicGroupTemplate<Length + 1, 'N', c0, c1, c2, c3>::ID ID;
+};
+
+/* Misc Group */
+typedef UniversalGroupIDTemplate<1, 'M'> MiscGroupID;
+template <char c0 = 0, char c1 = 0, char c2 = 0, char c3 = 0>
+struct MiscGroupTemplate {
+	typedef typename DynamicGroupTemplate<c3 != 0 ? 5 : c2 != 0 ? 4 : c1 != 0 ? 3 : c0 != 0 ?
+		2 : 1, 'M', c0, c1, c2, c3>::ID ID;
+};
+template <int _ID>
+struct MiscGroup {
+	typedef typename MiscGroupTemplate<_ID, (_ID >> 8), (_ID >> 16), (_ID >> 24)>::ID ID;
 };
 
 /* Шаблон для групп */
@@ -193,7 +217,7 @@ template <char m, int _ID>
 struct MapperGroup {
 	struct Group {
 		/* ID */
-		static const char ID[2];
+		static const char ID[3];
 		/* Length */
 		static const int Length;
 		/* Position */
@@ -203,7 +227,7 @@ struct MapperGroup {
 };
 
 template <char m, int _ID>
-const char MapperGroup<m, _ID>::Group::ID[2] = {'M', m};
+const char MapperGroup<m, _ID>::Group::ID[3] = {'M', m, 0};
 
 template <char m, int _ID>
 const int MapperGroup<m, _ID>::Group::Length = 2;
@@ -229,7 +253,7 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 		p = malloc(Size);
 		if (p == NULL)
 			return NULL;
-		SetPointer<_ID>(p, Size);
+		NewPointer<_ID>(p, Size);
 		return p;
 	}
 	return NULL;
@@ -238,14 +262,14 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 /* Установить указатель */
 template <class _ID>
 inline void CMemoryManager::SetPointer(void *Pointer, size_t Size) {
-	/* Предполагается что блоков с таким ID нет */
-	SMemory *Block;
+	MemoryVec::iterator iter;
 
-	Block = new SMemory;
-	Block->ID = _ID::ID;
-	Block->Size = Size;
-	Block->p = Pointer;
-	MemoryBlocks.push_back(Block);
+	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<_ID>);
+	if (iter != MemoryBlocks.end()) { /* Такой ID уже есть */
+		free((*iter)->p); /* FIXME: Тут кроется ошибка... */
+		(*iter)->p = Pointer;
+	} else
+		NewPointer<_ID>(Pointer, Size);
 }
 
 /* Загрузить память из потока */
@@ -263,7 +287,7 @@ template <class _ID>
 inline void CMemoryManager::FreeMemory() {
 	MemoryVec::iterator iter;
 
-	for (iter = MemoryBlocks.begin();;) {
+	for (iter = MemoryBlocks.begin();; iter++) {
 		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
 		if (iter == MemoryBlocks.end())
 			break;

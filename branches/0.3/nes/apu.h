@@ -26,7 +26,37 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include "manager.h"
+#include "bus.h"
+
 namespace vpnes {
+
+/* APU */
+template <class _Bus>
+class CAPU {
+public:
+	inline explicit CAPU(_Bus *pBus) {}
+	inline ~CAPU() {}
+
+	/* Обработать такты */
+	inline int DoClocks(int Clocks) {
+		return 6;
+	}
+
+	/* Сброс */
+	inline void Reset() {
+	}
+};
+
+struct APU_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CAPU<_Bus> rebinded;
+	};
+};
+
 }
 
 #endif

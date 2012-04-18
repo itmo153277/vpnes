@@ -26,7 +26,53 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include <algorithm>
+#include "manager.h"
+#include "bus.h"
+
 namespace vpnes {
+
+typedef MiscGroup<1>::ID ClocksWaitID;
+
+/* Генератор (NTSC) */
+template <class _Bus>
+class CClock {
+private:
+	/* Шина */
+	_Bus *Bus;
+	/* Осталось прождать тактов */
+	int *ClocksWait;
+public:
+	inline explicit CClock(_Bus *pBus) {
+		Bus = pBus;
+		ClocksWait = (int *) Bus->GetManager()->template GetPointer<ClocksWaitID>(sizeof(int));
+		*ClocksWait = 0;
+	}
+	inline ~CClock() {}
+
+	/* Обработать кадр */
+	inline double ProccessFrame() {
+		int ClocksDone = 0;
+
+		do {
+			ClocksDone += *ClocksWait;
+			*ClocksWait = std::min(Bus->GetCPU()->DoClocks(*ClocksWait),
+			                       std::min(Bus->GetAPU()->DoClocks(*ClocksWait),
+			                                Bus->GetPPU()->DoClocks(*ClocksWait)));
+		} while (!Bus->GetPPU()->IsFrameReady());
+		return (176.0 * ClocksDone / 945000.0);
+	}
+};
+
+struct Clock_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CClock<_Bus> rebinded;
+	};
+};
+
 }
 
 #endif

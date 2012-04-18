@@ -28,7 +28,7 @@ Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
 Uint32 Pal[64];
-const void *pal = (void *) Pal;
+const uint32 *pal = (uint32 *) Pal;
 const Uint8 NES_Palette[64][3] = {
 	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132},
 	{168, 0,  32  }, {168, 16,  0  }, {136, 20,  0  }, {80,  48,  0  }, {0,   120, 0  },

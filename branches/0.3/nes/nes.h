@@ -43,7 +43,6 @@ public:
 	inline explicit CBasicNES() {}
 	inline virtual ~CBasicNES() {
 		/* Удаляем всю динамическую память */
-		/* (за статическую отвечает CNESConfig) */
 		Manager.FreeMemory<DynamicGroupID>();
 	}
 
@@ -104,16 +103,14 @@ public:
 		Height = _Height;
 		Data = ROM;
 	}
-	inline ~CNESConfigTemplate() {
-		FreeROMData(Data);
-	}
+	inline ~CNESConfigTemplate() {}
 
 	/* Получить новенький NES */
 	CBasicNES *GetNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal) {
 		_Nes *NES;
 
 		NES = new _Nes(Callback, Buf, Pal);
-		NES->GetBus()->GetROM() = new typename _Nes::BusClass::ROMClass(NES->GetBus(),
+		NES->GetBus().GetROM() = new typename _Nes::BusClass::ROMClass(&NES->GetBus(),
 			Data);
 		return NES;
 	}
@@ -136,20 +133,26 @@ private:
 	/* PPU */
 	typename BusClass::PPUClass PPU;
 public:
-	inline explicit CNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal): Bus(Callback, &Manager),
-		Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf, Pal) {
-		Bus->GetCPU() = &CPU;
-		Bus->GetAPU() = &APU;
-		Bus->GetPPU() = &PPU;
+	inline explicit CNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal):
+		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf, Pal) {
+		Bus.GetCPU() = &CPU;
+		Bus.GetAPU() = &APU;
+		Bus.GetPPU() = &PPU;
 	}
 	inline ~CNES() {
 		/* ROM добавляется маппером */
-		delete Bus->GetROM();
+		delete Bus.GetROM();
 	}
 
 	/* Запустить цикл эмуляции */
 	int PowerOn() {
-		Clock.Start();
+		VPNES_FRAME data;
+
+		for (;;) {
+			data = Clock.ProccessFrame();
+			if (Bus.GetCallback()(VPNES_CALLBACK_FRAME, (void *) &data) < 0)
+				break;
+		}
 		return 0;
 	}
 

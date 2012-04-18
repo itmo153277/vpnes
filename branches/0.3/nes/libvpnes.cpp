@@ -20,3 +20,22 @@
 \****************************************************************************/
 
 #include "libvpnes.h"
+#include "clock.h"
+#include "cpu.h"
+#include "apu.h"
+#include "ppu.h"
+#include "mapper.h"
+
+
+using namespace std;
+using namespace vpnes;
+
+typedef _NES_Config<CBus<Clock_rebind, CPU_rebind, APU_rebind, PPU_rebind,
+	NROM_rebind> >::Config NROM_NES_Config;
+
+/* Открыть картридж */
+CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
+	if (ReadROM(ROM, Data) < 0)
+		return NULL;
+	return new NROM_NES_Config(Data);
+}

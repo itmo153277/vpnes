@@ -26,7 +26,37 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include "manager.h"
+#include "bus.h"
+
 namespace vpnes {
+
+/* CPU */
+template <class _Bus>
+class CCPU: public CDevice {
+public:
+	inline explicit CCPU(_Bus *pBus) {}
+	inline ~CCPU() {}
+
+	/* Обработать такты */
+	inline int DoClocks(int Clocks) {
+		return 3;
+	}
+
+	/* Сброс */
+	inline void Reset() {
+	}
+};
+
+struct CPU_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CCPU<_Bus> rebinded;
+	};
+};
+
 }
 
 #endif

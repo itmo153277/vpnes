@@ -24,10 +24,17 @@
 
 #include <fstream>
 #include "window.h"
+#include "nes/ines.h"
+#include "nes/nes.h"
+#include "nes/libvpnes.h"
 
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
+	vpnes::ines::NES_ROM_Data Data;
+	vpnes::CNESConfig *NESConfig;
+	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
+	uint32 *buf;
 
 	/* Открываем образ */
 	if (argc != 2)
@@ -35,6 +42,20 @@ int main(int argc, char *argv[]) {
 	ROM.open(argv[1], std::ios_base::in | std::ios_base::binary);
 	if (ROM.fail())
 		return 0;
+	NESConfig = vpnes::OpenROM(ROM, &Data);
 	ROM.close();
+	if (NESConfig == NULL)
+		return 0;
+	/* Инициализация окна */
+	buf = (uint32 *) InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight());
+	if (buf != NULL) { /* Включаем приставку */
+		NES = NESConfig->GetNES(&WindowCallback, buf, pal);
+		NES->Reset();
+		NES->PowerOn();
+		delete NES;
+	}
+	delete NESConfig;
+	vpnes::FreeROMData(&Data);
+	AppQuit();
 	return 0;
 }

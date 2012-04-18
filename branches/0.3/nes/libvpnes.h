@@ -27,12 +27,13 @@
 #endif
 
 #include <istream>
+#include "ines.h"
 #include "nes.h"
 
 namespace vpnes {
 
 /* Открыть картридж */
-CNESConfig *OpenNES(std::istream &ROM);
+CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data);
 
 }
 

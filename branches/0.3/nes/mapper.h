@@ -26,7 +26,47 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include "manager.h"
+#include "bus.h"
+#include "ines.h"
+
 namespace vpnes {
+
+/* Static SolderPad */
+struct StaticSolderPad {
+	ines::SolderPad c;
+	inline uint16 GetAddress(uint16 Address) {
+		return Address;
+	}
+};
+
+/* NROM */
+template <class _Bus>
+class CNROM: public CDevice {
+public:
+	typedef StaticSolderPad SolderPad;
+public:
+	inline explicit CNROM(_Bus *pBus, const ines::NES_ROM_Data *data) {}
+	inline ~CNROM() {}
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return 0x00;
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+	}
+};
+
+struct NROM_rebind {
+	template <class _Bus>
+	struct rebind {
+		typedef CNROM<_Bus> rebinded;
+	};
+};
+
 }
 
 #endif

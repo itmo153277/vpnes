@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-extern const void *pal;
+extern const uint32 *pal;
 
 /* Инициализация SDL */
 void *InitMainWindow(int Width, int Height);
