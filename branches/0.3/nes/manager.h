@@ -80,13 +80,13 @@ public:
 	inline void *GetPointer(size_t Size = 0);
 	/* Установить указатель */
 	template <class _ID>
-	inline void SetPointer(void *Pointer, size_t Size);
+	inline int SetPointer(void *Pointer, size_t Size);
 	/* Загрузить память из потока */
 	template <class _ID>
-	inline void LoadMemory(std::istream &State);
+	inline int LoadMemory(std::istream &State);
 	/* Сохранить память в поток */
 	template <class _ID>
-	inline void SaveMemory(std::ostream &State);
+	inline int SaveMemory(std::ostream &State);
 	/* Освободить память */
 	template <class _ID>
 	inline void FreeMemory();
@@ -167,18 +167,6 @@ struct NoBatteryGroupTemplate {
 	typedef typename DynamicGroupTemplate<Length + 1, 'N', c0, c1, c2, c3>::ID ID;
 };
 
-/* Misc Group */
-typedef UniversalGroupIDTemplate<1, 'M'> MiscGroupID;
-template <char c0 = 0, char c1 = 0, char c2 = 0, char c3 = 0>
-struct MiscGroupTemplate {
-	typedef typename DynamicGroupTemplate<c3 != 0 ? 5 : c2 != 0 ? 4 : c1 != 0 ? 3 : c0 != 0 ?
-		2 : 1, 'M', c0, c1, c2, c3>::ID ID;
-};
-template <int _ID>
-struct MiscGroup {
-	typedef typename MiscGroupTemplate<_ID, (_ID >> 8), (_ID >> 16), (_ID >> 24)>::ID ID;
-};
-
 /* Шаблон для групп */
 template <char g, char c0 = 0, char c1 = 0, char c2 = 0>
 struct GroupTemplate {
@@ -187,7 +175,14 @@ struct GroupTemplate {
 	typedef typename BatteryGroupTemplate<c2 != 0 ? 4 : c1 != 0 ? 3 : c0 != 0 ? 2 : 1,
 		g, c0, c1, c2>::ID BatteryID;
 	typedef typename NoBatteryGroupTemplate<c2 != 0 ? 4 : c1 != 0 ? 3 : c0 != 0 ? 2 : 1,
-		g, c0, c1, c2>::UD NoBatteryID;
+		g, c0, c1, c2>::ID NoBatteryID;
+};
+
+/* Misc Group */
+typedef UniversalGroupIDTemplate<2, 'R'> MiscGroupID;
+template <int _ID>
+struct MiscGroup {
+	typedef GroupTemplate<'R', _ID, (_ID >> 8), (_ID >> 16)> ID;
 };
 
 /* CPU Group */
@@ -261,25 +256,29 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 
 /* Установить указатель */
 template <class _ID>
-inline void CMemoryManager::SetPointer(void *Pointer, size_t Size) {
+inline int CMemoryManager::SetPointer(void *Pointer, size_t Size) {
 	MemoryVec::iterator iter;
 
 	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<_ID>);
 	if (iter != MemoryBlocks.end()) { /* Такой ID уже есть */
-		free((*iter)->p); /* FIXME: Тут кроется ошибка... */
-		(*iter)->p = Pointer;
+		if ((*iter)->Size != Size)
+			return -1;
+		memcpy((*iter)->p, Pointer, Size);
 	} else
 		NewPointer<_ID>(Pointer, Size);
+	return 0;
 }
 
 /* Загрузить память из потока */
 template <class _ID>
-inline void CMemoryManager::LoadMemory(std::istream &State) {
+inline int CMemoryManager::LoadMemory(std::istream &State) {
+	return 0;
 }
 
 /* Сохранить память в поток */
 template <class _ID>
-inline void CMemoryManager::SaveMemory(std::ostream &State) {
+inline int CMemoryManager::SaveMemory(std::ostream &State) {
+	return 0;
 }
 
 /* Освободить память */

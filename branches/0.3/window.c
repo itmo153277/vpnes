@@ -21,6 +21,7 @@
 
 #include "window.h"
 #include <SDL.h>
+#include <stdlib.h>
 
 SDL_Surface *screen;
 SDL_Surface *bufs;
@@ -128,8 +129,8 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				}
 #if !defined(VPNES_DISABLE_SYNC)
 			/* Синхронизация */
-			delta += *Tim - (Uint32) *Tim;
-			delaytime = ((Uint32) *Tim) - (SDL_GetTicks() - framestarttime) + ((Uint32) delta);
+			delta += *Tim;
+			delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
 			delta -= (Uint32) delta;
 			if (delaytime > 0)
 				SDL_Delay((Uint32) delaytime);

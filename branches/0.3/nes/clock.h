@@ -34,7 +34,11 @@
 
 namespace vpnes {
 
-typedef MiscGroup<1>::ID ClocksWaitID;
+namespace MiscID {
+
+typedef MiscGroup<1>::ID::NoBatteryID ClocksWaitID;
+
+}
 
 /* Генератор (NTSC) */
 template <class _Bus>
@@ -47,7 +51,8 @@ private:
 public:
 	inline explicit CClock(_Bus *pBus) {
 		Bus = pBus;
-		ClocksWait = (int *) Bus->GetManager()->template GetPointer<ClocksWaitID>(sizeof(int));
+		ClocksWait = (int *) Bus->GetManager()->\
+			template GetPointer<MiscID::ClocksWaitID>(sizeof(int));
 		*ClocksWait = 0;
 	}
 	inline ~CClock() {}

@@ -33,20 +33,38 @@
 
 namespace vpnes {
 
+namespace CPUID {
+
+typedef CPUGroup<1>::ID::NoBatteryID ClocksLeftID;
+
+}
+
 /* CPU */
 template <class _Bus>
 class CCPU: public CDevice {
+private:
+	/* Шина */
+	_Bus *Bus;
+	/* Осталось до завершения выполнения команды */
+	int *ClocksLeft;
 public:
-	inline explicit CCPU(_Bus *pBus) {}
+	inline explicit CCPU(_Bus *pBus) {
+		Bus = pBus;
+		ClocksLeft = (int *) Bus->GetManager()->\
+			template GetPointer<CPUID::ClocksLeftID>(sizeof(int));
+	}
 	inline ~CCPU() {}
 
 	/* Обработать такты */
 	inline int DoClocks(int Clocks) {
-		return 3;
+		if ((*ClocksLeft -= Clocks) == 0)
+			*ClocksLeft = 3;
+		return *ClocksLeft;
 	}
 
 	/* Сброс */
 	inline void Reset() {
+		*ClocksLeft = 0;
 	}
 };
 

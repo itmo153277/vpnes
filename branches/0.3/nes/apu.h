@@ -33,16 +33,33 @@
 
 namespace vpnes {
 
+namespace APUID {
+
+typedef APUGroup<1>::ID::NoBatteryID ClocksLeftID;
+
+}
+
 /* APU */
 template <class _Bus>
 class CAPU {
+private:
+	/* Шина */
+	_Bus *Bus;
+	/* Осталось до завершения выполнения команды */
+	int *ClocksLeft;
 public:
-	inline explicit CAPU(_Bus *pBus) {}
+	inline explicit CAPU(_Bus *pBus) {
+		Bus = pBus;
+		ClocksLeft = (int *) Bus->GetManager()->\
+			template GetPointer<APUID::ClocksLeftID>(sizeof(int));
+	}
 	inline ~CAPU() {}
 
 	/* Обработать такты */
 	inline int DoClocks(int Clocks) {
-		return 6;
+		if ((*ClocksLeft -= Clocks) == 0)
+			*ClocksLeft = 6;
+		return *ClocksLeft;
 	}
 
 	/* Сброс */
