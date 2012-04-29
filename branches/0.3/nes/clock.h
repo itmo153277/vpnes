@@ -47,13 +47,13 @@ private:
 	/* Шина */
 	_Bus *Bus;
 	/* Осталось прождать тактов */
-	int *ClocksWait;
+	int ClocksWait;
 public:
 	inline explicit CClock(_Bus *pBus) {
 		Bus = pBus;
-		ClocksWait = (int *) Bus->GetManager()->\
-			template GetPointer<MiscID::ClocksWaitID>(sizeof(int));
-		*ClocksWait = 0;
+		Bus->GetManager()->template SetPointer<MiscID::ClocksWaitID>(&ClocksWait,
+			sizeof(int));
+		ClocksWait = 0;
 	}
 	inline ~CClock() {}
 
@@ -62,10 +62,10 @@ public:
 		int ClocksDone = 0;
 
 		do {
-			ClocksDone += *ClocksWait;
-			*ClocksWait = std::min(Bus->GetCPU()->DoClocks(*ClocksWait),
-			                       std::min(Bus->GetAPU()->DoClocks(*ClocksWait),
-			                                Bus->GetPPU()->DoClocks(*ClocksWait)));
+			ClocksDone += ClocksWait;
+			ClocksWait = std::min(Bus->GetCPU()->DoClocks(ClocksWait),
+			                      std::min(Bus->GetAPU()->DoClocks(ClocksWait),
+			                               Bus->GetPPU()->DoClocks(ClocksWait)));
 		} while (!Bus->GetPPU()->IsFrameReady());
 		return (176.0 * ClocksDone / 945000.0);
 	}

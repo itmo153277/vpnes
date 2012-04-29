@@ -46,25 +46,25 @@ private:
 	/* Шина */
 	_Bus *Bus;
 	/* Осталось до завершения выполнения команды */
-	int *ClocksLeft;
+	int ClocksLeft;
 public:
 	inline explicit CCPU(_Bus *pBus) {
 		Bus = pBus;
-		ClocksLeft = (int *) Bus->GetManager()->\
-			template GetPointer<CPUID::ClocksLeftID>(sizeof(int));
+		Bus->GetManager()->template SetPointer<CPUID::ClocksLeftID>(&ClocksLeft,
+			sizeof(int));
 	}
 	inline ~CCPU() {}
 
 	/* Обработать такты */
 	inline int DoClocks(int Clocks) {
-		if ((*ClocksLeft -= Clocks) == 0)
-			*ClocksLeft = 3;
-		return *ClocksLeft;
+		if ((ClocksLeft -= Clocks) == 0)
+			ClocksLeft = 3;
+		return ClocksLeft;
 	}
 
 	/* Сброс */
 	inline void Reset() {
-		*ClocksLeft = 0;
+		ClocksLeft = 0;
 	}
 };
 

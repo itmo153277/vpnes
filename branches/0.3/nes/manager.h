@@ -42,6 +42,7 @@ private:
 		const char *ID; /* ID */
 		void *p; /* Pointer */
 		size_t Size; /* Size */
+		bool alloc; /* Was allocated */
 	};
 
 	/* Вектор */
@@ -55,14 +56,15 @@ private:
 	}
 	/* Новая запись */
 	template <class _ID>
-	inline void NewPointer(void *Pointer, size_t Size) {
+	inline void NewPointer(void *Pointer, size_t Size, bool alloc = false) {
 		/* Предполагается что блоков с таким ID нет */
 		SMemory *Block;
 
 		Block = new SMemory;
 		Block->ID = _ID::ID;
-		Block->Size = Size;
 		Block->p = Pointer;
+		Block->Size = Size;
+		Block->alloc = alloc;
 		MemoryBlocks.push_back(Block);
 	}
 public:
@@ -248,7 +250,7 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 		p = malloc(Size);
 		if (p == NULL)
 			return NULL;
-		NewPointer<_ID>(p, Size);
+		NewPointer<_ID>(p, Size, true);
 		return p;
 	}
 	return NULL;
@@ -261,9 +263,11 @@ inline int CMemoryManager::SetPointer(void *Pointer, size_t Size) {
 
 	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<_ID>);
 	if (iter != MemoryBlocks.end()) { /* Такой ID уже есть */
-		if ((*iter)->Size != Size)
-			return -1;
-		memcpy((*iter)->p, Pointer, Size);
+		if ((*iter)->alloc)
+			free((*iter)->p);
+		(*iter)->p = Pointer;
+		(*iter)->Size = Size;
+		(*iter)->alloc = false;
 	} else
 		NewPointer<_ID>(Pointer, Size);
 	return 0;
@@ -290,7 +294,8 @@ inline void CMemoryManager::FreeMemory() {
 		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
 		if (iter == MemoryBlocks.end())
 			break;
-		free((*iter)->p);
+		if ((*iter)->alloc)
+			free((*iter)->p);
 		(*iter)->p = NULL;
 	}
 }
