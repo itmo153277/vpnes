@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 	vpnes::CNESConfig *NESConfig;
 	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
-	uint32 *buf;
+	VPNES_VBUF *buf;
 
 	/* Открываем образ */
 	if (argc != 2)
@@ -47,9 +47,9 @@ int main(int argc, char *argv[]) {
 	if (NESConfig == NULL)
 		return 0;
 	/* Инициализация окна */
-	buf = (uint32 *) InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight());
+	buf = InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight());
 	if (buf != NULL) { /* Включаем приставку */
-		NES = NESConfig->GetNES(&WindowCallback, buf, pal);
+		NES = NESConfig->GetNES(&WindowCallback, buf);
 		NES->Reset();
 		NES->PowerOn();
 		delete NES;

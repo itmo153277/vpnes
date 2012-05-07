@@ -89,7 +89,7 @@ public:
 	/* Высота экрана */
 	inline const int &GetHeight() const { return Height; }
 	/* Получить приставку по нашим параметрам */
-	virtual CBasicNES *GetNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal) = 0;
+	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf) = 0;
 };
 
 /* Стандартный шаблон для параметров NES */
@@ -106,10 +106,10 @@ public:
 	inline ~CNESConfigTemplate() {}
 
 	/* Получить новенький NES */
-	CBasicNES *GetNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal) {
+	CBasicNES *GetNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf) {
 		_Nes *NES;
 
-		NES = new _Nes(Callback, Buf, Pal);
+		NES = new _Nes(Callback, Buf);
 		NES->GetBus().GetROM() = new typename _Nes::BusClass::ROMClass(&NES->GetBus(),
 			Data);
 		return NES;
@@ -133,8 +133,9 @@ private:
 	/* PPU */
 	typename BusClass::PPUClass PPU;
 public:
-	inline explicit CNES(CallbackFunc Callback, uint32 *Buf, const uint32 *Pal):
-		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf, Pal) {
+	inline explicit CNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf):
+		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf) {
+		Bus.GetClock() = &Clock;
 		Bus.GetCPU() = &CPU;
 		Bus.GetAPU() = &APU;
 		Bus.GetPPU() = &PPU;

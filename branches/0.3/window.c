@@ -28,8 +28,8 @@ SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 double delta = 0.0;
+VPNES_VBUF vbuf;
 Uint32 Pal[64];
-const uint32 *pal = (uint32 *) Pal;
 const Uint8 NES_Palette[64][3] = {
 	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132},
 	{168, 0,  32  }, {168, 16,  0  }, {136, 20,  0  }, {80,  48,  0  }, {0,   120, 0  },
@@ -47,7 +47,7 @@ const Uint8 NES_Palette[64][3] = {
 };
 
 /* Инициализация SDL */
-void *InitMainWindow(int Width, int Height) {
+VPNES_VBUF *InitMainWindow(int Width, int Height) {
 	int i;
 
 	/* Инициализация библиотеки */
@@ -64,7 +64,13 @@ void *InitMainWindow(int Width, int Height) {
 		return NULL;
 	for (i = 0; i < 64; i++)
 		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
-	return bufs->pixels;
+	vbuf.Buf = bufs->pixels;
+	vbuf.Pal = Pal;
+	vbuf.RMask = bufs->format->Rmask;
+	vbuf.GMask = bufs->format->Gmask;
+	vbuf.BMask = bufs->format->Bmask;
+	vbuf.AMask = bufs->format->Amask;
+	return &vbuf;
 }
 
 /* Выход */

@@ -36,7 +36,6 @@ namespace vpnes {
 
 namespace MiscID {
 
-typedef MiscGroup<1>::ID::NoBatteryID ClocksWaitID;
 
 }
 
@@ -46,29 +45,34 @@ class CClock {
 private:
 	/* Шина */
 	_Bus *Bus;
-	/* Осталось прождать тактов */
-	int ClocksWait;
+	/* Текущий такт */
+	int PreCycles;
 public:
 	inline explicit CClock(_Bus *pBus) {
 		Bus = pBus;
-		Bus->GetManager()->template SetPointer<MiscID::ClocksWaitID>(&ClocksWait,
-			sizeof(int));
-		ClocksWait = 0;
 	}
 	inline ~CClock() {}
 
 	/* Обработать кадр */
 	inline double ProccessFrame() {
-		int ClocksDone = 0;
+		int CyclesDone;
 
 		do {
-			ClocksDone += ClocksWait;
-			ClocksWait = std::min(Bus->GetCPU()->DoClocks(ClocksWait),
-			                      std::min(Bus->GetAPU()->DoClocks(ClocksWait),
-			                               Bus->GetPPU()->DoClocks(ClocksWait)));
+			PreCycles = 0;
+			CyclesDone = Bus->GetCPU()->Execute();
+			Bus->GetPPU()->Clock(CyclesDone);
+			Bus->GetAPU()->Clock(CyclesDone);
 		} while (!Bus->GetPPU()->IsFrameReady());
-		return (176.0 * ClocksDone / 945000.0);
+		return (176.0 * Bus->GetPPU()->GetFrameCycles() / 945000.0);
 	}
+
+	/* Точный сдвиг */
+	inline void Clock(int Cycles) {
+		PreCycles += Cycles;
+	}
+
+	/* Получить точный сдвиг */
+	inline const int &GetPreCycles() const { return PreCycles; }
 };
 
 struct Clock_rebind {

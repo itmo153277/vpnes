@@ -32,10 +32,8 @@
 extern "C" {
 #endif
 
-extern const uint32 *pal;
-
 /* Инициализация SDL */
-void *InitMainWindow(int Width, int Height);
+VPNES_VBUF *InitMainWindow(int Width, int Height);
 /* Выход */
 void AppQuit(void);
 /* Callback-функция */

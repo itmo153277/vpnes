@@ -40,8 +40,18 @@ typedef signed int sint32;
 typedef unsigned long long uint64;
 typedef signed long long sint64;
 
+/* Данные видеобуфера */
+typedef struct VPNES_VBUF {
+	uint32 *Buf;
+	uint32 *Pal;
+	uint32 RMask;
+	uint32 GMask;
+	uint32 BMask;
+	uint32 AMask;
+} VPNES_VBUF;
+
 /* Callback */
-typedef int (*CallbackFunc)(uint32, void *);
+typedef int (*VPNES_CALLBACK)(uint32, void *);
 
 /* Callback Events */
 #define VPNES_CALLBACK_FRAME       0x00000001

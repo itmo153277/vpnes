@@ -57,9 +57,11 @@ public:
 	typedef typename _ROM_rebind::template rebind<_BusClass>::rebinded ROMClass;
 private:
 	/* Обработчик событий */
-	CallbackFunc _Callback;
+	VPNES_CALLBACK _Callback;
 	/* Менеджер памяти */
 	CMemoryManager *_Manager;
+	/* Clock */
+	ClockClass *Clock;
 	/* CPU */
 	CPUClass *CPU;
 	/* APU */
@@ -71,7 +73,7 @@ private:
 	/* SolderPad */
 	typename ROMClass::SolderPad SolderPad;
 public:
-	inline explicit CBus_Basic(CallbackFunc Callback, CMemoryManager *Manager):
+	inline explicit CBus_Basic(VPNES_CALLBACK Callback, CMemoryManager *Manager):
 		_Callback(Callback), _Manager(Manager) {}
 	inline ~CBus_Basic() {}
 
@@ -112,9 +114,11 @@ public:
 	}
 
 	/* Обработчик событий */
-	inline const CallbackFunc &GetCallback() const { return _Callback; }
+	inline const VPNES_CALLBACK &GetCallback() const { return _Callback; }
 	/* Менеджер памяти */
 	inline CMemoryManager * const &GetManager() const { return _Manager; }
+	/* Clock */
+	inline ClockClass *&GetClock() { return Clock; }
 	/* CPU */
 	inline CPUClass *&GetCPU() { return CPU; }
 	/* APU */
@@ -133,7 +137,7 @@ template <class _Clock_rebind, class _CPU_rebind, class _APU_rebind, class _PPU_
 class CBus: public CBus_Basic<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
 	_ROM_rebind, CBus<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind, _ROM_rebind> > {
 public:
-	inline explicit CBus(CallbackFunc Callback, CMemoryManager *Manager):
+	inline explicit CBus(VPNES_CALLBACK Callback, CMemoryManager *Manager):
 		CBus_Basic<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
 		_ROM_rebind, CBus<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
 		_ROM_rebind> >(Callback, Manager) {}

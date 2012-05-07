@@ -28,37 +28,76 @@
 
 #include "../types.h"
 
+#include <cstring>
 #include "manager.h"
 #include "bus.h"
 
 namespace vpnes {
 
+namespace PPUID {
+
+typedef typename PPUGroup<1>::ID::NoBatteryID CycleDataID;
+
+}
+
 /* PPU */
 template <class _Bus>
 class CPPU: public CDevice {
 private:
+	/* Шина */
+	_Bus *Bus;
+	/* Обработка кадра завершена */
 	bool FrameReady;
-	int clocks;
+	/* Предобработано тактов */
+	int PreprocessedCycles;
+	/* Ушло тактов на фрейм */
+	int FrameCycles;
+	/* Данные о тактах */
+	struct SCycleData {
+		int CurCycle; /* Текущий такт */
+		int DMACycle; /* Текущий такт DMA */
+	} CycleData;
+
+	/* Рендер */
+	inline void Render(int Cycles) {
+		CycleData.CurCycle += Cycles;
+		if (CycleData.CurCycle > 341 * 262) {
+			FrameReady = true;
+			FrameCycles = 341 * 262;
+			CycleData.CurCycle -= FrameCycles;
+		}
+	}
 public:
-	inline explicit CPPU(_Bus *pBus, uint32 *Buf, const uint32 *Pal) {}
+	inline explicit CPPU(_Bus *pBus, VPNES_VBUF *Buf) {
+		Bus = pBus;
+		Bus->GetManager()->template SetPointer<PPUID::CycleDataID>(\
+			&CycleData, sizeof(CycleData));
+	}
 	inline ~CPPU() {}
 
 	/* Обработать такты */
-	inline int DoClocks(int Clocks) {
-		if (FrameReady)
-			FrameReady = false;
-		clocks += Clocks;
-		if (clocks >= 341 * 262) {
-			clocks -= 341 * 262;
-			FrameReady = true;
-		}
-		return 1;
+	inline void Clock(int Cycles) {
+		/* Обрабатываем необработанные такты */
+		Render(Cycles - PreprocessedCycles);
+		PreprocessedCycles = 0;
+	}
+
+	/* Предобработка */
+	inline void PreRender() {
+		/* Обрабатываем текущие такты */
+		Render(Bus->GetClock()->GetPreCycles() - PreprocessedCycles);
+		PreprocessedCycles = Bus->GetClock()->GetPreCycles();
 	}
 
 	/* Сброс */
 	inline void Reset() {
 		FrameReady = false;
-		clocks = 0;
+		PreprocessedCycles = 0;
+		memset(&CycleData, 0, sizeof(CycleData));
+	}
+
+	/* Обработка DMA */
+	inline void ProccessDMA(int Cycles) {
 	}
 
 	/* Чтение памяти PPU */
@@ -71,6 +110,15 @@ public:
 
 	/* Флаг окончания рендеринга фрейма */
 	inline const bool &IsFrameReady() const { return FrameReady; }
+	/* Ушло татов на фрейм */
+	inline int GetFrameCycles() {
+		int Res = FrameCycles;
+
+		/* Сбрасываем состояние */
+		FrameCycles = 0;
+		FrameReady = false;
+		return Res;
+	}
 };
 
 struct PPU_rebind {

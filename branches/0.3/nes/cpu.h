@@ -35,8 +35,6 @@ namespace vpnes {
 
 namespace CPUID {
 
-typedef CPUGroup<1>::ID::NoBatteryID ClocksLeftID;
-
 }
 
 /* CPU */
@@ -45,26 +43,33 @@ class CCPU: public CDevice {
 private:
 	/* Шина */
 	_Bus *Bus;
-	/* Осталось до завершения выполнения команды */
-	int ClocksLeft;
+
+	/* Обращения к памяти */
+	inline uint8 ReadMemory(uint16 Address) {
+		uint8 Res;
+
+		Res = Bus->ReadCPUMemory(Address);
+		Bus->GetClock()->Clock(3);
+		return Res;
+	}
+	inline void WriteMemory(uint16 Address, uint8 Src) {
+		Bus->WriteCPUMemory(Address, Src);
+		Bus->GetClock()->Clock(3);
+	}
+
 public:
 	inline explicit CCPU(_Bus *pBus) {
 		Bus = pBus;
-		Bus->GetManager()->template SetPointer<CPUID::ClocksLeftID>(&ClocksLeft,
-			sizeof(int));
 	}
 	inline ~CCPU() {}
 
 	/* Обработать такты */
-	inline int DoClocks(int Clocks) {
-		if ((ClocksLeft -= Clocks) == 0)
-			ClocksLeft = 3;
-		return ClocksLeft;
+	inline int Execute() {
+		return 3;
 	}
 
 	/* Сброс */
 	inline void Reset() {
-		ClocksLeft = 0;
 	}
 };
 
