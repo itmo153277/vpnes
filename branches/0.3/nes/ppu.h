@@ -37,6 +37,7 @@ namespace vpnes {
 namespace PPUID {
 
 typedef typename PPUGroup<1>::ID::NoBatteryID CycleDataID;
+typedef typename PPUGroup<2>::ID::NoBatteryID DMADataID;
 
 }
 
@@ -52,11 +53,20 @@ private:
 	int PreprocessedCycles;
 	/* Ушло тактов на фрейм */
 	int FrameCycles;
+
 	/* Данные о тактах */
 	struct SCycleData {
 		int CurCycle; /* Текущий такт */
-		int DMACycle; /* Текущий такт DMA */
+		int Scanline; /* Текущий сканлайн */
+		bool ShortFrame; /* Короткий фрейм */
 	} CycleData;
+
+	/* Данные для обработки DMA */
+	struct SDMAData {
+		uint8 Latch; /* Буфер */
+		uint16 Address; /* Текущий адрес */
+		bool UseLatch; /* Использовать буфер */
+	} DMAData;
 
 	/* Рендер */
 	inline void Render(int Cycles) {
@@ -67,11 +77,14 @@ private:
 			CycleData.CurCycle -= FrameCycles;
 		}
 	}
+
 public:
 	inline explicit CPPU(_Bus *pBus, VPNES_VBUF *Buf) {
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<PPUID::CycleDataID>(\
 			&CycleData, sizeof(CycleData));
+		Bus->GetManager()->template SetPointer<PPUID::DMADataID>(\
+			&DMAData, sizeof(DMAData));
 	}
 	inline ~CPPU() {}
 
@@ -94,6 +107,7 @@ public:
 		FrameReady = false;
 		PreprocessedCycles = 0;
 		memset(&CycleData, 0, sizeof(CycleData));
+		memset(&DMAData, 0, sizeof(DMAData));
 	}
 
 	/* Обработка DMA */
