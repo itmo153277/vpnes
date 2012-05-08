@@ -39,6 +39,7 @@ namespace CPUID {
 typedef CPUGroup<1>::ID::NoBatteryID StateID;
 typedef CPUGroup<2>::ID::NoBatteryID RegistersID;
 typedef CPUGroup<3>::ID::NoBatteryID RAMID;
+typedef CPUGroup<4>::ID::NoBatteryID InternalDataID;
 
 }
 
@@ -49,8 +50,21 @@ private:
 	/* Шина */
 	_Bus *Bus;
 
-	/* Дополнительные такты */
-	int AddCycles;
+	/* Обработчик инструкции */
+	typedef void (CCPU::*OpHandler)();
+
+	/* Описание опкода */
+	struct SOpcode {
+		int Cycles; /* Номиальное число тактов */
+		int Length; /* Длина команды */
+		OpHandler Handler; /* Обработчик */
+	};
+
+	/* Таблица опкодов */
+	static const SOpcode Opcodes[1];
+
+	/* Такты */
+	int Cycles;
 
 	/* Регистр состояния */
 	struct SState {
@@ -80,6 +94,13 @@ private:
 	
 	/* Встроенная память */
 	uint8 *RAM;
+
+	/* Внутренние данные */
+	struct SInternalData {
+		bool Halt; /* Зависание */
+		bool NMI; /* Не маскируемое прерывание */
+		bool IRQ; /* Прерывание */
+	} InternalData;
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
@@ -192,7 +213,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) { /* Перепрыгнули страницу */
 				CPU.ReadMemory(Address - 0x0100); /* Промазал Ha-Ha */
-				CPU.AddCycles += 3;
+				CPU.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -230,7 +251,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.AddCycles += 3;
+				CPU.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -351,7 +372,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.AddCycles += 3;
+				CPU.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -388,17 +409,35 @@ public:
 		memset(&Registers, 0, sizeof(Registers));
 		RAM = (uint8 *) Bus->GetManager()->template GetPointer<CPUID::RAMID>(\
 			0x0800 * sizeof(uint8));
+		Bus->GetManager()->template SetPointer<CPUID::InternalDataID>(\
+			&InternalData, sizeof(InternalData));
 	}
 	inline ~CCPU() {}
 
 	/* Обработать такты */
-	inline int Execute() {
-		return 3;
-	}
+	inline int Execute();
 
 	/* Сброс */
 	inline void Reset() {
+		Registers.s -= 3;
+		State.State |= 0x04; /* Interrupt */
+		memset(&InternalData, 0, sizeof(InternalData));
+		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
 	}
+
+	/* Чтение памяти */
+	inline uint8 ReadAddress(uint16 Address) {
+		return RAM[Address & 0x07ff];
+	}
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		RAM[Address & 0x07ff] = Src;
+	}
+private:
+	/* Команды CPU */
+
+	/* Неизвестная команда */
+	void OpIllegal();
 };
 
 struct CPU_rebind {
@@ -406,6 +445,45 @@ struct CPU_rebind {
 	struct rebind {
 		typedef CCPU<_Bus> rebinded;
 	};
+};
+
+template <class _Bus>
+int CCPU<_Bus>::Execute() {
+	uint8 opcode;
+
+	if (InternalData.Halt) /* Зависли */
+		return 3;
+	/* Текущий опкод */
+	opcode = ReadMemory(Registers.pc);
+	Registers.pc += Opcodes[0].Length;
+	Cycles = Opcodes[0].Cycles;
+	/* Выполняем */
+	(this->*Opcodes[0].Handler)();
+	return Cycles * 3;
+}
+
+/* Команды */
+
+/* Неизвестный опкод */
+template <class _Bus>
+void CCPU<_Bus>::OpIllegal() {
+	VPNES_CPUHALT HaltData;
+
+	/* Зависание */
+	InternalData.Halt = true;
+	HaltData.PC = Registers.pc;
+	HaltData.A = Registers.a;
+	HaltData.X = Registers.x;
+	HaltData.Y = Registers.y;
+	HaltData.S = Registers.s;
+	HaltData.State = State.State;
+	Bus->GetCallback()(VPNES_CALLBACK_CPUHALT, (void *) &HaltData);
+}
+
+/* Таблица опкодов */
+template <class _Bus>
+const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[1] = {
+	{1, 1, &CCPU<_Bus>::OpIllegal}
 };
 
 }

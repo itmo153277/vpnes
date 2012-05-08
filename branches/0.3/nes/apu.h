@@ -39,7 +39,7 @@ namespace APUID {
 
 /* APU */
 template <class _Bus>
-class CAPU {
+class CAPU: public CDevice {
 private:
 	/* Шина */
 	_Bus *Bus;

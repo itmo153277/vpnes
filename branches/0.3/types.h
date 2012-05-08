@@ -88,6 +88,7 @@ typedef struct VPNES_CPUHALT {
 	uint8 X;
 	uint8 Y;
 	uint8 S;
+	uint8 State;
 } VPNES_CPUHALT;
 
 /* Frame */
