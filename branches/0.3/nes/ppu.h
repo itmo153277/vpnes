@@ -36,8 +36,8 @@ namespace vpnes {
 
 namespace PPUID {
 
-typedef typename PPUGroup<1>::ID::NoBatteryID CycleDataID;
-typedef typename PPUGroup<2>::ID::NoBatteryID DMADataID;
+typedef PPUGroup<1>::ID::NoBatteryID CycleDataID;
+typedef PPUGroup<2>::ID::NoBatteryID DMADataID;
 
 }
 
@@ -71,10 +71,14 @@ private:
 	/* Рендер */
 	inline void Render(int Cycles) {
 		CycleData.CurCycle += Cycles;
-		if (CycleData.CurCycle > 341 * 262) {
-			FrameReady = true;
-			FrameCycles = 341 * 262;
-			CycleData.CurCycle -= FrameCycles;
+		if (CycleData.CurCycle > 341) {
+			CycleData.CurCycle -= 341;
+			CycleData.Scanline++;
+			if (CycleData.Scanline == 262) {
+				CycleData.Scanline = 0;
+				FrameReady = true;
+				FrameCycles = 262 * 341;
+			}
 		}
 	}
 

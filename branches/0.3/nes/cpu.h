@@ -36,8 +36,9 @@ namespace vpnes {
 
 namespace CPUID {
 
-typedef typename CPUGroup<1>::ID::NoBatteryID StateID;
-typedef typename CPUGroup<2>::ID::NoBatteryID RegistersID;
+typedef CPUGroup<1>::ID::NoBatteryID StateID;
+typedef CPUGroup<2>::ID::NoBatteryID RegistersID;
+typedef CPUGroup<3>::ID::NoBatteryID RAMID;
 
 }
 
@@ -76,6 +77,9 @@ private:
 		uint8 s; /* S */
 		uint16 pc; /* PC */
 	} Registers;
+	
+	/* Встроенная память */
+	uint8 *RAM;
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
@@ -100,10 +104,10 @@ private:
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
 			CPU.Registers.a = Src;
 		}
-		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 Address) {
 			return ReadByte(CPU);
 		}
-		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+		inline static void WriteByte_RW(CCPU &CPU, uint16 Address, uint8 Src) {
 			WriteByte(CPU, Src);
 		}
 	};
@@ -132,8 +136,241 @@ private:
 			CPU.WriteMemory(GetAddr(CPU), Src);
 		}
 		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint8 Res;
+
 			Address = GetAddr(CPU);
-			return CPU.ReadMemory(CPU.AddrCache);
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res); /* WTF?! 0_o */
+			return Res;
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 Address, uint8 Src) {
+			CPU.WriteMemory(Address, Src);
+		}
+	};
+
+	/* ZP */
+	struct ZeroPage {
+		inline static uint8 ReadByte(CCPU &CPU) {
+			/* 3 лишних такта... забить */
+			return CPU.RAM[CPU.ReadMemory(CPU.Registers.pc - 1)];
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			/* Собственно и тут тоже... */
+			CPU.RAM[CPU.ReadMemory(CPU.Registers.pc - 1)] = Src;
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint8 Res;
+
+			Address = CPU.ReadMemory(CPU.Registers.pc - 1);
+			Res = CPU.RAM[Address];
+			//CPU.Bus->GetClock()->Clock(9); /* Неизвестное поведение */
+			/* Опять-таки, а какая разница? */
+			return Res;
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 Address, uint8 Src) {
+			CPU.RAM[Address] = Src;
+		}
+	};
+
+	/* PC + значение */
+	struct Relative {
+		inline static uint16 GetAddr(CCPU &CPU) {
+			//CPU.Bus->GetClock()->Clock(??); /* Неизвестное поведение */
+			return CPU.Registers.pc + (sint8) CPU.ReadMemory(CPU.Registers.pc - 1);
+		}
+	};
+
+	/* Адрес + X */
+	struct AbsoluteX {
+		inline static uint16 GetAddr(CCPU &CPU, uint16 &Address) {
+			Address = CPU.ReadMemory(CPU.Registers.pc - 2) + CPU.Registers.x;
+			return (CPU.ReadMemory(CPU.Registers.pc - 1) << 8) + Address;
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			if (Page & 0x0100) { /* Перепрыгнули страницу */
+				CPU.ReadMemory(Address - 0x0100); /* Промазал Ha-Ha */
+				CPU.AddCycles += 3;
+			}
+			return CPU.ReadMemory(Address);
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x0100)); /* WTF?! */
+			CPU.WriteMemory(Address, Src);
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint16 Page;
+			uint8 Res;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x100));
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res); /* WTF?! */
+			return Res;
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+			CPU.WriteMemory(Address, Src);
+		}
+	};
+
+	/* Адрес + Y */
+	struct AbsoluteY {
+		inline static uint16 GetAddr(CCPU &CPU, uint16 &Address) {
+			Address = CPU.ReadMemory(CPU.Registers.pc - 2) + CPU.Registers.y;
+			return (CPU.ReadMemory(CPU.Registers.pc - 1) << 8) + Address;
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			if (Page & 0x0100) {
+				CPU.ReadMemory(Address - 0x0100);
+				CPU.AddCycles += 3;
+			}
+			return CPU.ReadMemory(Address);
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x0100));
+			CPU.WriteMemory(Address, Src);
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint16 Page;
+			uint8 Res;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x100));
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res);
+			return Res;
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+			CPU.WriteMemory(Address, Src);
+		}
+	};
+
+	/* ZP + X */
+	struct ZeroPageX {
+		inline static uint8 GetAddr(CCPU &CPU) {
+			return CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			return CPU.RAM[GetAddr(CPU)];
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			CPU.RAM[GetAddr(CPU)] = Src;
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			Address = GetAddr(CPU);
+			return CPU.RAM[Address];
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+			CPU.RAM[Address] = Src;
+		}
+	};
+
+	/* ZP + Y */
+	struct ZeroPageY {
+		inline static uint8 GetAddr(CCPU &CPU) {
+			return CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.y;
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			return CPU.RAM[GetAddr(CPU)];
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			CPU.RAM[GetAddr(CPU)] = Src;
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			Address = GetAddr(CPU);
+			return CPU.RAM[Address];
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+			CPU.RAM[Address] = Src;
+		}
+	};
+
+	/* Адрес + indirect */
+	struct AbsoluteInd {
+		inline static uint16 GetAddr(CCPU &CPU) {
+			uint16 Address;
+
+			Address = CPU.ReadMemory(CPU.Registers.pc - 2) |
+				(CPU.ReadMemory(CPU.Registers.pc - 1) << 8);
+			return CPU.ReadMemory(Address) | (CPU.ReadMemory(\
+				(Address & 0xff00) | ((Address + 1) & 0x00ff)) << 8);
+		}
+	};
+
+	/* ZP + X + indirect */
+	struct ZeroPageInd {
+		inline static uint16 GetAddr(CCPU &CPU) {
+			uint8 AddressOffset;
+
+			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
+			CPU.Bus->GetClock()->Clock(9);
+			return CPU.RAM[AddressOffset] | (CPU.RAM[(uint8) (AddressOffset + 1)] << 8);
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			return CPU.ReadMemory(GetAddr(CPU));
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			CPU.WriteMemory(GetAddr(CPU), Src);
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint8 Res;
+
+			Address = GetAddr(CPU);
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res);
+			return Res;
+		}
+		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
+			CPU.WriteMemory(Address, Src);
+		}
+	};
+
+	/* ZP + indirect + Y */
+	struct ZeroPageIndY {
+		inline static uint16 GetAddr(CCPU &CPU, uint16 &Address) {
+			uint8 AddressOffset;
+
+			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1);
+			Address = CPU.RAM[AddressOffset] + CPU.Registers.y;
+			return (CPU.RAM[(uint8) (AddressOffset + 1)] << 8) + Address;
+		}
+		inline static uint8 ReadByte(CCPU &CPU) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			if (Page & 0x0100) {
+				CPU.ReadMemory(Address - 0x0100);
+				CPU.AddCycles += 3;
+			}
+			return CPU.ReadMemory(Address);
+		}
+		inline static void WriteByte(CCPU &CPU, uint8 Src) {
+			uint16 Address, Page;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x0100));
+			CPU.WriteMemory(Address, Src);
+		}
+		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint16 Page;
+			uint8 Res;
+
+			Address = GetAddr(CPU, Page);
+			CPU.ReadMemory(Address - (Page & 0x100));
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res);
+			return Res;
 		}
 		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
 			CPU.WriteMemory(Address, Src);
@@ -149,6 +386,8 @@ public:
 		Bus->GetManager()->template SetPointer<CPUID::RegistersID>(\
 			&Registers, sizeof(Registers));
 		memset(&Registers, 0, sizeof(Registers));
+		RAM = (uint8 *) Bus->GetManager()->template GetPointer<CPUID::RAMID>(\
+			0x0800 * sizeof(uint8));
 	}
 	inline ~CCPU() {}
 
