@@ -30,8 +30,7 @@
 using namespace std;
 using namespace vpnes;
 
-typedef _NES_Config<CBus<Clock_rebind, CPU_rebind, APU_rebind, PPU_rebind,
-	NROM_rebind> >::Config NROM_NES_Config;
+typedef _NES_Config<CBus<CClock, CCPU, CAPU, CPPU, CNROM> >::Config NROM_NES_Config;
 
 /* Открыть картридж */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {

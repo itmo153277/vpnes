@@ -36,9 +36,16 @@ namespace vpnes {
 
 /* Static SolderPad */
 struct StaticSolderPad {
-	ines::SolderPad c;
-	inline uint16 GetAddress(uint16 Address) {
-		return Address;
+	ines::SolderPad c; /* Текущий переключатель */
+	uint8 *Screen1; /* Экран 1 */
+	uint8 *Screen2; /* Экран 2 */
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return 0x00;
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 	}
 };
 
@@ -58,13 +65,6 @@ public:
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 	}
-};
-
-struct NROM_rebind {
-	template <class _Bus>
-	struct rebind {
-		typedef CNROM<_Bus> rebinded;
-	};
 };
 
 }

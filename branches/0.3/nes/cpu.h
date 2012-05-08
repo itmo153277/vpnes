@@ -440,13 +440,6 @@ private:
 	void OpIllegal();
 };
 
-struct CPU_rebind {
-	template <class _Bus>
-	struct rebind {
-		typedef CCPU<_Bus> rebinded;
-	};
-};
-
 template <class _Bus>
 int CCPU<_Bus>::Execute() {
 	uint8 opcode;

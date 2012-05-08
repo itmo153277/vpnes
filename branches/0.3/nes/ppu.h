@@ -38,6 +38,8 @@ namespace PPUID {
 
 typedef PPUGroup<1>::ID::NoBatteryID CycleDataID;
 typedef PPUGroup<2>::ID::NoBatteryID DMADataID;
+typedef PPUGroup<3>::ID::NoBatteryID RAM1ID;
+typedef PPUGroup<4>::ID::NoBatteryID RAM2ID;
 
 }
 
@@ -89,6 +91,12 @@ public:
 			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<PPUID::DMADataID>(\
 			&DMAData, sizeof(DMAData));
+		Bus->GetSolderPad()->Screen1 = (uint8 *)
+			Bus->GetManager()->template GetPointer<PPUID::RAM1ID>(\
+				0x0800 * sizeof(uint8));
+		Bus->GetSolderPad()->Screen2 = (uint8 *)
+			Bus->GetManager()->template GetPointer<PPUID::RAM2ID>(\
+				0x0800 * sizeof(uint8));
 	}
 	inline ~CPPU() {}
 
@@ -118,14 +126,6 @@ public:
 	inline void ProccessDMA(int Cycles) {
 	}
 
-	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) {
-		return 0x00;
-	}
-	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) {
-	}
-
 	/* Флаг окончания рендеринга фрейма */
 	inline const bool &IsFrameReady() const { return FrameReady; }
 	/* Ушло татов на фрейм */
@@ -137,13 +137,6 @@ public:
 		FrameReady = false;
 		return Res;
 	}
-};
-
-struct PPU_rebind {
-	template <class _Bus>
-	struct rebind {
-		typedef CPPU<_Bus> rebinded;
-	};
 };
 
 }

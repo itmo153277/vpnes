@@ -75,13 +75,6 @@ public:
 	inline const int &GetPreCycles() const { return PreCycles; }
 };
 
-struct Clock_rebind {
-	template <class _Bus>
-	struct rebind {
-		typedef CClock<_Bus> rebinded;
-	};
-};
-
 }
 
 #endif

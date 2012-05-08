@@ -46,15 +46,18 @@ public:
 };
 
 /* Базовый класс шины */
-template <class _Clock_rebind, class _CPU_rebind, class _APU_rebind, class _PPU_rebind,
-	class _ROM_rebind, class _BusClass>
+template <class _Clock,
+          class _CPU,
+          class _APU,
+          class _PPU,
+          class _ROM>
 class CBus_Basic {
 public:
-	typedef typename _Clock_rebind::template rebind<_BusClass>::rebinded ClockClass;
-	typedef typename _CPU_rebind::template rebind<_BusClass>::rebinded CPUClass;
-	typedef typename _APU_rebind::template rebind<_BusClass>::rebinded APUClass;
-	typedef typename _PPU_rebind::template rebind<_BusClass>::rebinded PPUClass;
-	typedef typename _ROM_rebind::template rebind<_BusClass>::rebinded ROMClass;
+	typedef _Clock ClockClass;
+	typedef _CPU CPUClass;
+	typedef _APU APUClass;
+	typedef _PPU PPUClass;
+	typedef _ROM ROMClass;
 private:
 	/* Обработчик событий */
 	VPNES_CALLBACK _Callback;
@@ -128,19 +131,27 @@ public:
 	/* ROM */
 	inline ROMClass *&GetROM() { return ROM; }
 	/* SolderPad */
-	inline typename ROMClass::SolderPad *&GetSolderPad() { return SolderPad; }
+	inline typename ROMClass::SolderPad *GetSolderPad() { return &SolderPad; }
 };
 
 /* Стандартная шина */
-template <class _Clock_rebind, class _CPU_rebind, class _APU_rebind, class _PPU_rebind,
-	class _ROM_rebind>
-class CBus: public CBus_Basic<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
-	_ROM_rebind, CBus<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind, _ROM_rebind> > {
+template <template<class> class _Clock,
+          template<class> class _CPU,
+          template<class> class _APU,
+          template<class> class _PPU,
+          template<class> class _ROM>
+class CBus: public CBus_Basic<_Clock<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                              _CPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                              _APU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                              _PPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                              _ROM<CBus<_Clock, _CPU, _APU, _PPU, _ROM> > > {
 public:
 	inline explicit CBus(VPNES_CALLBACK Callback, CMemoryManager *Manager):
-		CBus_Basic<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
-		_ROM_rebind, CBus<_Clock_rebind, _CPU_rebind, _APU_rebind, _PPU_rebind,
-		_ROM_rebind> >(Callback, Manager) {}
+		CBus_Basic<_Clock<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                     _CPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                     _APU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                     _PPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
+                     _ROM<CBus<_Clock, _CPU, _APU, _PPU, _ROM> > >(Callback, Manager) {}
 };
 
 }
