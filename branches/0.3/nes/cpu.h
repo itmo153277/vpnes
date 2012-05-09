@@ -476,7 +476,7 @@ void CCPU<_Bus>::OpIllegal() {
 /* Таблица опкодов */
 template <class _Bus>
 const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[1] = {
-	{1, 1, &CCPU<_Bus>::OpIllegal}
+	{1, 0, &CCPU<_Bus>::OpIllegal}
 };
 
 }

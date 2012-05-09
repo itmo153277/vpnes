@@ -22,11 +22,13 @@
 #include "window.h"
 #include <SDL.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
+int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
 Uint32 Pal[64];
@@ -86,6 +88,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	SDL_Event event;
 	int quit = 0;
 	double *Tim;
+	VPNES_CPUHALT *HaltData;
 #if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
 	char buf[20];
@@ -108,20 +111,24 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			SDL_Flip(screen);
 #if defined(VPNES_SHOW_CURFRAME)
 			/* Текущий фрейм */
-			itoa(cur_frame, buf, 10);
-			SDL_WM_SetCaption(buf, NULL);
-			cur_frame++;
+			if (!CPUHalt)
+				itoa(cur_frame, buf, 10);
+				SDL_WM_SetCaption(buf, NULL);
+				cur_frame++;
+			}
 #elif defined(VPNES_SHOW_FPS)
 			/* FPS */
-			passed = SDL_GetTicks() - fpst;
-			if (passed > 1000) {
-				fps = cur_frame * 1000.0 / passed;
-				itoa((int) fps, buf, 10);
-				SDL_WM_SetCaption(buf, NULL);
-				fpst = SDL_GetTicks();
-				cur_frame = 0;
+			if (!CPUHalt) {
+				passed = SDL_GetTicks() - fpst;
+				if (passed > 1000) {
+					fps = cur_frame * 1000.0 / passed;
+					itoa((int) fps, buf, 10);
+					SDL_WM_SetCaption(buf, NULL);
+					fpst = SDL_GetTicks();
+					cur_frame = 0;
+				}
+				cur_frame++;
 			}
-			cur_frame++;
 #endif
 			/* Обрабатываем сообщения */
 			while (SDL_PollEvent(&event))
@@ -143,6 +150,23 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			framestarttime = SDL_GetTicks();
 #endif
 			return quit;
+		case VPNES_CALLBACK_CPUHALT:
+			CPUHalt = 1;
+			SDL_WM_SetCaption("CPU HALTED!", NULL);
+			if (ftell(stderr) >= 0) {
+				HaltData = (VPNES_CPUHALT *) Data;
+				fprintf(stderr, "Fatal Error: CPU halted\n\n"
+				                "Registers:\n"
+				                "  PC: 0x%4.4x\n"
+				                "   A: 0x%2.2x\n"
+				                "   X: 0x%2.2x\n"
+				                "   Y: 0x%2.2x\n"
+				                "   S: 0x%2.2x\n"
+				                "   F: 0x%2.2x\n",
+					HaltData->PC, HaltData->A, HaltData->X, HaltData->Y, HaltData->S,
+					HaltData->State);
+				}
+			return 0;
 	}
 	return -1;
 }

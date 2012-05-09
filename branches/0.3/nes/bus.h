@@ -107,13 +107,13 @@ public:
 		if (Address < 0x2000) /* Mapper CHR data */
 			return ROM->ReadPPUAddress(Address);
 		else /* PPU attributes/nametables */
-			return PPU->ReadPPUAddress(SolderPad.GetAddress(Address));
+			return SolderPad.ReadPPUAddress(Address);
 	}
 	inline void WritePPUMemory(uint16 Address, uint8 Src) {
 		if (Address < 0x2000) /* Mapper CHR data */
 			ROM->WritePPUAddress(Address, Src);
 		else /* PPU attributes/nametables */
-			PPU->WritePPUAddress(SolderPad.GetAddress(Address), Src);
+			SolderPad.WritePPUAddress(Address, Src);
 	}
 
 	/* Обработчик событий */
@@ -147,11 +147,8 @@ class CBus: public CBus_Basic<_Clock<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
                               _ROM<CBus<_Clock, _CPU, _APU, _PPU, _ROM> > > {
 public:
 	inline explicit CBus(VPNES_CALLBACK Callback, CMemoryManager *Manager):
-		CBus_Basic<_Clock<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
-                     _CPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
-                     _APU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
-                     _PPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
-                     _ROM<CBus<_Clock, _CPU, _APU, _PPU, _ROM> > >(Callback, Manager) {}
+		CBus_Basic<_Clock<CBus>, _CPU<CBus>, _APU<CBus>, _PPU<CBus>,
+			_ROM<CBus> >(Callback, Manager) {}
 };
 
 }
