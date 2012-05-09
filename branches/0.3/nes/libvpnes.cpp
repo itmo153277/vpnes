@@ -36,5 +36,10 @@ typedef _NES_Config<CBus<CClock, CCPU, CAPU, CPPU, CNROM> >::Config NROM_NES_Con
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
 	if (ReadROM(ROM, Data) < 0)
 		return NULL;
-	return new NROM_NES_Config(Data);
+	switch (Data->Header.Mapper) {
+		case 0:
+			return new NROM_NES_Config(Data);
+	}
+	FreeROMData(Data);
+	return NULL;
 }

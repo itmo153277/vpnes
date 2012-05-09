@@ -110,8 +110,7 @@ public:
 		}
 	}
 	inline ~CNROM() {
-		if (RAM != NULL)
-			delete [] RAM;
+		delete [] RAM;
 	}
 
 	/* Чтение памяти */
