@@ -252,7 +252,7 @@ private:
 			uint8 Res;
 
 			Address = GetAddr(CPU, Page);
-			CPU.ReadMemory(Address - (Page & 0x100));
+			CPU.ReadMemory(Address - (Page & 0x0100));
 			Res = CPU.ReadMemory(Address);
 			CPU.WriteMemory(Address, Res); /* WTF?! */
 			return Res;
@@ -290,7 +290,7 @@ private:
 			uint8 Res;
 
 			Address = GetAddr(CPU, Page);
-			CPU.ReadMemory(Address - (Page & 0x100));
+			CPU.ReadMemory(Address - (Page & 0x0100));
 			Res = CPU.ReadMemory(Address);
 			CPU.WriteMemory(Address, Res);
 			return Res;
@@ -411,7 +411,7 @@ private:
 			uint8 Res;
 
 			Address = GetAddr(CPU, Page);
-			CPU.ReadMemory(Address - (Page & 0x100));
+			CPU.ReadMemory(Address - (Page & 0x0100));
 			Res = CPU.ReadMemory(Address);
 			CPU.WriteMemory(Address, Res);
 			return Res;
@@ -762,7 +762,7 @@ void CCPU<_Bus>::OpADC() {
 	src = _Addr::ReadByte(*this);
 	temp = src + Registers.a + (State.State & 0x01);
 	State.VFlag(((temp ^ Registers.a) & ~(Registers.a ^ src)) & 0x80);
-	State.CFlag(temp >= 0x100);
+	State.CFlag(temp >= 0x0100);
 	Registers.a = (uint8) temp;
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
@@ -777,7 +777,7 @@ void CCPU<_Bus>::OpSBC() {
 	src = _Addr::ReadByte(*this);
 	temp = Registers.a - src - (~State.State & 0x01);
 	State.VFlag(((temp ^ Registers.a) & (Registers.a ^ src)) & 0x80);
-	State.CFlag(temp < 0x100);
+	State.CFlag(temp < 0x0100);
 	Registers.a = (uint8) temp;
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
@@ -949,7 +949,7 @@ void CCPU<_Bus>::OpCMP() {
 	uint16 temp;
 
 	temp = Registers.a - _Addr::ReadByte(*this);
-	State.CFlag(temp < 0x100);
+	State.CFlag(temp < 0x0100);
 	State.NFlag(temp);
 	State.ZFlag(temp);
 }
@@ -961,7 +961,7 @@ void CCPU<_Bus>::OpCPX() {
 	uint16 temp;
 
 	temp = Registers.x - _Addr::ReadByte(*this);
-	State.CFlag(temp < 0x100);
+	State.CFlag(temp < 0x0100);
 	State.NFlag(temp);
 	State.ZFlag(temp);
 }
@@ -973,7 +973,7 @@ void CCPU<_Bus>::OpCPY() {
 	uint16 temp;
 
 	temp = Registers.y - _Addr::ReadByte(*this);
-	State.CFlag(temp < 0x100);
+	State.CFlag(temp < 0x0100);
 	State.NFlag(temp);
 	State.ZFlag(temp);
 }

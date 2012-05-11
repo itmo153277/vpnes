@@ -43,10 +43,45 @@ struct StaticSolderPad {
 
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
+		switch (Mirroring) {
+			case ines::Horizontal:
+				if (Address & 0x0800)
+					return Screen2[Address & 0x7ff];
+				else
+					return Screen1[Address & 0x7ff];
+			case ines::Vertical:
+				if (Address & 0x0b00)
+					return Screen2[Address & 0x7ff];
+				else
+					return Screen1[Address & 0x7ff];
+			case ines::SingleScreen_1:
+				return Screen1[Address & 0x07ff];
+			case ines::SingleScreen_2:
+				return Screen2[Address & 0x07ff];
+		}
 		return 0x00;
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		switch (Mirroring) {
+			case ines::Horizontal:
+				if (Address & 0x0800)
+					Screen2[Address & 0x7ff] = Src;
+				else
+					Screen1[Address & 0x7ff] = Src;
+				break;
+			case ines::Vertical:
+				if (Address & 0x0b00)
+					Screen2[Address & 0x7ff] = Src;
+				else
+					Screen1[Address & 0x7ff] = Src;
+				break;
+			case ines::SingleScreen_1:
+				Screen1[Address & 0x07ff] = Src;
+				break;
+			case ines::SingleScreen_2:
+				Screen2[Address & 0x07ff] = Src;
+		}
 	}
 };
 
@@ -57,6 +92,7 @@ typedef MapperGroup<'N', 2>::ID::StaticID CHRID;
 typedef MapperGroup<'N', 3>::ID::NoBatteryID CHRRAMID;
 typedef MapperGroup<'N', 4>::ID::NoBatteryID RAMID;
 typedef MapperGroup<'N', 5>::ID::BatteryID BatteryID;
+typedef MapperGroup<'N', 6>::ID::NoBatteryID SolderPadID;
 
 }
 
@@ -91,6 +127,8 @@ public:
 		} else
 			CHR = (uint8 *) Bus->GetManager()->\
 				template GetPointer<ROMID::CHRRAMID>(0x2000 * sizeof(uint8));
+		Bus->GetManager()->template SetPointer<ROMID::SolderPadID>(\
+			Bus->GetSolderPad(), sizeof(SolderPad));
 		Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
 		if (ROM->Header.RAMSize == 0)
 			RAM = NULL;
