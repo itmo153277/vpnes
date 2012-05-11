@@ -640,7 +640,8 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			if (CycleData.Scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
 				if (!InternalData.SupressVBlank) {
 					State.SetVBlank();
-					//Generate NMI
+					if (ControlRegisters.GenerateNMI)
+						Bus->GetCPU()->GenerateNMI();
 				}
 				FrameReady = true;
 				FrameCycles = 341 * 262;

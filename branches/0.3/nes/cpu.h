@@ -100,6 +100,12 @@ private:
 		bool Halt; /* Зависание */
 		bool NMI; /* Не маскируемое прерывание */
 		bool IRQ; /* Прерывание */
+		enum {
+			IRQLow = 0,
+			IRQStart,
+			IRQSave,
+			IRQExecute
+		} IRQMode;
 	} InternalData;
 
 	/* Обращения к памяти */
@@ -457,6 +463,11 @@ public:
 		RAM[Address & 0x07ff] = Src;
 	}
 
+	/* Генерировать NMI */
+	inline void GenerateNMI() {
+		InternalData.NMI = true;
+		InternalData.IRQMode = SInternalData::IRQStart;
+	}
 private:
 	/* Команды CPU */
 
@@ -674,6 +685,29 @@ int CCPU<_Bus>::Execute() {
 
 	if (InternalData.Halt) /* Зависли */
 		return 3;
+	switch (InternalData.IRQMode) {
+		case SInternalData::IRQLow:
+			break;
+		case SInternalData::IRQExecute: /* Выполняем прерываение */
+			/* Прыгаем */
+			if (InternalData.NMI) {
+				Registers.pc = Bus->ReadCPUMemory(0xfffa) |
+					(Bus->ReadCPUMemory(0xfffb) << 8);
+				InternalData.NMI = false;
+			} else
+				Registers.pc = Bus->ReadCPUMemory(0xfffe) |
+					(Bus->ReadCPUMemory(0xffff) << 8);
+			InternalData.IRQMode = SInternalData::IRQLow;
+			return 9; /* 3 такта */
+		case SInternalData::IRQStart:
+			InternalData.IRQMode = SInternalData::IRQSave;
+			break;
+		case SInternalData::IRQSave:
+			PushWord(Registers.pc); /* Следующая команда */
+			PushByte(State.State); /* Сохраняем состояние */
+			InternalData.IRQMode = SInternalData::IRQExecute;
+			return 12; /* 4 такта */
+	}
 	/* Текущий опкод */
 	opcode = ReadMemory(Registers.pc);
 	Registers.pc += Opcodes[opcode].Length;
@@ -1261,7 +1295,7 @@ void CCPU<_Bus>::OpBRK() {
 	State.State |= 0x10;
 	PushByte(State.State);
 	State.State |= 0x04;
-	//Force IRQ
+	InternalData.IRQMode = SInternalData::IRQExecute;
 }
 
 /* Таблица опкодов */
