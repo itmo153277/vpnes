@@ -95,17 +95,19 @@ private:
 	/* Встроенная память */
 	uint8 *RAM;
 
+#define IRQLow     0 /* Не обрабатывать IRQ */
+#define IRQReady   IRQLow   + 1 /* Проверить на обработку IRQ */
+#define IRQStart   IRQReady + 1 /* Начать ообработку IRQ */
+#define IRQCheck   IRQStart + 1 /* Проверить для немедленной обработки IRQ */
+#define IRQSave    IRQCheck + 1 /* Сохранить контекст */
+#define IRQExecute IRQSave  + 1 /* Выполнить IRQ */
+
 	/* Внутренние данные */
 	struct SInternalData {
 		bool Halt; /* Зависание */
 		bool NMI; /* Не маскируемое прерывание */
 		bool IRQ; /* Прерывание */
-		enum {
-			IRQLow = 0,
-			IRQStart,
-			IRQSave,
-			IRQExecute
-		} IRQMode;
+		int IRQTrigger;
 	} InternalData;
 
 	/* Обращения к памяти */
@@ -137,6 +139,14 @@ private:
 	/* Достать из стека слово */
 	inline uint16 PopWord() {
 		return PopByte() | (PopByte() << 8);
+	}
+
+	/* Обновить состояние триггера */
+	inline void UpdateTrigger() {
+		if (State.Interrupt())
+			InternalData.IRQTrigger = IRQLow;
+		else
+			InternalData.IRQTrigger = IRQReady;
 	}
 
 	/* Адресация */
@@ -451,6 +461,7 @@ public:
 		Registers.s -= 3;
 		State.State |= 0x04; /* Interrupt */
 		memset(&InternalData, 0, sizeof(InternalData));
+		InternalData.IRQ = true;
 		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
 	}
 
@@ -466,8 +477,10 @@ public:
 	/* Генерировать NMI */
 	inline void GenerateNMI() {
 		InternalData.NMI = true;
-		InternalData.IRQMode = SInternalData::IRQStart;
+		InternalData.IRQTrigger = IRQStart;
 	}
+	/* IRQ */
+	inline bool &GetIRQPin() { return InternalData.IRQ; }
 private:
 	/* Команды CPU */
 
@@ -685,10 +698,20 @@ int CCPU<_Bus>::Execute() {
 
 	if (InternalData.Halt) /* Зависли */
 		return 3;
-	switch (InternalData.IRQMode) {
-		case SInternalData::IRQLow:
+	if (((InternalData.IRQTrigger == IRQReady) ||
+		(InternalData.IRQTrigger == IRQCheck)) &
+		InternalData.IRQ)
+		InternalData.IRQTrigger++;
+	switch (InternalData.IRQTrigger) {
+		case IRQStart:
+			InternalData.IRQTrigger = IRQSave;
 			break;
-		case SInternalData::IRQExecute: /* Выполняем прерываение */
+		case IRQSave:
+			PushWord(Registers.pc); /* Следующая команда */
+			PushByte(State.State); /* Сохраняем состояние */
+			InternalData.IRQTrigger = IRQExecute;
+			return 12; /* 4 такта */
+		case IRQExecute: /* Выполняем прерываение */
 			/* Прыгаем */
 			if (InternalData.NMI) {
 				Registers.pc = Bus->ReadCPUMemory(0xfffa) |
@@ -697,16 +720,8 @@ int CCPU<_Bus>::Execute() {
 			} else
 				Registers.pc = Bus->ReadCPUMemory(0xfffe) |
 					(Bus->ReadCPUMemory(0xffff) << 8);
-			InternalData.IRQMode = SInternalData::IRQLow;
+			UpdateTrigger();
 			return 9; /* 3 такта */
-		case SInternalData::IRQStart:
-			InternalData.IRQMode = SInternalData::IRQSave;
-			break;
-		case SInternalData::IRQSave:
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			InternalData.IRQMode = SInternalData::IRQExecute;
-			return 12; /* 4 такта */
 	}
 	/* Текущий опкод */
 	opcode = ReadMemory(Registers.pc);
@@ -1190,7 +1205,7 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpPLP() {
 	State.SetState(PopByte());
-	//Force IRQ
+	UpdateTrigger();
 }
 
 /* Прыжки */
@@ -1223,7 +1238,8 @@ template <class _Addr>
 void CCPU<_Bus>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
-	//Force IRQ
+	if (!State.Interrupt())
+		InternalData.IRQTrigger = IRQCheck;
 }
 
 /* Управление флагами */
@@ -1268,7 +1284,7 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpCLI() {
 	State.State &= 0xfb;
-	//Force IRQ
+	UpdateTrigger();
 }
 
 /* Сбросить V */
@@ -1295,7 +1311,7 @@ void CCPU<_Bus>::OpBRK() {
 	State.State |= 0x10;
 	PushByte(State.State);
 	State.State |= 0x04;
-	InternalData.IRQMode = SInternalData::IRQExecute;
+	InternalData.IRQTrigger = IRQExecute;
 }
 
 /* Таблица опкодов */

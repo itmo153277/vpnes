@@ -50,7 +50,7 @@ struct StaticSolderPad {
 				else
 					return Screen1[Address & 0x7ff];
 			case ines::Vertical:
-				if (Address & 0x0b00)
+				if (Address & 0x0400)
 					return Screen2[Address & 0x7ff];
 				else
 					return Screen1[Address & 0x7ff];
@@ -71,7 +71,7 @@ struct StaticSolderPad {
 					Screen1[Address & 0x7ff] = Src;
 				break;
 			case ines::Vertical:
-				if (Address & 0x0b00)
+				if (Address & 0x0400)
 					Screen2[Address & 0x7ff] = Src;
 				else
 					Screen1[Address & 0x7ff] = Src;
@@ -92,7 +92,6 @@ typedef MapperGroup<'N', 2>::ID::StaticID CHRID;
 typedef MapperGroup<'N', 3>::ID::NoBatteryID CHRRAMID;
 typedef MapperGroup<'N', 4>::ID::NoBatteryID RAMID;
 typedef MapperGroup<'N', 5>::ID::BatteryID BatteryID;
-typedef MapperGroup<'N', 6>::ID::NoBatteryID SolderPadID;
 
 }
 
@@ -127,8 +126,6 @@ public:
 		} else
 			CHR = (uint8 *) Bus->GetManager()->\
 				template GetPointer<ROMID::CHRRAMID>(0x2000 * sizeof(uint8));
-		Bus->GetManager()->template SetPointer<ROMID::SolderPadID>(\
-			Bus->GetSolderPad(), sizeof(SolderPad));
 		Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
 		if (ROM->Header.RAMSize == 0)
 			RAM = NULL;
