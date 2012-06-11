@@ -40,7 +40,7 @@ public:
 	inline explicit CDevice(CDevice const &) {}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) { return 0x00; }
+	inline uint8 ReadAddress(uint16 Address) { return 0x40; }
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {}
 };

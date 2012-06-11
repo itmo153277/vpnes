@@ -59,7 +59,7 @@ struct StaticSolderPad {
 			case ines::SingleScreen_2:
 				return Screen2[Address & 0x07ff];
 		}
-		return 0x00;
+		return 0x40;
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
@@ -151,14 +151,14 @@ public:
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
 		if (Address < 0x6000) /* Регистры */
-			return 0x00;
+			return 0x40;
 		if (Address < 0x8000) { /* SRAM */
 			if (RAM != NULL)
 				return RAM[Address & 0x1fff];
 			else	if ((ROM->Trainer != NULL) && (Address >= 0x7000)
 				&& (Address < 0x7200))
 				return ROM->Trainer[Address & 0x01ff];
-			return 0x00;
+			return 0x40;
 		}
 		if (Address < 0xc000)
 			return PRGLow[Address & 0x3fff];

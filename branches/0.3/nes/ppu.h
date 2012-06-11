@@ -347,7 +347,7 @@ public:
 					Res = ReadPalette(t);
 				return Res;
 		}
-		return 0x00;
+		return 0x40;
 	}
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {

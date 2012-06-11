@@ -698,6 +698,9 @@ int CCPU<_Bus>::Execute() {
 
 	if (InternalData.Halt) /* Зависли */
 		return 3;
+	Cycles = Bus->GetAPU()->WasteCycles();
+	if (Cycles > 0) /* Заняты APU */
+		return Cycles;
 	if (((InternalData.IRQTrigger == IRQReady) ||
 		(InternalData.IRQTrigger == IRQCheck)) &
 		InternalData.IRQ)
