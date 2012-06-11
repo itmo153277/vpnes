@@ -40,6 +40,18 @@ typedef signed int sint32;
 typedef unsigned long long uint64;
 typedef signed long long sint64;
 
+/* Callback */
+typedef int (*VPNES_CALLBACK)(uint32, void *);
+
+/* Callback Events */
+#define VPNES_CALLBACK_FRAME       0x00000001
+#define VPNES_CALLBACK_CPUHALT     0x00000002
+#define VPNES_CALLBACK_PCM         0x00000004
+#define VPNES_CALLBACK_INPUT       0x00000008
+#define VPNES_CALLBACK_VIDEO       0x00000010
+
+/* Video */
+
 /* Данные видеобуфера */
 typedef struct VPNES_VBUF {
 	uint32 *Buf;
@@ -50,30 +62,23 @@ typedef struct VPNES_VBUF {
 	uint32 AMask;
 } VPNES_VBUF;
 
-/* Callback */
-typedef int (*VPNES_CALLBACK)(uint32, void *);
-
-/* Callback Events */
-#define VPNES_CALLBACK_FRAME       0x00000001
-#define VPNES_CALLBACK_CPUHALT     0x00000002
-#define VPNES_CALLBACK_PCM         0x00000004
-#define VPNES_CALLBACK_INPUT       0x00000008
+typedef VPNES_VBUF * VPNES_VIDEO;
 
 /* Input */
 
-#define VPNES_INPUT_UP        0x00000001
-#define VPNES_INPUT_DOWN      0x00000002
-#define VPNES_INPUT_LEFT      0x00000004
-#define VPNES_INPUT_RIGHT     0x00000008
-#define VPNES_INPUT_SELECT    0x00000010
-#define VPNES_INPUT_START     0x00000020
-#define VPNES_INPUT_A         0x00000040
-#define VPNES_INPUT_B         0x00000080
+#define VPNES_INPUT_UP        0x00000000
+#define VPNES_INPUT_DOWN      0x00000001
+#define VPNES_INPUT_LEFT      0x00000002
+#define VPNES_INPUT_RIGHT     0x00000003
+#define VPNES_INPUT_SELECT    0x00000004
+#define VPNES_INPUT_START     0x00000005
+#define VPNES_INPUT_A         0x00000006
+#define VPNES_INPUT_B         0x00000007
 
-typedef union VPNES_INPUT {
-	uint32 InputId;
-	int KeyPressed;
-} VPNES_INPUT;
+/* Буфер для ввода */
+typedef int * VPNES_IBUF;
+
+typedef VPNES_IBUF VPNES_INPUT;
 
 /* PCM */
 

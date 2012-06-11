@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+int WindowState;
+int SaveState;
 SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 delaytime;
@@ -31,6 +33,7 @@ Uint32 framestarttime = 0;
 int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
+VPNES_IBUF ibuf;
 Uint32 Pal[64];
 const Uint8 NES_Palette[64][3] = {
 	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132},
@@ -49,21 +52,21 @@ const Uint8 NES_Palette[64][3] = {
 };
 
 /* Инициализация SDL */
-VPNES_VBUF *InitMainWindow(int Width, int Height) {
+int InitMainWindow(int Width, int Height) {
 	int i;
 
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-		return NULL;
+		return -1;
 	SDL_WM_SetCaption("VPNES 0.2", NULL);
 	screen = SDL_SetVideoMode(Width * 2, Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
-		return NULL;
+		return -1;
 	/* Буфер для PPU */
 	bufs = SDL_CreateRGBSurface(SDL_SWSURFACE, Width, Height, 32, screen->format->Rmask,
 		screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
 	if (bufs == NULL)
-		return NULL;
+		return -1;
 	for (i = 0; i < 64; i++)
 		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
 	vbuf.Buf = bufs->pixels;
@@ -72,11 +75,14 @@ VPNES_VBUF *InitMainWindow(int Width, int Height) {
 	vbuf.GMask = bufs->format->Gmask;
 	vbuf.BMask = bufs->format->Bmask;
 	vbuf.AMask = bufs->format->Amask;
-	return &vbuf;
+	ibuf = calloc(8, sizeof(int));
+	SaveState = 0;
+	return 0;
 }
 
 /* Выход */
 void AppQuit(void) {
+	free(ibuf);
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
 	}
@@ -135,6 +141,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				switch (event.type) {
 					case SDL_QUIT:
 						quit = -1;
+						WindowState = VPNES_QUIT;
 						break;
 					case SDL_KEYDOWN:
 						if (event.key.keysym.sym == SDLK_SPACE)
@@ -166,6 +173,12 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 					HaltData->PC, HaltData->A, HaltData->X, HaltData->Y, HaltData->S,
 					HaltData->State);
 				}
+			return 0;
+		case VPNES_CALLBACK_INPUT:
+			*((VPNES_INPUT *) Data) = ibuf;
+			return 0;
+		case VPNES_CALLBACK_VIDEO:
+			*((VPNES_VIDEO *) Data) = &vbuf;
 			return 0;
 	}
 	return -1;

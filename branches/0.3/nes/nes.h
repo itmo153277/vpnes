@@ -50,6 +50,8 @@ public:
 	virtual int PowerOn() = 0;
 	/* Программный сброс */
 	virtual int Reset() = 0;
+	/* Обновить буферы (реинициализация) */
+	virtual int UpdateBuf() = 0;
 
 	/* Выключить приставку (сохранение памяти) */
 	inline int PowerOff(std::ostream &RamFile) {
@@ -89,7 +91,7 @@ public:
 	/* Высота экрана */
 	inline const int &GetHeight() const { return Height; }
 	/* Получить приставку по нашим параметрам */
-	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf) = 0;
+	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback) = 0;
 };
 
 /* Стандартный шаблон для параметров NES */
@@ -106,10 +108,10 @@ public:
 	inline ~CNESConfigTemplate() {}
 
 	/* Получить новенький NES */
-	CBasicNES *GetNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf) {
+	CBasicNES *GetNES(VPNES_CALLBACK Callback) {
 		_Nes *NES;
 
-		NES = new _Nes(Callback, Buf);
+		NES = new _Nes(Callback);
 		NES->GetBus().GetROM() = new typename _Nes::BusClass::ROMClass(&NES->GetBus(),
 			Data);
 		return NES;
@@ -133,8 +135,8 @@ private:
 	/* PPU */
 	typename BusClass::PPUClass PPU;
 public:
-	inline explicit CNES(VPNES_CALLBACK Callback, VPNES_VBUF *Buf):
-		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus, Buf) {
+	inline explicit CNES(VPNES_CALLBACK Callback):
+		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus) {
 		Bus.GetClock() = &Clock;
 		Bus.GetCPU() = &CPU;
 		Bus.GetAPU() = &APU;
@@ -165,14 +167,20 @@ public:
 		return 0;
 	}
 
+	/* Обновить буферы */
+	int UpdateBuf() {
+		VPNES_INPUT ibuf;
+		VPNES_VIDEO vbuf;
+
+		Bus.GetCallback()(VPNES_CALLBACK_INPUT, (void *) &ibuf);
+		APU.GetBuf() = ibuf;
+		Bus.GetCallback()(VPNES_CALLBACK_VIDEO, (void *) &vbuf);
+		PPU.GetBuf() = vbuf;
+		return 0;
+	}
+
 	/* Доступ к шине */
 	inline BusClass &GetBus() { return Bus; }
-};
-
-/* Параметры стандартного NES */
-template <class _Bus>
-struct _NES_Config {
-	typedef CNESConfigTemplate<CNES<_Bus>, 256, 224> Config;
 };
 
 }

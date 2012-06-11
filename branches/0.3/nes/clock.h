@@ -28,7 +28,6 @@
 
 #include "../types.h"
 
-#include <algorithm>
 #include "manager.h"
 #include "bus.h"
 

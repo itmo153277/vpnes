@@ -63,9 +63,7 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		Data->Header.CHRSize = 0x2000;
 	}
 	if (ROM.fail()) {
-		delete [] Data->PRG;
-		delete [] Data->CHR;
-		delete [] Data->Trainer;
+		FreeROMData(Data);
 		return -1;
 	}
 	return 0;

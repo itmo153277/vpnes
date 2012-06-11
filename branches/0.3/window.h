@@ -32,8 +32,20 @@
 extern "C" {
 #endif
 
+/* Window States */
+#define VPNES_QUIT       0x00000000
+#define VPNES_UPDATEBUF  0x00000001
+#define VPNES_SAVESTATE  0x00000002
+#define VPNES_LOADSTATE  0x00000004
+#define VPNES_RESET      0x00000008
+
+/* Обратная связь с главным циклом */
+extern int WindowState;
+/* Номер слота сохранения */
+extern int SaveState;
+
 /* Инициализация SDL */
-VPNES_VBUF *InitMainWindow(int Width, int Height);
+int InitMainWindow(int Width, int Height);
 /* Выход */
 void AppQuit(void);
 /* Callback-функция */

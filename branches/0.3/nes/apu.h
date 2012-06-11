@@ -43,6 +43,8 @@ class CAPU: public CDevice {
 private:
 	/* Шина */
 	_Bus *Bus;
+	/* Буфер */
+	VPNES_IBUF ibuf;
 public:
 	inline explicit CAPU(_Bus *pBus) {
 		Bus = pBus;
@@ -56,13 +58,8 @@ public:
 	/* Сброс */
 	inline void Reset() {
 	}
-};
 
-struct APU_rebind {
-	template <class _Bus>
-	struct rebind {
-		typedef CAPU<_Bus> rebinded;
-	};
+	inline VPNES_IBUF &GetBuf() { return ibuf; }
 };
 
 }

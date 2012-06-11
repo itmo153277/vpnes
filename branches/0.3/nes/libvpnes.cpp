@@ -30,7 +30,19 @@
 using namespace std;
 using namespace vpnes;
 
-typedef _NES_Config<CBus<CClock, CCPU, CAPU, CPPU, CNROM> >::Config NROM_NES_Config;
+/* Параметры стандартного NES */
+template <template<template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class> class _Bus,
+          template<class> class _ROM>
+struct NTSC_NES_Config {
+	typedef CNESConfigTemplate<CNES<_Bus<CClock, CCPU, CAPU, CPPU, _ROM> >,
+		256, 224> Config;
+};
+
+typedef NTSC_NES_Config<CBus, CNROM>::Config NROM_NES_Config;
 
 /* Открыть картридж */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {

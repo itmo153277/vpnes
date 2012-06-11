@@ -258,7 +258,7 @@ private:
 	/* Рендер */
 	inline void Render(int Cycles);
 public:
-	inline explicit CPPU(_Bus *pBus, VPNES_VBUF *Buf) {
+	inline explicit CPPU(_Bus *pBus) {
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<PPUID::CycleDataID>(\
 			&CycleData, sizeof(CycleData));
@@ -288,7 +288,6 @@ public:
 		OAM = (uint8 *)
 			Bus->GetManager()->template GetPointer<PPUID::OAMID>(\
 				0x0100 * sizeof(uint8));
-		vbuf = Buf;
 		Bus->GetManager()->template SetPointer<PPUID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
 	}
@@ -419,6 +418,8 @@ public:
 		FrameReady = false;
 		return Res;
 	}
+	/* Буфер */
+	inline VPNES_VBUF *&GetBuf() { return vbuf; }
 };
 
 /* Выборка спрайтов */
