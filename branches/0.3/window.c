@@ -158,20 +158,16 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 								ibuf[VPNES_INPUT_START] = 1;
 								break;
 							case SDLK_DOWN:
-								if (!ibuf[VPNES_INPUT_UP])
-									ibuf[VPNES_INPUT_DOWN] = 1;
+								ibuf[VPNES_INPUT_DOWN] = 1;
 								break;
 							case SDLK_UP:
-								if (!ibuf[VPNES_INPUT_DOWN])
-									ibuf[VPNES_INPUT_UP] = 1;
+								ibuf[VPNES_INPUT_UP] = 1;
 								break;
 							case SDLK_LEFT:
-								if (!ibuf[VPNES_INPUT_RIGHT])
-									ibuf[VPNES_INPUT_LEFT] = 1;
+								ibuf[VPNES_INPUT_LEFT] = 1;
 								break;
 							case SDLK_RIGHT:
-								if (!ibuf[VPNES_INPUT_LEFT])
-									ibuf[VPNES_INPUT_RIGHT] = 1;
+								ibuf[VPNES_INPUT_RIGHT] = 1;
 							default:
 								break;
 						}

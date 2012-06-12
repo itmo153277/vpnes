@@ -448,6 +448,7 @@ public:
 		memset(&Registers, 0, sizeof(Registers));
 		RAM = (uint8 *) Bus->GetManager()->template GetPointer<CPUID::RAMID>(\
 			0x0800 * sizeof(uint8));
+		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<CPUID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
 	}
@@ -481,6 +482,8 @@ public:
 	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }
+	/* RAM */
+	inline const uint8 *GetRAM() const { return RAM; }
 private:
 	/* Команды CPU */
 
@@ -700,7 +703,7 @@ int CCPU<_Bus>::Execute() {
 		return 3;
 	Cycles = Bus->GetAPU()->WasteCycles();
 	if (Cycles > 0) /* Заняты APU */
-		return Cycles;
+		return Cycles * 3;
 	if (((InternalData.IRQTrigger == IRQReady) ||
 		(InternalData.IRQTrigger == IRQCheck)) &
 		InternalData.IRQ)
@@ -1208,7 +1211,7 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpPLP() {
 	State.SetState(PopByte());
-	if (InternalData.IRQTrigger == IRQLow)
+	if (InternalData.IRQTrigger < IRQStart)
 		UpdateTrigger();
 }
 
@@ -1289,7 +1292,8 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpCLI() {
 	State.State &= 0xfb;
-	InternalData.IRQTrigger = IRQReady;
+	if (InternalData.IRQTrigger == IRQLow)
+		InternalData.IRQTrigger = IRQReady;
 }
 
 /* Сбросить V */

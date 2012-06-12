@@ -53,13 +53,14 @@ private:
 	struct SInternalData {
 		int StrobeCounter_A;
 		int StrobeCounter_B;
-		int WasteCycles;
 	} InternalData;
 
 	/* Данные о тактах */
 	struct SCycleData {
 		int CyclesLeft;
+		int WasteCycles;
 		int Step;
+		int DMACycle;
 	} CycleData;
 
 	/* Состояние */
@@ -171,6 +172,7 @@ public:
 	inline void Reset() {
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
+		CycleData.DMACycle = -1;
 		memset(&State, 0, sizeof(State));
 	}
 
@@ -219,8 +221,18 @@ public:
 			case 0x4011:
 			case 0x4012:
 			case 0x4013:
+				break;
 			/* Другое */
 			case 0x4014: /* DMA */
+				if (((CycleData.CyclesLeft +
+					Bus->GetClock()->GetPreCycles()) % 6) >= 3) {
+					CycleData.WasteCycles = 513;
+					CycleData.DMACycle = 0;
+				} else {
+					CycleData.WasteCycles = 512;
+					CycleData.DMACycle = 3;
+				}
+				Bus->GetPPU()->EnableDMA(Src);
 				break;
 			case 0x4015: /* Упраление каналами */
 				State.Write_4015(Src);
@@ -237,10 +249,21 @@ public:
 
 	/* CPU IDLE */
 	inline int WasteCycles() {
-		int Res = InternalData.WasteCycles;
+		int Res = CycleData.WasteCycles;
 
-		InternalData.WasteCycles = 0;
+		CycleData.WasteCycles = 0;
 		return Res;
+	}
+	/* Текущий такт DMA */
+	inline int GetDMACycle(int Cycles) {
+		if (CycleData.DMACycle >= 0) {
+			CycleData.DMACycle += Cycles;
+			if (CycleData.DMACycle >= 1539)
+				CycleData.DMACycle = -1;
+			else
+				return CycleData.DMACycle / 3;
+		}
+		return -1;
 	}
 	/* Буфер */
 	inline VPNES_IBUF &GetBuf() { return ibuf; }

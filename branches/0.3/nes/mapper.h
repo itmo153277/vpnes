@@ -46,18 +46,18 @@ struct StaticSolderPad {
 		switch (Mirroring) {
 			case ines::Horizontal:
 				if (Address & 0x0800)
-					return Screen2[Address & 0x7ff];
+					return Screen2[Address & 0x3ff];
 				else
-					return Screen1[Address & 0x7ff];
+					return Screen1[Address & 0x3ff];
 			case ines::Vertical:
 				if (Address & 0x0400)
-					return Screen2[Address & 0x7ff];
+					return Screen2[Address & 0x3ff];
 				else
-					return Screen1[Address & 0x7ff];
+					return Screen1[Address & 0x3ff];
 			case ines::SingleScreen_1:
-				return Screen1[Address & 0x07ff];
+				return Screen1[Address & 0x03ff];
 			case ines::SingleScreen_2:
-				return Screen2[Address & 0x07ff];
+				return Screen2[Address & 0x03ff];
 		}
 		return 0x40;
 	}
@@ -66,21 +66,21 @@ struct StaticSolderPad {
 		switch (Mirroring) {
 			case ines::Horizontal:
 				if (Address & 0x0800)
-					Screen2[Address & 0x7ff] = Src;
+					Screen2[Address & 0x3ff] = Src;
 				else
-					Screen1[Address & 0x7ff] = Src;
+					Screen1[Address & 0x3ff] = Src;
 				break;
 			case ines::Vertical:
 				if (Address & 0x0400)
-					Screen2[Address & 0x7ff] = Src;
+					Screen2[Address & 0x3ff] = Src;
 				else
-					Screen1[Address & 0x7ff] = Src;
+					Screen1[Address & 0x3ff] = Src;
 				break;
 			case ines::SingleScreen_1:
-				Screen1[Address & 0x07ff] = Src;
+				Screen1[Address & 0x03ff] = Src;
 				break;
 			case ines::SingleScreen_2:
-				Screen2[Address & 0x07ff] = Src;
+				Screen2[Address & 0x03ff] = Src;
 		}
 	}
 };

@@ -67,6 +67,7 @@ private:
 	struct SCycleData {
 		int CurCycle; /* Текущий такт */
 		int CyclesLeft; /* Необработанные такты */
+		int DMACycle; /* Такт DMA */
 		int Scanline; /* Текущий сканлайн */
 		bool ShortFrame; /* Короткий фрейм */
 	} CycleData;
@@ -76,6 +77,7 @@ private:
 		uint8 Latch; /* Буфер */
 		uint16 Address; /* Текущий адрес */
 		bool UseLatch; /* Использовать буфер */
+		int Left; /* Осталось */
 	} DMAData;
 
 	/* Состояние PPU */
@@ -245,6 +247,23 @@ private:
 			PalMem[Address & 0x001f] = Src;
 	}
 
+	/* Обработка DMA */
+	inline void ProccessDMA(int Cycles) {
+		/* TODO: Написать нормально (а не заглушку) */
+		if (Cycles < 0) { /* Дописать полностью */
+			if (InternalData.OAM_addr > 0) {
+				memcpy(OAM + InternalData.OAM_addr, Bus->GetCPU()->GetRAM() +
+					DMAData.Address, (0x0100 - InternalData.OAM_addr) * sizeof(uint8));
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address + (0x0100 -
+					InternalData.OAM_addr), InternalData.OAM_addr * sizeof(uint8));
+			} else {
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address,
+					0x0100 * sizeof(uint8));
+			}
+			DMAData.Left = 0;
+		}
+	}
+
 	/* Выборка спрайтов */
 	inline void EvaluateSprites();
 	/* Загрузить спрайт */
@@ -266,12 +285,12 @@ public:
 			&DMAData, sizeof(DMAData));
 		Bus->GetSolderPad()->Screen1 = (uint8 *)
 			Bus->GetManager()->template GetPointer<PPUID::RAM1ID>(\
-				0x0800 * sizeof(uint8));
-		memset(Bus->GetSolderPad()->Screen1, 0x00, 0x0800 * sizeof(uint8));
+				0x0400 * sizeof(uint8));
+		memset(Bus->GetSolderPad()->Screen1, 0x00, 0x0400 * sizeof(uint8));
 		Bus->GetSolderPad()->Screen2 = (uint8 *)
 			Bus->GetManager()->template GetPointer<PPUID::RAM2ID>(\
-				0x0800 * sizeof(uint8));
-		memset(Bus->GetSolderPad()->Screen2, 0x00, 0x0800 * sizeof(uint8));
+				0x0400 * sizeof(uint8));
+		memset(Bus->GetSolderPad()->Screen2, 0x00, 0x0400 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<PPUID::StateID>(\
 			&State, sizeof(State));
 		memset(&State, 0x00, sizeof(State));
@@ -403,8 +422,11 @@ public:
 		}
 	}
 
-	/* Обработка DMA */
-	inline void ProccessDMA(int Cycles) {
+	/* Включить DMA */
+	inline void EnableDMA(uint8 Page) {
+		PreRender();
+		DMAData.Address = (Page & 7) << 8;
+		DMAData.Left = 256;
 	}
 
 	/* Флаг окончания рендеринга фрейма */
@@ -716,6 +738,8 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		CycleData.CurCycle += 2;
 		CycleData.CyclesLeft -= 2;
 	}
+	if ((DMAData.Left > 0) && (Bus->GetAPU()->GetDMACycle(Cycles) == -1))
+		ProccessDMA(-1);
 }
 
 }
