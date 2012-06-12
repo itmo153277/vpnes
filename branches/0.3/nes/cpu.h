@@ -142,11 +142,11 @@ private:
 	}
 
 	/* Обновить состояние триггера */
-	inline void UpdateTrigger() {
+	inline void UpdateTrigger(int NewState = IRQReady) {
 		if (State.Interrupt())
 			InternalData.IRQTrigger = IRQLow;
 		else
-			InternalData.IRQTrigger = IRQReady;
+			InternalData.IRQTrigger = NewState;
 	}
 
 	/* Адресация */
@@ -723,7 +723,7 @@ int CCPU<_Bus>::Execute() {
 			} else
 				Registers.pc = Bus->ReadCPUMemory(0xfffe) |
 					(Bus->ReadCPUMemory(0xffff) << 8);
-			UpdateTrigger();
+			InternalData.IRQTrigger = IRQLow;
 			return 9; /* 3 такта */
 	}
 	/* Текущий опкод */
@@ -1208,7 +1208,8 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpPLP() {
 	State.SetState(PopByte());
-	UpdateTrigger();
+	if (InternalData.IRQTrigger == IRQLow)
+		UpdateTrigger();
 }
 
 /* Прыжки */
@@ -1241,8 +1242,7 @@ template <class _Addr>
 void CCPU<_Bus>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
-	if (!State.Interrupt())
-		InternalData.IRQTrigger = IRQCheck;
+	UpdateTrigger(IRQCheck);
 }
 
 /* Управление флагами */
@@ -1266,6 +1266,8 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpSEI() {
 	State.State |= 0x04;
+	if (InternalData.IRQTrigger == IRQReady)
+		InternalData.IRQTrigger = IRQLow;
 }
 
 /* Сбросить C */
@@ -1287,7 +1289,7 @@ template <class _Bus>
 template <class _Addr>
 void CCPU<_Bus>::OpCLI() {
 	State.State &= 0xfb;
-	UpdateTrigger();
+	InternalData.IRQTrigger = IRQReady;
 }
 
 /* Сбросить V */

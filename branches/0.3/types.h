@@ -66,14 +66,14 @@ typedef VPNES_VBUF * VPNES_VIDEO;
 
 /* Input */
 
-#define VPNES_INPUT_UP        0x00000000
-#define VPNES_INPUT_DOWN      0x00000001
-#define VPNES_INPUT_LEFT      0x00000002
-#define VPNES_INPUT_RIGHT     0x00000003
-#define VPNES_INPUT_SELECT    0x00000004
-#define VPNES_INPUT_START     0x00000005
-#define VPNES_INPUT_A         0x00000006
-#define VPNES_INPUT_B         0x00000007
+#define VPNES_INPUT_UP        0x00000004
+#define VPNES_INPUT_DOWN      0x00000005
+#define VPNES_INPUT_LEFT      0x00000006
+#define VPNES_INPUT_RIGHT     0x00000007
+#define VPNES_INPUT_SELECT    0x00000002
+#define VPNES_INPUT_START     0x00000003
+#define VPNES_INPUT_A         0x00000000
+#define VPNES_INPUT_B         0x00000001
 
 /* Буфер для ввода */
 typedef int * VPNES_IBUF;

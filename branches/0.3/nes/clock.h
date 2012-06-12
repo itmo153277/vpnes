@@ -72,6 +72,8 @@ public:
 
 	/* Получить точный сдвиг */
 	inline const int &GetPreCycles() const { return PreCycles; }
+	/* Получить точную частоту */
+	inline double GetFreq(int Cycles) const { return 945000000.0/Cycles/176.0; }
 };
 
 }

@@ -210,7 +210,7 @@ struct PPUGroup {
 
 /* Mapper Group */
 typedef UniversalGroupIDTemplate<2, 'M'> MapperGroupID;
-template <char m, int _ID>
+template <char m>
 struct MapperGroup {
 	struct Group {
 		/* ID */
@@ -220,17 +220,20 @@ struct MapperGroup {
 		/* Position */
 		static const int Pos;
 	};
-	typedef GroupTemplate<'M', m, _ID, (_ID >> 8)> ID;
+	template <int _ID>
+	struct Name {
+		typedef GroupTemplate<'M', m, _ID, (_ID >> 8)> ID;
+	};
 };
 
-template <char m, int _ID>
-const char MapperGroup<m, _ID>::Group::ID[3] = {'M', m, 0};
+template <char m>
+const char MapperGroup<m>::Group::ID[3] = {'M', m, 0};
 
-template <char m, int _ID>
-const int MapperGroup<m, _ID>::Group::Length = 2;
+template <char m>
+const int MapperGroup<m>::Group::Length = 2;
 
-template <char m, int _ID>
-const int MapperGroup<m, _ID>::Group::Pos = 2;
+template <char m>
+const int MapperGroup<m>::Group::Pos = 2;
 
 /* CMemoryManager */
 

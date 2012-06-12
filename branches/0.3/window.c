@@ -144,8 +144,67 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						WindowState = VPNES_QUIT;
 						break;
 					case SDL_KEYDOWN:
-						if (event.key.keysym.sym == SDLK_SPACE)
-							quit = 1;
+						switch (event.key.keysym.sym) {
+							case SDLK_c:
+								ibuf[VPNES_INPUT_A] = 1;
+								break;
+							case SDLK_x:
+								ibuf[VPNES_INPUT_B] = 1;
+								break;
+							case SDLK_a:
+								ibuf[VPNES_INPUT_SELECT] = 1;
+								break;
+							case SDLK_s:
+								ibuf[VPNES_INPUT_START] = 1;
+								break;
+							case SDLK_DOWN:
+								if (!ibuf[VPNES_INPUT_UP])
+									ibuf[VPNES_INPUT_DOWN] = 1;
+								break;
+							case SDLK_UP:
+								if (!ibuf[VPNES_INPUT_DOWN])
+									ibuf[VPNES_INPUT_UP] = 1;
+								break;
+							case SDLK_LEFT:
+								if (!ibuf[VPNES_INPUT_RIGHT])
+									ibuf[VPNES_INPUT_LEFT] = 1;
+								break;
+							case SDLK_RIGHT:
+								if (!ibuf[VPNES_INPUT_LEFT])
+									ibuf[VPNES_INPUT_RIGHT] = 1;
+							default:
+								break;
+						}
+						break;
+					case SDL_KEYUP:
+						switch (event.key.keysym.sym) {
+							case SDLK_c:
+								ibuf[VPNES_INPUT_A] = 0;
+								break;
+							case SDLK_x:
+								ibuf[VPNES_INPUT_B] = 0;
+								break;
+							case SDLK_a:
+								ibuf[VPNES_INPUT_SELECT] = 0;
+								break;
+							case SDLK_s:
+								ibuf[VPNES_INPUT_START] = 0;
+								break;
+							case SDLK_DOWN:
+								ibuf[VPNES_INPUT_DOWN] = 0;
+								break;
+							case SDLK_UP:
+								ibuf[VPNES_INPUT_UP] = 0;
+								break;
+							case SDLK_LEFT:
+								ibuf[VPNES_INPUT_LEFT] = 0;
+								break;
+							case SDLK_RIGHT:
+								ibuf[VPNES_INPUT_RIGHT] = 0;
+							default:
+								break;
+						}
+						break;
 				}
 #if !defined(VPNES_DISABLE_SYNC)
 			/* Синхронизация */

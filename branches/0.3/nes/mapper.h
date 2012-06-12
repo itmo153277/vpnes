@@ -87,11 +87,11 @@ struct StaticSolderPad {
 
 namespace ROMID {
 
-typedef MapperGroup<'N', 1>::ID::StaticID PRGID;
-typedef MapperGroup<'N', 2>::ID::StaticID CHRID;
-typedef MapperGroup<'N', 3>::ID::NoBatteryID CHRRAMID;
-typedef MapperGroup<'N', 4>::ID::NoBatteryID RAMID;
-typedef MapperGroup<'N', 5>::ID::BatteryID BatteryID;
+typedef MapperGroup<'N'>::Name<1>::ID::StaticID PRGID;
+typedef MapperGroup<'N'>::Name<2>::ID::StaticID CHRID;
+typedef MapperGroup<'N'>::Name<3>::ID::NoBatteryID CHRRAMID;
+typedef MapperGroup<'N'>::Name<4>::ID::NoBatteryID RAMID;
+typedef MapperGroup<'N'>::Name<5>::ID::BatteryID BatteryID;
 
 }
 
