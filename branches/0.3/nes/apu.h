@@ -65,29 +65,33 @@ private:
 
 	/* Число тактов на каждом шаге */
 	static const int StepCycles[5];
+	/* Перекрываемые кнопки контроллера */
+	static const int ButtonsRemap[4];
 
 	/* Состояние */
 	struct SState {
-		bool DMCInterrupt; /* Флаг прерывания DMC */
+		bool DMCInterrupt; /* Флаг прерывания ДМ-канала */
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
 		bool NoiseCounter; /* Флаг счетчика для канала шума */
-		bool TriangleCounter; /* Флаг счетчика для треугольного канала */
-		bool Pulse2Counter; /* Флаг счетчика для квадратного канала 2 */
-		bool Pulse1Counter; /* Флаг счетчика для квадратного канала 1 */
-		bool DMCRemain; /* Флаг опустошения буфера DMC */
+		bool TriangleCounter; /* Флаг счетчика для пилообразного канала */
+		bool Square2Counter; /* Флаг счетчика для прямоугольного канала 2 */
+		bool Square1Counter; /* Флаг счетчика для прямоугольного канала 1 */
+		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
 		bool InterruptInhibit; /* Подавление IRQ */
 		enum SeqMode {
 			Mode_4step,
 			Mode_5step
 		} Mode; /* Режим */
 		inline void Write_4015(uint8 Src) { if (!(Src & 0x10)) DMCRemain = false;
-			NoiseCounter = Src & 0x08; TriangleCounter = Src & 0x04; Pulse2Counter = Src &
-			0x02; Pulse1Counter = Src & 0x01; DMCInterrupt = false;
+			NoiseCounter = Src & 0x08; TriangleCounter = Src & 0x04;
+			Square2Counter = Src & 0x02; Square1Counter = Src & 0x01;
+			DMCInterrupt = false;
 		}
 		inline uint8 Read_4015() { uint8 Res = 0; if (DMCInterrupt) Res |= 0x80;
-			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10; if (NoiseCounter)
-			Res |= 0x08; if (TriangleCounter) Res |= 0x04; if (Pulse2Counter) Res |= 0x02;
-			if (Pulse1Counter) Res |= 0x01; FrameInterrupt = false; return Res;
+			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10;
+			if (NoiseCounter) Res |= 0x08; if (TriangleCounter) Res |= 0x04;
+			if (Square2Counter) Res |= 0x02; if (Square1Counter) Res |= 0x01;
+			FrameInterrupt = false; return Res;
 		}
 		inline void Write_4017(uint8 Src) { Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
 			InterruptInhibit = (Src & 0x40); if (InterruptInhibit) FrameInterrupt = false;
@@ -189,8 +193,14 @@ public:
 				Bus->GetCPU()->GetIRQPin() = false;
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
-				if (InternalData.StrobeCounter_A < 8)
+				if (InternalData.StrobeCounter_A < 4)
 					return 0x40 | ibuf[InternalData.StrobeCounter_A++];
+				if (InternalData.StrobeCounter_A < 8) {
+					Res = 0x40 | (ibuf[InternalData.StrobeCounter_A] &
+						~ibuf[ButtonsRemap[InternalData.StrobeCounter_A & 0x03]]);
+					InternalData.StrobeCounter_A++;
+					return Res;
+				}
 				break;
 			case 0x4017: /* Данные контроллера 2 */
 				break;
@@ -237,7 +247,7 @@ public:
 				}
 				Bus->GetPPU()->EnableDMA(Src);
 				break;
-			case 0x4015: /* Упраление каналами */
+			case 0x4015: /* Управление каналами */
 				State.Write_4015(Src);
 				break;
 			case 0x4016: /* Стробирование контроллеров */
@@ -283,6 +293,11 @@ public:
 /* Число тактов для каждого шага */
 template <class _Bus>
 const int CAPU<_Bus>::StepCycles[5] = {3728, 3728, 3729, 3729, 3726};
+
+/* Перекрываемые кнопки контроллера */
+template <class _Bus>
+const int CAPU<_Bus>::ButtonsRemap[4] = {VPNES_INPUT_DOWN, VPNES_INPUT_UP,
+	VPNES_INPUT_RIGHT, VPNES_INPUT_LEFT};
 
 }
 

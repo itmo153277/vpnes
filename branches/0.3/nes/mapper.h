@@ -85,7 +85,7 @@ struct StaticSolderPad {
 	}
 };
 
-namespace ROMID {
+namespace NROMID {
 
 typedef MapperGroup<'N'>::Name<1>::ID::StaticID PRGID;
 typedef MapperGroup<'N'>::Name<2>::ID::StaticID CHRID;
@@ -115,17 +115,17 @@ public:
 	inline explicit CNROM(_Bus *pBus, const ines::NES_ROM_Data *Data) {
 		Bus = pBus;
 		ROM = Data;
-		Bus->GetManager()->template SetPointer<ROMID::PRGID>(\
+		Bus->GetManager()->template SetPointer<NROMID::PRGID>(\
 			ROM->PRG, ROM->Header.PRGSize * sizeof(uint8));
 		PRGLow = ROM->PRG;
 		PRGHi = ROM->PRG + (ROM->Header.PRGSize - 0x4000);
 		if (ROM->CHR != NULL) {
-			Bus->GetManager()->template SetPointer<ROMID::CHRID>(\
+			Bus->GetManager()->template SetPointer<NROMID::CHRID>(\
 				ROM->CHR, ROM->Header.CHRSize * sizeof(uint8));
 			CHR = ROM->CHR;
 		} else
 			CHR = (uint8 *) Bus->GetManager()->\
-				template GetPointer<ROMID::CHRRAMID>(0x2000 * sizeof(uint8));
+				template GetPointer<NROMID::CHRRAMID>(0x2000 * sizeof(uint8));
 		Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
 		if (ROM->Header.RAMSize == 0)
 			RAM = NULL;
@@ -134,13 +134,13 @@ public:
 			if (ROM->Trainer != NULL)
 				memcpy(RAM + 0x1000, ROM->Trainer, 0x0200 * sizeof(uint8));
 			if (ROM->Header.HaveBattery) {
-				Bus->GetManager()->template SetPointer<ROMID::BatteryID>(\
+				Bus->GetManager()->template SetPointer<NROMID::BatteryID>(\
 					RAM + (ROM->Header.RAMSize - 0x2000), 0x2000 * sizeof(uint8));
 				if (ROM->Header.RAMSize > 0x2000)
-					Bus->GetManager()->template SetPointer<ROMID::RAMID>(\
+					Bus->GetManager()->template SetPointer<NROMID::RAMID>(\
 						RAM, (ROM->Header.RAMSize - 0x2000) * sizeof(uint8));
 			} else
-				Bus->GetManager()->template SetPointer<ROMID::RAMID>(\
+				Bus->GetManager()->template SetPointer<NROMID::RAMID>(\
 					RAM, ROM->Header.RAMSize * sizeof(uint8));
 		}
 	}
@@ -180,6 +180,41 @@ public:
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 		if (ROM->CHR == NULL)
 			CHR[Address] = Src;
+	}
+};
+
+namespace UxROMID {
+
+typedef MapperGroup<'U'>::Name<1>::ID::StaticID SwitchMaskID;
+
+}
+
+/* Реализация маппера 2 */
+template <class _Bus>
+class CUxROM: public CNROM<_Bus> {
+	using CNROM<_Bus>::Bus;
+	using CNROM<_Bus>::ROM;
+	using CNROM<_Bus>::PRGLow;
+private:
+	/* Смена PRG блоков */
+	uint8 SwitchMask;
+public:
+	inline explicit CUxROM(_Bus *pBus, const ines::NES_ROM_Data *Data):
+		CNROM<_Bus>(pBus, Data) {
+		Bus->GetManager()->template SetPointer<UxROMID::SwitchMaskID>(\
+			&SwitchMask, sizeof(SwitchMask));
+		if (ROM->Header.PRGSize < 0x20000)
+			SwitchMask = 0x07;
+		else
+			SwitchMask = 0x0f;
+	}
+
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address < 0x8000)
+			CNROM<_Bus>::WriteAddress(Address, Src);
+		else
+			PRGLow = ROM->PRG + ((Src & SwitchMask) << 14);
 	}
 };
 
