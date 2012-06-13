@@ -53,6 +53,7 @@ private:
 	struct SInternalData {
 		int StrobeCounter_A;
 		int StrobeCounter_B;
+		uint8 bMode; /* Начальный режим */
 	} InternalData;
 
 	/* Данные о тактах */
@@ -61,6 +62,17 @@ private:
 		int WasteCycles;
 		int Step;
 		int DMACycle;
+		int SupressCounter;
+		/* Сброс счетчика */
+		inline void Supress() {
+			if ((SupressCounter >= 0) && ((CyclesLeft - SupressCounter) >= 6)) {
+				CyclesLeft = CyclesLeft - SupressCounter - 6;
+				if ((CyclesLeft % 6) < 3)
+					CyclesLeft -= 3;
+				Step = 0;
+				SupressCounter = -1;
+			}
+		}
 	} CycleData;
 
 	/* Число тактов на каждом шаге */
@@ -91,7 +103,7 @@ private:
 			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10;
 			if (NoiseCounter) Res |= 0x08; if (TriangleCounter) Res |= 0x04;
 			if (Square2Counter) Res |= 0x02; if (Square1Counter) Res |= 0x01;
-			FrameInterrupt = false; return Res;
+			return Res;
 		}
 		inline void Write_4017(uint8 Src) { Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
 			InterruptInhibit = (Src & 0x40); if (InterruptInhibit) FrameInterrupt = false;
@@ -105,6 +117,7 @@ public:
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<APUID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
+		InternalData.bMode = 0x00;
 		Bus->GetManager()->template SetPointer<APUID::CycleDataID>(\
 			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<APUID::StateID>(\
@@ -115,8 +128,12 @@ public:
 	/* Обработать такты */
 	inline void Clock(int Cycles) {
 		CycleData.CyclesLeft += Cycles;
+		/* Сброс счетчика */
+		CycleData.Supress();
 		while (CycleData.CyclesLeft >= 6 * StepCycles[CycleData.Step]) {
 			CycleData.CyclesLeft -= 6 * StepCycles[CycleData.Step];
+			if (CycleData.SupressCounter >= 0)
+				CycleData.SupressCounter -= 6 * StepCycles[CycleData.Step];
 			switch (State.Mode) {
 				case SState::Mode_4step:
 					switch (CycleData.Step) {
@@ -177,10 +194,13 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
+		memset(&State, 0, sizeof(State));
+		State.Write_4017(InternalData.bMode);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.DMACycle = -1;
-		memset(&State, 0, sizeof(State));
+		CycleData.SupressCounter = -1;
+		CycleData.CyclesLeft = -4;
 	}
 
 	/* Чтение памяти */
@@ -189,8 +209,17 @@ public:
 
 		switch (Address) {
 			case 0x4015: /* Состояние APU */
+				/* Отрабатываем прошедшие такты */
+				Clock(Bus->GetClock()->GetPreCycles());
 				Res = State.Read_4015();
-				Bus->GetCPU()->GetIRQPin() = false;
+				/* Если мы не попали на установку флага, сбрасываем его */
+				if ((CycleData.CyclesLeft != 3) || (CycleData.Step != 0) ||
+					(State.Mode != SState::Mode_4step)) {
+					State.FrameInterrupt = false;
+					Bus->GetCPU()->GetIRQPin() = false;
+				}
+				/* Не обрабатывать такты снова */
+				CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
 				if (InternalData.StrobeCounter_A < 4)
@@ -255,15 +284,15 @@ public:
 				InternalData.StrobeCounter_B = 0;
 				break;
 			case 0x4017: /* Счетчик кадров */
-				State.Write_4017(Src);
 				/* Отрабатываем прошедшие такты */
 				Clock(Bus->GetClock()->GetPreCycles());
-				/* Не обрабатывать их снова */
-				CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
-				/* Сброс счетчика */
-				CycleData.Step = 0;
-				/* Обновление флага прерывания */
+				InternalData.bMode = Src;
+				/* Запись в 4017 */
+				State.Write_4017(Src);
 				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
+				CycleData.SupressCounter = CycleData.CyclesLeft;
+				/* Не обрабатывать такты снова */
+				CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
 				break;
 		}
 	}
