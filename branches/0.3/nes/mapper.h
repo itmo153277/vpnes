@@ -183,12 +183,6 @@ public:
 	}
 };
 
-namespace UxROMID {
-
-typedef MapperGroup<'U'>::Name<1>::ID::StaticID SwitchMaskID;
-
-}
-
 /* Реализация маппера 2 */
 template <class _Bus>
 class CUxROM: public CNROM<_Bus> {
@@ -201,8 +195,6 @@ private:
 public:
 	inline explicit CUxROM(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
-		Bus->GetManager()->template SetPointer<UxROMID::SwitchMaskID>(\
-			&SwitchMask, sizeof(SwitchMask));
 		if (ROM->Header.PRGSize < 0x20000)
 			SwitchMask = 0x07;
 		else
