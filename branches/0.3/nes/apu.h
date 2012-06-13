@@ -63,6 +63,9 @@ private:
 		int DMACycle;
 	} CycleData;
 
+	/* Число тактов на каждом шаге */
+	static const int StepCycles[5];
+
 	/* Состояние */
 	struct SState {
 		bool DMCInterrupt; /* Флаг прерывания DMC */
@@ -108,8 +111,8 @@ public:
 	/* Обработать такты */
 	inline void Clock(int Cycles) {
 		CycleData.CyclesLeft += Cycles;
-		while (CycleData.CyclesLeft > 6 * 3728) {
-			CycleData.CyclesLeft -= 6 * 3728;
+		while (CycleData.CyclesLeft >= 6 * StepCycles[CycleData.Step]) {
+			CycleData.CyclesLeft -= 6 * StepCycles[CycleData.Step];
 			switch (State.Mode) {
 				case SState::Mode_4step:
 					switch (CycleData.Step) {
@@ -183,7 +186,7 @@ public:
 		switch (Address) {
 			case 0x4015: /* Состояние APU */
 				Res = State.Read_4015();
-				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
+				Bus->GetCPU()->GetIRQPin() = false;
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
 				if (InternalData.StrobeCounter_A < 8)
@@ -243,6 +246,14 @@ public:
 				break;
 			case 0x4017: /* Счетчик кадров */
 				State.Write_4017(Src);
+				/* Отрабатываем прошедшие такты */
+				Clock(Bus->GetClock()->GetPreCycles());
+				/* Не обрабатывать их снова */
+				CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
+				/* Сброс счетчика */
+				CycleData.Step = 0;
+				/* Обновление флага прерывания */
+				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
 				break;
 		}
 	}
@@ -268,6 +279,10 @@ public:
 	/* Буфер */
 	inline VPNES_IBUF &GetBuf() { return ibuf; }
 };
+
+/* Число тактов для каждого шага */
+template <class _Bus>
+const int CAPU<_Bus>::StepCycles[5] = {3728, 3728, 3729, 3729, 3726};
 
 }
 

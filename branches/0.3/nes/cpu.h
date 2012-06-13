@@ -442,7 +442,7 @@ public:
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<CPUID::StateID>(\
 			&State, sizeof(State));
-		memset(&State, 0, sizeof(State));
+		State.State = 0x20; /* Бит 5 всегда 1 */
 		Bus->GetManager()->template SetPointer<CPUID::RegistersID>(\
 			&Registers, sizeof(Registers));
 		memset(&Registers, 0, sizeof(Registers));
@@ -1317,8 +1317,7 @@ template <class _Addr>
 void CCPU<_Bus>::OpBRK() {
 	/* BRK использует только 4 такта. Все остальное в главном цикле */
 	PushWord(Registers.pc + 1);
-	State.State |= 0x10;
-	PushByte(State.State);
+	PushByte(State.State | 0x10);
 	State.State |= 0x04;
 	InternalData.IRQTrigger = IRQExecute;
 }

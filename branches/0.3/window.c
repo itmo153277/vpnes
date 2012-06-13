@@ -51,6 +51,10 @@ const Uint8 NES_Palette[64][3] = {
 	{0,   252, 252}, {216, 216, 216}, {0,   0,   0  }, {0,   0,   0  }
 };
 
+#ifndef VERSION
+#define VERSION "0.3"
+#endif
+
 /* Инициализация SDL */
 int InitMainWindow(int Width, int Height) {
 	int i;
@@ -58,7 +62,7 @@ int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
-	SDL_WM_SetCaption("VPNES 0.2", NULL);
+	SDL_WM_SetCaption("VPNES " VERSION, NULL);
 	screen = SDL_SetVideoMode(Width * 2, Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return -1;
@@ -197,6 +201,10 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 								break;
 							case SDLK_RIGHT:
 								ibuf[VPNES_INPUT_RIGHT] = 0;
+								break;
+							case SDLK_F1:
+								quit = -1;
+								WindowState = VPNES_RESET;
 							default:
 								break;
 						}
