@@ -232,7 +232,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				                "   X: 0x%2.2x\n"
 				                "   Y: 0x%2.2x\n"
 				                "   S: 0x%2.2x\n"
-				                "   F: 0x%2.2x\n",
+				                "   P: 0x%2.2x\n",
 					HaltData->PC, HaltData->A, HaltData->X, HaltData->Y, HaltData->S,
 					HaltData->State);
 				}
