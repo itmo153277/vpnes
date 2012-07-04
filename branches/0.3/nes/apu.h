@@ -116,6 +116,7 @@ private:
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				LengthCounter = LengthCounterTable[Src >> 3];
 			}
+			/* Генерация формы */
 			inline void Envelope() {
 				if (EnvelopeConstant)
 					return;
@@ -134,11 +135,13 @@ private:
 					}
 				}
 			}
+			/* Счетчик длины */
 			inline void Do_LengthCounter() {
 				if ((!LengthCounterDisable) && (LengthCounter != 0)) {
 					LengthCounter--;
 				}
 			}
+			/* Свип */
 			inline void Sweep() {
 				uint16 Res;
 
@@ -152,37 +155,46 @@ private:
 					Timer = (Timer + Res) & 0x1fff;
 					SweepDivider = 0;
 				}
-				if (SweepReload)
+				if (SweepReload) /* Сброс _после_ обновления */
 					SweepDivider = 0;
 			}
+			/* Таймер */
 			inline void Do_Timer(int Cycles) {
 			}
 		} SquareChannel1;
+		/* Генерировать форму каналов */
 		inline void Envelope() {
 			SquareChannel1.Envelope();
 		}
+		/* Обновить счетчик длины */
 		inline void LengthCounter() {
 			SquareChannel1.Do_LengthCounter();
 		}
+		/* Свип */
 		inline void Sweep() {
 			SquareChannel1.Sweep();
 		}
+		/* Четный такт */
 		inline void EvenClock() {
 			Envelope();
 			//Linear counter
 		}
+		/* Нечетный такт */
 		inline void OddClock() {
 			EvenClock();
 			LengthCounter();
 			Sweep();
 		}
+		/* Таймер */
 		inline void Do_Timer(int Cycles) {
 			SquareChannel1.Do_Timer(Cycles);
 		}
+		/* Таймер (с кешированием) */
 		inline void Timer(int Cycles) {
 			Do_Timer(Cycles - CurCycle);
 			CurCycle = Cycles;
 		}
+		/* Таймер (сбросить кеш) */
 		inline void FlushTimer(int Cycles) {
 			Do_Timer(Cycles - CurCycle);
 			CurCycle = 0;
@@ -234,15 +246,17 @@ private:
 		CycleData.CyclesLeft += Cycles;
 		while (CycleData.CyclesLeft >= 3) {
 			CycleData.CyclesLeft -= 3;
-			if (CycleData.SupressCounter > 0) {
+			/* Сброс счетчика */
+			if (CycleData.SupressCounter >= 0) {
 				CycleData.SupressCounter++;
-				if (CycleData.SupressCounter > 4) {
+				if (CycleData.SupressCounter > 3) {
 					CycleData.CurCycle = 0;
 					CycleData.Step = 0;
-					CycleData.SupressCounter = 0;
+					CycleData.SupressCounter = -1;
 				}
 			}
 			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
+				/* Секвенсер */
 				switch (State.Mode) {
 					case SState::Mode_4step:
 						switch (CycleData.Step) {
@@ -274,8 +288,8 @@ private:
 						break;
 				}
 				CycleData.Step++;
-				if (CycleData.Step == State.Mode)
-					CycleData.SupressCounter = 3;
+				if (CycleData.Step == State.Mode) /* Сбросить счетчик через 2 такта */
+					CycleData.SupressCounter = 2;
 			}
 			Channels.Do_Timer(1);
 			CycleData.CurCycle++;
@@ -316,8 +330,10 @@ public:
 		State.Write_4017(InternalData.bMode);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
-		PreprocessedCycles = 0;
+		CycleData.CurCycle = 6;
+		CycleData.SupressCounter = -1;
 		CycleData.DMACycle = -1;
+		PreprocessedCycles = 0;
 		memset(&Channels, 0, sizeof(Channels));
 	}
 
@@ -394,7 +410,7 @@ public:
 			/* Другое */
 			case 0x4014: /* DMA */
 				/* ... */
-				if (0) {
+				if (CycleData.CurCycle & 1) {
 					CycleData.WasteCycles = 513;
 					CycleData.DMACycle = 0;
 				} else {
@@ -417,7 +433,7 @@ public:
 				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
 				if (State.Mode == SState::Mode_5step)
 					Channels.OddClock();
-				CycleData.SupressCounter = 1 + (CycleData.CurCycle & 0x01);
+				CycleData.SupressCounter = CycleData.CurCycle & 1;
 				break;
 		}
 	}
