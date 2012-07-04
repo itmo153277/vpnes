@@ -28,6 +28,8 @@
 
 #include "../types.h"
 
+#include <iostream>
+
 #include <cstring>
 #include "manager.h"
 #include "bus.h"
@@ -49,27 +51,28 @@ class CAPU: public CDevice {
 private:
 	/* Шина */
 	_Bus *Bus;
+	/* Предобработано тактов */
+	int PreprocessedCycles;
 
 	/* Внутренние данные */
 	struct SInternalData {
 		int StrobeCounter_A;
 		int StrobeCounter_B;
 		uint8 bMode; /* Начальный режим */
-		bool SupressCounter; /* Сбросить счетчик */
-		bool CachedInterrupt;
 	} InternalData;
 
 	/* Данные о тактах */
 	struct SCycleData {
-		int CyclesLeft;
 		int WasteCycles;
 		int Step;
 		int DMACycle;
-		int SupressCycles;
+		int CurCycle;
+		int CyclesLeft;
+		int SupressCounter;
 	} CycleData;
 
 	/* Число тактов на каждом шаге */
-	static const int StepCycles[5];
+	static const int StepCycles[6];
 	/* Перекрываемые кнопки контроллера */
 	static const int ButtonsRemap[4];
 	/* Таблица счетчика */
@@ -132,8 +135,9 @@ private:
 				}
 			}
 			inline void Do_LengthCounter() {
-				if ((!LengthCounterDisable) && (LengthCounter != 0))
+				if ((!LengthCounterDisable) && (LengthCounter != 0)) {
 					LengthCounter--;
+				}
 			}
 			inline void Sweep() {
 				uint16 Res;
@@ -163,6 +167,15 @@ private:
 		inline void Sweep() {
 			SquareChannel1.Sweep();
 		}
+		inline void EvenClock() {
+			Envelope();
+			//Linear counter
+		}
+		inline void OddClock() {
+			EvenClock();
+			LengthCounter();
+			Sweep();
+		}
 		inline void Do_Timer(int Cycles) {
 			SquareChannel1.Do_Timer(Cycles);
 		}
@@ -187,8 +200,8 @@ private:
 		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
 		bool InterruptInhibit; /* Подавление IRQ */
 		enum SeqMode {
-			Mode_4step,
-			Mode_5step
+			Mode_4step = 4,
+			Mode_5step = 5
 		} Mode; /* Режим */
 		inline void UpdateCounters(SChannels &ChannelsUpd) {
 			if (!Square1Counter)
@@ -215,6 +228,59 @@ private:
 
 	/* Буфер */
 	VPNES_IBUF ibuf;
+
+	/* Обработка */
+	inline void Process(int Cycles) {
+		CycleData.CyclesLeft += Cycles;
+		while (CycleData.CyclesLeft >= 3) {
+			CycleData.CyclesLeft -= 3;
+			if (CycleData.SupressCounter > 0) {
+				CycleData.SupressCounter++;
+				if (CycleData.SupressCounter > 4) {
+					CycleData.CurCycle = 0;
+					CycleData.Step = 0;
+					CycleData.SupressCounter = 0;
+				}
+			}
+			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
+				switch (State.Mode) {
+					case SState::Mode_4step:
+						switch (CycleData.Step) {
+							case 0:
+							case 2:
+								Channels.EvenClock();
+								break;
+							case 3:
+								if (!State.InterruptInhibit) {
+									State.FrameInterrupt = true;
+									Bus->GetCPU()->GetIRQPin() = true;
+								}
+							case 1:
+								Channels.OddClock();
+								break;
+						}
+						break;
+					case SState::Mode_5step:
+						switch (CycleData.Step) {
+							case 0:
+							case 2:
+								Channels.EvenClock();
+								break;
+							case 1:
+							case 4:
+								Channels.OddClock();
+								break;
+						}
+						break;
+				}
+				CycleData.Step++;
+				if (CycleData.Step == State.Mode)
+					CycleData.SupressCounter = 3;
+			}
+			Channels.Do_Timer(1);
+			CycleData.CurCycle++;
+		}
+	}
 public:
 	inline explicit CAPU(_Bus *pBus) {
 		Bus = pBus;
@@ -230,90 +296,18 @@ public:
 	}
 	inline ~CAPU() {}
 
+	/* Предобработать такты */
+	inline void Preprocess() {
+		/* Обрабатываем текущие такты */
+		Process(Bus->GetClock()->GetPreCycles() - PreprocessedCycles + 3);
+		PreprocessedCycles = Bus->GetClock()->GetPreCycles() + 3;
+	}
+
 	/* Обработать такты */
 	inline void Clock(int Cycles) {
-		CycleData.CyclesLeft += Cycles;
-		/* Сброс счетчика */
-		if (InternalData.SupressCounter) {
-			CycleData.SupressCycles += Cycles;
-			if (CycleData.SupressCycles >= 0)
-				/* Обрабатываем только 2 или 3 такта */
-				CycleData.CyclesLeft -= CycleData.SupressCycles;
-		}
-		for (;;) {
-			while (CycleData.CyclesLeft >= 3 * StepCycles[CycleData.Step]) {
-				Channels.FlushTimer(3 * StepCycles[CycleData.Step]);
-				CycleData.CyclesLeft -= 3 * StepCycles[CycleData.Step];
-				switch (State.Mode) {
-					case SState::Mode_4step:
-						switch (CycleData.Step) {
-							case 0:
-								Channels.Envelope();
-								//Linear counter
-							case 1:
-								Channels.Envelope();
-								//Linear counter
-								Channels.LengthCounter();
-								Channels.Sweep();
-							case 2:
-								Channels.Envelope();
-								//Linear counter
-								break;
-							case 3:
-								Channels.Envelope();
-								//Linear counter
-								Channels.LengthCounter();
-								Channels.Sweep();
-								if (!State.InterruptInhibit) {
-									InternalData.CachedInterrupt =
-										State.FrameInterrupt;
-									State.FrameInterrupt = true;
-									Bus->GetCPU()->GetIRQPin() = true;
-								}
-								break;
-						}
-						CycleData.Step++;
-						if (CycleData.Step == 4)
-							CycleData.Step = 0;
-						break;
-					case SState::Mode_5step:
-						switch (CycleData.Step) {
-							case 0:
-								Channels.Envelope();
-								//Linear counter
-							case 1:
-								Channels.Envelope();
-								//Linear counter
-								Channels.LengthCounter();
-								Channels.Sweep();
-							case 2:
-								Channels.Envelope();
-								//Linear counter
-							case 4:
-								Channels.Envelope();
-								//Linear counter
-								Channels.LengthCounter();
-								Channels.Sweep();
-								break;
-						}
-						CycleData.Step++;
-						if (CycleData.Step == 5)
-							CycleData.Step = 0;
-						break;
-				}
-			}
-			Channels.Timer(CycleData.CyclesLeft);
-			/* Необходимо обработать остальные такты */
-			if (InternalData.SupressCounter &&
-				(CycleData.SupressCycles >= 0)) {
-				/* Сброс счетчика */
-				CycleData.CyclesLeft = CycleData.SupressCycles;
-				CycleData.Step = 0;
-				Channels.CurCycle = 0;
-				InternalData.SupressCounter = false;
-			} else
-				break;
-		}
+		/* Обрабатываем необработанные такты */
+		Process(Cycles - PreprocessedCycles);
+		PreprocessedCycles = 0;
 	}
 
 	/* Сброс */
@@ -322,8 +316,8 @@ public:
 		State.Write_4017(InternalData.bMode);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
+		PreprocessedCycles = 0;
 		CycleData.DMACycle = -1;
-		CycleData.CyclesLeft = -4;
 		memset(&Channels, 0, sizeof(Channels));
 	}
 
@@ -334,16 +328,14 @@ public:
 		switch (Address) {
 			case 0x4015: /* Состояние APU */
 				/* Отрабатываем прошедшие такты */
-				Clock(Bus->GetClock()->GetPreCycles());
+				Preprocess();
 				Res = State.Read_4015(Channels);
 				/* Если мы не попали на установку флага, сбрасываем его */
-				if ((CycleData.CyclesLeft >= 6) ||
-					(CycleData.Step != 0) || (State.Mode != SState::Mode_4step)) {
+				if ((State.Mode != SState::Mode_4step) || (CycleData.CurCycle !=
+					(StepCycles[SState::Mode_4step - 1] + 2))) {
 					State.FrameInterrupt = false;
 					Bus->GetCPU()->GetIRQPin() = false;
 				}
-				/* Не обрабатывать такты снова */
-				CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
 				if (InternalData.StrobeCounter_A < 4)
@@ -364,7 +356,7 @@ public:
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		/* Отрабатываем прошедшие такты */
-		Clock(Bus->GetClock()->GetPreCycles());
+		Preprocess();
 		switch (Address) {
 			/* Прямоугольный канал 1 */
 			case 0x4000: /* Вид и огибающая */
@@ -401,8 +393,8 @@ public:
 				break;
 			/* Другое */
 			case 0x4014: /* DMA */
-				if (((CycleData.CyclesLeft +
-					Bus->GetClock()->GetPreCycles()) % 6) >= 3) {
+				/* ... */
+				if (0) {
 					CycleData.WasteCycles = 513;
 					CycleData.DMACycle = 0;
 				} else {
@@ -423,21 +415,11 @@ public:
 				/* Запись в 4017 */
 				State.Write_4017(Src);
 				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
-				InternalData.SupressCounter = true;
-				if (State.Mode == SState::Mode_5step) {
-					Channels.Envelope();
-					//Linear counter
-					Channels.LengthCounter();
-					Channels.Sweep();
-				}
-				/* +1 лишний такт... */
-				/* TODO: Исправить синхронизацию */
-				CycleData.SupressCycles = -Bus->GetClock()->GetPreCycles() -
-					(((CycleData.CyclesLeft % 6) < 3) ? 12 : 9);
+				if (State.Mode == SState::Mode_5step)
+					Channels.OddClock();
+				CycleData.SupressCounter = 1 + (CycleData.CurCycle & 0x01);
 				break;
 		}
-		/* Не обрабатывать такты снова */
-		CycleData.CyclesLeft -= Bus->GetClock()->GetPreCycles();
 	}
 
 	/* CPU IDLE */
@@ -464,19 +446,22 @@ public:
 
 /* Число тактов для каждого шага */
 template <class _Bus>
-const int CAPU<_Bus>::StepCycles[5] = {7456, 7456, 7458, 7458, 7452};
+const int CAPU<_Bus>::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
 
 /* Перекрываемые кнопки контроллера */
 template <class _Bus>
-const int CAPU<_Bus>::ButtonsRemap[4] = {VPNES_INPUT_DOWN, VPNES_INPUT_UP,
-	VPNES_INPUT_RIGHT, VPNES_INPUT_LEFT};
+const int CAPU<_Bus>::ButtonsRemap[4] = {
+	VPNES_INPUT_DOWN, VPNES_INPUT_UP,
+	VPNES_INPUT_RIGHT, VPNES_INPUT_LEFT
+};
 
 /* Таблица счетчика */
 template <class _Bus>
 const int CAPU<_Bus>::LengthCounterTable[32] = {
 	0x0a, 0xfe, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06, 0xa0, 0x08, 0x3c, 0x0a,
 	0x0e, 0x0c, 0x1a, 0x0e, 0x0c, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
-	0xc0, 0x18, 0x48, 0x1a, 0x10, 0x1c, 0x20, 0x1e};
+	0xc0, 0x18, 0x48, 0x1a, 0x10, 0x1c, 0x20, 0x1e
+};
 
 }
 

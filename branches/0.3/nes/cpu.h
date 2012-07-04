@@ -1583,6 +1583,13 @@ const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
 	{1, 0, &CCPU<_Bus>::OpIllegal}                        /* 0xff */
 };
 
+#undef IRQExecute
+#undef IRQSave
+#undef IRQStart
+#undef IRQReady
+#undef IRQCheck
+#undef IRQLow
+
 }
 
 #endif
