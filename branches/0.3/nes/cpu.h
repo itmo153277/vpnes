@@ -1330,7 +1330,7 @@ const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x02 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x03 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x04 */
-	{2, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPage>},     /* 0x05 */ /* ORA */
+	{3, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPage>},     /* 0x05 */ /* ORA */
 	{5, 2, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPage>},     /* 0x06 */ /* ASL */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x07 */
 	{3, 1, &CCPU<_Bus>::OpPHP<CCPU<_Bus>::Implied>},      /* 0x08 */ /* PHP */
@@ -1346,7 +1346,7 @@ const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x12 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x13 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x14 */
-	{3, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageX>},    /* 0x15 */ /* ORA */
+	{4, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageX>},    /* 0x15 */ /* ORA */
 	{6, 2, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPageX>},    /* 0x16 */ /* ASL */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x17 */
 	{2, 1, &CCPU<_Bus>::OpCLC<CCPU<_Bus>::Implied>},      /* 0x18 */ /* CLC */
@@ -1362,7 +1362,7 @@ const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x22 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x23 */
 	{3, 2, &CCPU<_Bus>::OpBIT<CCPU<_Bus>::ZeroPage>},     /* 0x24 */ /* BIT */
-	{2, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPage>},     /* 0x25 */ /* AND */
+	{3, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPage>},     /* 0x25 */ /* AND */
 	{5, 2, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPage>},     /* 0x26 */ /* ROL */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x27 */
 	{4, 1, &CCPU<_Bus>::OpPLP<CCPU<_Bus>::Implied>},      /* 0x28 */ /* PLP */
@@ -1378,7 +1378,7 @@ const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x32 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x33 */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x34 */
-	{3, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageX>},    /* 0x35 */ /* AND */
+	{4, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageX>},    /* 0x35 */ /* AND */
 	{6, 2, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPageX>},    /* 0x36 */ /* ROL */
 	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x37 */
 	{2, 1, &CCPU<_Bus>::OpSEC<CCPU<_Bus>::Implied>},      /* 0x38 */ /* SEC */
