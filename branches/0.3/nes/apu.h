@@ -78,8 +78,12 @@ private:
 	static const int LengthCounterTable[32];
 	/* Таблица формы */
 	static const int DutyTable[32];
+	/* Таблица пилообразной формы */
+	static const int SeqTable[32];
 	/* Таблица выхода прямоугольных каналов */
 	static const double SquareTable[31];
+	/* Таблица выхода остальных каналов */
+	static const double TNDTable[203];
 
 	struct SChannels {
 		int CurCycle;
@@ -87,6 +91,7 @@ private:
 		double LastOutput; /* Текущий выход */
 		bool DMCInterrupt; /* Флаг прерывания ДМ-канала */
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
+		bool TriangleCounter; /* Флаг счетчика для пилообразного канала */
 		bool Square2Counter; /* Флаг счетчика для прямоугольного канала 2 */
 		bool Square1Counter; /* Флаг счетчика для прямоугольного канала 1 */
 		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
@@ -110,6 +115,7 @@ private:
 			bool SweepNegative; /* Отрицательный */
 			uint8 SweepShiftCount; /* Число сдвигов */
 			uint16 Timer; /* Период */
+			uint16 TimerTarget; /* Обновление периода */
 			int TimerCounter; /* Счетчик */
 			int LengthCounter; /* Счетчик */
 			int EnvelopeCounter; /* Счетчик огибающей */
@@ -130,6 +136,7 @@ private:
 			}
 			inline void Write_4(uint8 Src, bool CounterEnable) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				Start = true;
 				if (CounterEnable)
 					LengthCounter = LengthCounterTable[Src >> 3];
 			}
@@ -140,9 +147,10 @@ private:
 				if (Start) {
 					EnvelopeCounter = 15;
 					EnvelopeDivider = 0;
+					Start = false;
 				} else {
 					EnvelopeDivider++;
-					if (EnvelopeDivider == EnvelopePeriod) {
+					if (EnvelopeDivider >= (EnvelopePeriod + 1)) {
 						if (EnvelopeCounter == 0) {
 							if (LengthCounterDisable)
 								EnvelopeCounter = 15;
@@ -158,22 +166,28 @@ private:
 					LengthCounter--;
 				}
 			}
-			/* Свип */
-			inline void Sweep() {
+			/* Вычислить свип */
+			inline void CalculateSweep() {
 				uint16 Res;
 
-				if (!SweepEnabled)
-					return;
+				Res = Timer >> SweepShiftCount;
+				if (SweepNegative)
+					Res = ~Res;
+				TimerTarget = (Timer + Res) & 0x1fff;
+			}
+			/* Свип */
+			inline void Sweep() {
 				SweepDivider++;
-				if (SweepDivider == SweepPeriod) {
-					Res = Timer >> SweepShiftCount;
-					if (SweepNegative)
-						Res = ~Res;
-					Timer = (Timer + Res) & 0x1fff;
+				if (SweepDivider >= (SweepPeriod + 1)) {
+					if (SweepEnabled && (Timer > 7) && (TimerTarget < 0x0800) &&
+						(SweepShiftCount > 0))
+						Timer = TimerTarget;
 					SweepDivider = 0;
 				}
-				if (SweepReload) /* Сброс _после_ обновления */
+				if (SweepReload) { /* Сброс _после_ обновления */
 					SweepDivider = 0;
+					SweepReload = false;
+				}
 			}
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
@@ -184,7 +198,7 @@ private:
 						Output = EnvelopePeriod;
 					else
 						Output = EnvelopeCounter;
-					Output &= DutyTable[DutyMode * 8 + DutyCycle];
+					Output &= DutyTable[(DutyMode << 3) + DutyCycle];
 					DutyCycle++;
 					if (DutyCycle == 8)
 						DutyCycle = 0;
@@ -192,44 +206,95 @@ private:
 				}
 				return false;
 			}
+			inline bool CanOutput() {
+				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget <= 0x07ff));
+			}
 		} SquareChannel1;
 		struct SSquareChannel2: public SSquareChannel {
-			using SSquareChannel::SweepEnabled;
-			using SSquareChannel::SweepDivider;
-			using SSquareChannel::SweepPeriod;
 			using SSquareChannel::SweepShiftCount;
-			using SSquareChannel::SweepReload;
 			using SSquareChannel::SweepNegative;
 			using SSquareChannel::Timer;
+			using SSquareChannel::TimerTarget;
 
-			/* Свип */
-			inline void Sweep() {
+			/* Вычислить свип */
+			inline void CalculateSweep() {
 				uint16 Res;
 
-				if (!SweepEnabled)
-					return;
-				SweepDivider++;
-				if (SweepDivider == SweepPeriod) {
-					Res = Timer >> SweepShiftCount;
-					if (SweepNegative)
-						Res = ~Res + 1;
-					Timer = (Timer + Res) & 0x1fff;
-					SweepDivider = 0;
-				}
-				if (SweepReload) /* Сброс _после_ обновления */
-					SweepDivider = 0;
+				Res = Timer >> SweepShiftCount;
+				if (SweepNegative)
+					Res = ~Res + 1;
+				TimerTarget = (Timer + Res) & 0x1fff;
 			}
 		} SquareChannel2;
+		/* Пилообразный канал */
+		struct STriangleChannel {
+			int Output; /* Выход на ЦАП */
+			bool HaltFlag; /* Флаг сброса */
+			bool ControlFlag; /* Флаг управления счетчиком */
+			uint8 LinearCounterReload; /* Период счетчика */
+			uint16 Timer; /* Период */
+			int TimerCounter; /* Счетчик */
+			int LengthCounter; /* Счетчик длины */
+			int LinearCounter; /* Счетчик */
+			int Sequencer; /* Секвенсер */
+			inline void Write_1(uint8 Src) {
+				ControlFlag = Src & 0x80; LinearCounterReload = Src & 0x7f;
+			}
+			inline void Write_2(uint8 Src) {
+				Timer = (Timer & 0x0700) | Src;
+			}
+			inline void Write_3(uint8 Src, bool CounterEnable) {
+				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				if (CounterEnable)
+					LengthCounter = LengthCounterTable[Src >> 3];
+				HaltFlag = true;
+			}
+			/* Счетчик длины */
+			inline void Do_LinearCounter() {
+				if (HaltFlag) {
+					LinearCounter = LinearCounterReload;
+				} else if (LinearCounter != 0) {
+					LinearCounter--;
+				}
+				if (!ControlFlag)
+					HaltFlag = false;
+			}
+			/* Счетчик длины */
+			inline void Do_LengthCounter() {
+				if ((!ControlFlag) && (LengthCounter != 0)) {
+					LengthCounter--;
+				}
+			}
+			/* Таймер */
+			inline bool Do_Timer(int Cycles) {
+				TimerCounter += Cycles;
+				if (TimerCounter >= Timer) {
+					TimerCounter -= Timer;
+					if ((LinearCounter > 0) && (LengthCounter > 0)) {
+						Output = SeqTable[Sequencer++];
+						if (Sequencer > 31)
+							Sequencer = 0;
+						return true;
+					}
+				}
+				return false;
+			}
+			inline bool CanOutput() {
+				return (LinearCounter > 0) && (LengthCounter > 0);
+			}
+		} TriangleChannel;
 		/* Обновить выход */
 		inline void Update() {
-			int SqOut = 0;
+			int SqOut = 0, TNDOut = 0;
 			double NewOutput;
 
-			if (SquareChannel1.LengthCounter > 0)
+			if (SquareChannel1.CanOutput())
 				SqOut += SquareChannel1.Output;
-			if (SquareChannel2.LengthCounter > 0)
+			if (SquareChannel2.CanOutput())
 				SqOut += SquareChannel2.Output;
-			NewOutput = SquareTable[SqOut];
+			if (TriangleChannel.CanOutput())
+				TNDOut += TriangleChannel.Output;
+			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				std::cout << NewOutput << '\t' << UpdCycle << std::endl;
 				UpdCycle = 0;
@@ -245,16 +310,19 @@ private:
 		inline void LengthCounter() {
 			SquareChannel1.Do_LengthCounter();
 			SquareChannel2.Do_LengthCounter();
+			TriangleChannel.Do_LengthCounter();
 		}
 		/* Свип */
 		inline void Sweep() {
 			SquareChannel1.Sweep();
+			SquareChannel1.CalculateSweep();
 			SquareChannel2.Sweep();
+			SquareChannel2.CalculateSweep();
 		}
 		/* Четный такт */
 		inline void EvenClock() {
 			Envelope();
-			//Linear counter
+			TriangleChannel.Do_LinearCounter();
 		}
 		/* Нечетный такт */
 		inline void OddClock() {
@@ -264,8 +332,11 @@ private:
 		}
 		/* Таймер */
 		inline void Do_Timer(int Cycles) {
+
 			UpdCycle += Cycles;
-			if (SquareChannel1.Do_Timer(Cycles) || SquareChannel2.Do_Timer(Cycles)) {
+			if (SquareChannel1.Do_Timer(Cycles) |
+				SquareChannel2.Do_Timer(Cycles) |
+				TriangleChannel.Do_Timer(Cycles)) {
 				Update();
 			}
 		}
@@ -280,18 +351,22 @@ private:
 			CurCycle = 0;
 		}
 		inline void Write_4015(uint8 Src, SChannels &ChannelsUpd) { if (!(Src & 0x10))
-			DMCRemain = false; /* NoiseCounter = Src & 0x08; TriangleCounter = Src & 0x04; */
+			DMCRemain = false; /* NoiseCounter = Src & 0x08; */
+			TriangleCounter = Src & 0x04;
 			Square2Counter = Src & 0x02; Square1Counter = Src & 0x01;
 			DMCInterrupt = false;
 			if (!Square1Counter)
 				SquareChannel1.LengthCounter = 0;
 			if (!Square2Counter)
 				SquareChannel2.LengthCounter = 0;
+			if (!TriangleCounter)
+				TriangleChannel.LengthCounter = 0;
 		}
 		inline uint8 Read_4015(const SChannels &ChannelsUpd) {
 			uint8 Res = 0; if (DMCInterrupt) Res |= 0x80;
 			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10;
-			/* if (NoiseCounter) Res |= 0x08; if (TriangleCounter) Res |= 0x04; */
+			/* if (NoiseCounter) Res |= 0x08; */
+			if (ChannelsUpd.TriangleChannel.LengthCounter > 0) Res |= 0x04;
 			if (ChannelsUpd.SquareChannel2.LengthCounter > 0) Res |= 0x02;
 			if (ChannelsUpd.SquareChannel1.LengthCounter > 0) Res |= 0x01;
 			return Res;
@@ -442,12 +517,15 @@ public:
 				break;
 			case 0x4001: /* Свип */
 				Channels.SquareChannel1.Write_2(Src);
+				Channels.SquareChannel1.CalculateSweep();
 				break;
 			case 0x4002: /* Период */
 				Channels.SquareChannel1.Write_3(Src);
+				Channels.SquareChannel1.CalculateSweep();
 				break;
 			case 0x4003: /* Счетчик, период */
 				Channels.SquareChannel1.Write_4(Src, Channels.Square1Counter);
+				Channels.SquareChannel1.CalculateSweep();
 				break;
 			/* Прямоугольный канал 2 */
 			case 0x4004:
@@ -455,17 +533,26 @@ public:
 				break;
 			case 0x4005:
 				Channels.SquareChannel2.Write_2(Src);
+				Channels.SquareChannel2.CalculateSweep();
 				break;
 			case 0x4006:
 				Channels.SquareChannel2.Write_3(Src);
+				Channels.SquareChannel2.CalculateSweep();
 				break;
 			case 0x4007:
 				Channels.SquareChannel2.Write_4(Src, Channels.Square2Counter);
+				Channels.SquareChannel2.CalculateSweep();
 				break;
 			/* Пилообразный канал */
 			case 0x4008:
+				Channels.TriangleChannel.Write_1(Src);
+				break;
 			case 0x400a:
+				Channels.TriangleChannel.Write_2(Src);
+				break;
 			case 0x400b:
+				Channels.TriangleChannel.Write_3(Src, Channels.TriangleCounter);
+				break;
 			/* Шум */
 			case 0x400c:
 			case 0x400e:
@@ -502,6 +589,8 @@ public:
 				Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
 				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
+				else
+					Channels.EvenClock();
 				CycleData.SupressCounter = CycleData.CurCycle & 1;
 				break;
 		}
@@ -556,6 +645,13 @@ const int CAPU<_Bus>::DutyTable[32] = {
 	0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
+/* Таблица пилообразной формы */
+template <class _Bus>
+const int CAPU<_Bus>::SeqTable[32] = {
+	15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
+};
+
 /* Таблица выхода прямоугольных сигналов */
 template <class _Bus>
 const double CAPU<_Bus>::SquareTable[31] = {
@@ -565,6 +661,45 @@ const double CAPU<_Bus>::SquareTable[31] = {
 	0.1731830, 0.1809810, 0.1886260, 0.1961200, 0.2034700, 0.2106790,
 	0.2177510, 0.2246890, 0.2314990, 0.2381820, 0.2447440, 0.2511860,
 	0.2575130
+};
+
+/* Таблица выхода остальных каналов*/
+template <class _Bus>
+const double CAPU<_Bus>::TNDTable[203] = {
+	0.00000000, 0.00669982, 0.01334500, 0.01993630, 0.02647420, 0.03295940,
+	0.03939270, 0.04577450, 0.05210550, 0.05838640, 0.06461760, 0.07079990,
+	0.07693370, 0.08301960, 0.08905830, 0.09505010, 0.10099600, 0.10689600,
+	0.11275100, 0.11856100, 0.12432700, 0.13004900, 0.13572800, 0.14136500,
+	0.14695900, 0.15251200, 0.15802400, 0.16349400, 0.16892500, 0.17431500,
+	0.17966600, 0.18497800, 0.19025200, 0.19548700, 0.20068400, 0.20584500,
+	0.21096800, 0.21605400, 0.22110500, 0.22612000, 0.23109900, 0.23604300,
+	0.24095300, 0.24582800, 0.25066900, 0.25547700, 0.26025200, 0.26499300,
+	0.26970200, 0.27437900, 0.27902400, 0.28363800, 0.28822000, 0.29277100,
+	0.29729200, 0.30178200, 0.30624200, 0.31067300, 0.31507400, 0.31944600,
+	0.32378900, 0.32810400, 0.33239000, 0.33664900, 0.34087900, 0.34508300,
+	0.34925900, 0.35340800, 0.35753000, 0.36162600, 0.36569600, 0.36974000,
+	0.37375900, 0.37775200, 0.38172000, 0.38566200, 0.38958100, 0.39347400,
+	0.39734400, 0.40118900, 0.40501100, 0.40880900, 0.41258400, 0.41633500,
+	0.42006400, 0.42377000, 0.42745400, 0.43111500, 0.43475400, 0.43837100,
+	0.44196600, 0.44554000, 0.44909300, 0.45262500, 0.45613500, 0.45962500,
+	0.46309400, 0.46654300, 0.46997200, 0.47338000, 0.47676900, 0.48013800,
+	0.48348800, 0.48681800, 0.49012900, 0.49342100, 0.49669400, 0.49994800,
+	0.50318400, 0.50640200, 0.50960100, 0.51278200, 0.51594600, 0.51909100,
+	0.52221900, 0.52533000, 0.52842300, 0.53149900, 0.53455800, 0.53760100,
+	0.54062600, 0.54363500, 0.54662700, 0.54960300, 0.55256300, 0.55550700,
+	0.55843400, 0.56134600, 0.56424300, 0.56712300, 0.56998800, 0.57283800,
+	0.57567300, 0.57849300, 0.58129800, 0.58408800, 0.58686300, 0.58962300,
+	0.59237000, 0.59510100, 0.59781900, 0.60052200, 0.60321200, 0.60588700,
+	0.60854900, 0.61119700, 0.61383100, 0.61645200, 0.61905900, 0.62165300,
+	0.62423400, 0.62680200, 0.62935700, 0.63189900, 0.63442800, 0.63694400,
+	0.63944800, 0.64193900, 0.64441800, 0.64688500, 0.64933900, 0.65178100,
+	0.65421200, 0.65663000, 0.65903600, 0.66143100, 0.66381300, 0.66618500,
+	0.66854400, 0.67089300, 0.67322900, 0.67555500, 0.67786900, 0.68017300,
+	0.68246500, 0.68474600, 0.68701700, 0.68927600, 0.69152500, 0.69376300,
+	0.69599100, 0.69820800, 0.70041500, 0.70261100, 0.70479700, 0.70697300,
+	0.70913900, 0.71129400, 0.71344000, 0.71557600, 0.71770200, 0.71981800,
+	0.72192400, 0.72402100, 0.72610800, 0.72818600, 0.73025400, 0.73231300,
+	0.73436200, 0.73640200, 0.73843300, 0.74045500, 0.74246800
 };
 
 }
