@@ -40,8 +40,7 @@ namespace APUID {
 
 typedef APUGroup<1>::ID::NoBatteryID InternalDataID;
 typedef APUGroup<2>::ID::NoBatteryID CycleDataID;
-typedef APUGroup<3>::ID::NoBatteryID StateID;
-typedef APUGroup<4>::ID::NoBatteryID ChannelsID;
+typedef APUGroup<3>::ID::NoBatteryID ChannelsID;
 
 }
 
@@ -84,8 +83,18 @@ private:
 
 	struct SChannels {
 		int CurCycle;
-		int UpdCycle;
-		double LastOutput;
+		int UpdCycle; /* Число тактов с данным выходом */
+		double LastOutput; /* Текущий выход */
+		bool DMCInterrupt; /* Флаг прерывания ДМ-канала */
+		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
+		bool Square2Counter; /* Флаг счетчика для прямоугольного канала 2 */
+		bool Square1Counter; /* Флаг счетчика для прямоугольного канала 1 */
+		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
+		bool InterruptInhibit; /* Подавление IRQ */
+		enum SeqMode {
+			Mode_4step = 4,
+			Mode_5step = 5
+		} Mode; /* Режим */
 
 		/* Прямоугольный канал */
 		struct SSquareChannel {
@@ -107,21 +116,22 @@ private:
 			int EnvelopeDivider; /* Делитель огибающей */
 			int SweepDivider; /* Делитель частоты свипа */
 			bool SweepReload; /* Сбросить свип */
-			inline void Write_4000(uint8 Src) {
+			inline void Write_1(uint8 Src) {
 				DutyMode = Src >> 6; LengthCounterDisable = (Src & 0x20);
 				EnvelopeConstant = (Src & 0x10); EnvelopePeriod = (Src & 0x0f);
 			}
-			inline void Write_4001(uint8 Src) {
+			inline void Write_2(uint8 Src) {
 				SweepEnabled = (Src & 0x80); SweepPeriod = (Src >> 4) & 0x07;
 				SweepNegative = (Src & 0x08); SweepShiftCount = (Src & 0x07);
 				SweepReload = true;
 			}
-			inline void Write_4002(uint8 Src) {
+			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x0700) | Src;
 			}
-			inline void Write_4003(uint8 Src) {
+			inline void Write_4(uint8 Src, bool CounterEnable) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
-				LengthCounter = LengthCounterTable[Src >> 3];
+				if (CounterEnable)
+					LengthCounter = LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
 			inline void Envelope() {
@@ -269,38 +279,19 @@ private:
 			Do_Timer(Cycles - CurCycle);
 			CurCycle = 0;
 		}
-	} Channels;
-
-	/* Состояние */
-	struct SState {
-		bool DMCInterrupt; /* Флаг прерывания ДМ-канала */
-		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
-		bool NoiseCounter; /* Флаг счетчика для канала шума */
-		bool TriangleCounter; /* Флаг счетчика для пилообразного канала */
-		bool Square2Counter; /* Флаг счетчика для прямоугольного канала 2 */
-		bool Square1Counter; /* Флаг счетчика для прямоугольного канала 1 */
-		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
-		bool InterruptInhibit; /* Подавление IRQ */
-		enum SeqMode {
-			Mode_4step = 4,
-			Mode_5step = 5
-		} Mode; /* Режим */
-		inline void UpdateCounters(SChannels &ChannelsUpd) {
-			if (!Square1Counter)
-				ChannelsUpd.SquareChannel1.LengthCounter = 0;
-			if (!Square2Counter)
-				ChannelsUpd.SquareChannel2.LengthCounter = 0;
-		}
 		inline void Write_4015(uint8 Src, SChannels &ChannelsUpd) { if (!(Src & 0x10))
 			DMCRemain = false; /* NoiseCounter = Src & 0x08; TriangleCounter = Src & 0x04; */
 			Square2Counter = Src & 0x02; Square1Counter = Src & 0x01;
 			DMCInterrupt = false;
-			UpdateCounters(ChannelsUpd);
+			if (!Square1Counter)
+				SquareChannel1.LengthCounter = 0;
+			if (!Square2Counter)
+				SquareChannel2.LengthCounter = 0;
 		}
 		inline uint8 Read_4015(const SChannels &ChannelsUpd) {
 			uint8 Res = 0; if (DMCInterrupt) Res |= 0x80;
 			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10;
-			if (NoiseCounter) Res |= 0x08; if (TriangleCounter) Res |= 0x04;
+			/* if (NoiseCounter) Res |= 0x08; if (TriangleCounter) Res |= 0x04; */
 			if (ChannelsUpd.SquareChannel2.LengthCounter > 0) Res |= 0x02;
 			if (ChannelsUpd.SquareChannel1.LengthCounter > 0) Res |= 0x01;
 			return Res;
@@ -308,7 +299,7 @@ private:
 		inline void Write_4017(uint8 Src) { Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
 			InterruptInhibit = (Src & 0x40); if (InterruptInhibit) FrameInterrupt = false;
 		}
-	} State;
+	} Channels;
 
 	/* Буфер */
 	VPNES_IBUF ibuf;
@@ -329,16 +320,16 @@ private:
 			}
 			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
 				/* Секвенсер */
-				switch (State.Mode) {
-					case SState::Mode_4step:
+				switch (Channels.Mode) {
+					case SChannels::Mode_4step:
 						switch (CycleData.Step) {
 							case 0:
 							case 2:
 								Channels.EvenClock();
 								break;
 							case 3:
-								if (!State.InterruptInhibit) {
-									State.FrameInterrupt = true;
+								if (!Channels.InterruptInhibit) {
+									Channels.FrameInterrupt = true;
 									Bus->GetCPU()->GetIRQPin() = true;
 								}
 							case 1:
@@ -346,7 +337,7 @@ private:
 								break;
 						}
 						break;
-					case SState::Mode_5step:
+					case SChannels::Mode_5step:
 						switch (CycleData.Step) {
 							case 0:
 							case 2:
@@ -361,7 +352,7 @@ private:
 				}
 				Channels.Update();
 				CycleData.Step++;
-				if (CycleData.Step == State.Mode) /* Сбросить счетчик через 2 такта */
+				if (CycleData.Step == Channels.Mode) /* Сбросить счетчик через 2 такта */
 					CycleData.SupressCounter = 2;
 			}
 			Channels.Do_Timer(1);
@@ -376,8 +367,6 @@ public:
 		InternalData.bMode = 0x00;
 		Bus->GetManager()->template SetPointer<APUID::CycleDataID>(\
 			&CycleData, sizeof(CycleData));
-		Bus->GetManager()->template SetPointer<APUID::StateID>(\
-			&State, sizeof(State));
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
 	}
@@ -399,16 +388,15 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
-		memset(&State, 0, sizeof(State));
-		State.Write_4017(InternalData.bMode);
+		memset(&Channels, 0, sizeof(Channels));
+		Channels.Write_4017(InternalData.bMode);
+		Channels.Update();
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.CurCycle = 6;
 		CycleData.SupressCounter = -1;
 		CycleData.DMACycle = -1;
 		PreprocessedCycles = 0;
-		memset(&Channels, 0, sizeof(Channels));
-		Channels.Update();
 	}
 
 	/* Чтение памяти */
@@ -419,11 +407,11 @@ public:
 			case 0x4015: /* Состояние APU */
 				/* Отрабатываем прошедшие такты */
 				Preprocess();
-				Res = State.Read_4015(Channels);
+				Res = Channels.Read_4015(Channels);
 				/* Если мы не попали на установку флага, сбрасываем его */
-				if ((State.Mode != SState::Mode_4step) || (CycleData.CurCycle !=
-					(StepCycles[SState::Mode_4step - 1] + 2))) {
-					State.FrameInterrupt = false;
+				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
+					(StepCycles[SChannels::Mode_4step - 1] + 2))) {
+					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->GetIRQPin() = false;
 				}
 				return Res;
@@ -450,31 +438,29 @@ public:
 		switch (Address) {
 			/* Прямоугольный канал 1 */
 			case 0x4000: /* Вид и огибающая */
-				Channels.SquareChannel1.Write_4000(Src);
+				Channels.SquareChannel1.Write_1(Src);
 				break;
 			case 0x4001: /* Свип */
-				Channels.SquareChannel1.Write_4001(Src);
+				Channels.SquareChannel1.Write_2(Src);
 				break;
 			case 0x4002: /* Период */
-				Channels.SquareChannel1.Write_4002(Src);
+				Channels.SquareChannel1.Write_3(Src);
 				break;
 			case 0x4003: /* Счетчик, период */
-				Channels.SquareChannel1.Write_4003(Src);
-				State.UpdateCounters(Channels);
+				Channels.SquareChannel1.Write_4(Src, Channels.Square1Counter);
 				break;
 			/* Прямоугольный канал 2 */
 			case 0x4004:
-				Channels.SquareChannel2.Write_4000(Src);
+				Channels.SquareChannel2.Write_1(Src);
 				break;
 			case 0x4005:
-				Channels.SquareChannel2.Write_4001(Src);
+				Channels.SquareChannel2.Write_2(Src);
 				break;
 			case 0x4006:
-				Channels.SquareChannel2.Write_4002(Src);
+				Channels.SquareChannel2.Write_3(Src);
 				break;
 			case 0x4007:
-				Channels.SquareChannel2.Write_4003(Src);
-				State.UpdateCounters(Channels);
+				Channels.SquareChannel2.Write_4(Src, Channels.Square2Counter);
 				break;
 			/* Пилообразный канал */
 			case 0x4008:
@@ -503,7 +489,7 @@ public:
 				Bus->GetPPU()->EnableDMA(Src);
 				break;
 			case 0x4015: /* Управление каналами */
-				State.Write_4015(Src, Channels);
+				Channels.Write_4015(Src, Channels);
 				break;
 			case 0x4016: /* Стробирование контроллеров */
 				InternalData.StrobeCounter_A = 0;
@@ -512,9 +498,9 @@ public:
 			case 0x4017: /* Счетчик кадров */
 				InternalData.bMode = Src;
 				/* Запись в 4017 */
-				State.Write_4017(Src);
-				Bus->GetCPU()->GetIRQPin() = State.FrameInterrupt;
-				if (State.Mode == SState::Mode_5step)
+				Channels.Write_4017(Src);
+				Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
 				CycleData.SupressCounter = CycleData.CurCycle & 1;
 				break;
