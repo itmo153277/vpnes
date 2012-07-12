@@ -115,6 +115,7 @@ private:
 			bool SweepNegative; /* Отрицательный */
 			uint8 SweepShiftCount; /* Число сдвигов */
 			uint16 Timer; /* Период */
+			uint8 TimerInt;
 			uint16 TimerTarget; /* Обновление периода */
 			int TimerCounter; /* Счетчик */
 			int LengthCounter; /* Счетчик */
@@ -132,10 +133,10 @@ private:
 				SweepReload = true;
 			}
 			inline void Write_3(uint8 Src) {
-				Timer = (Timer & 0x0700) | Src;
+				TimerInt = Src;
 			}
 			inline void Write_4(uint8 Src, bool CounterEnable) {
-				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				Timer = (TimerInt & 0x00ff) | ((Src & 0x07) << 8);
 				Start = true;
 				if (CounterEnable)
 					LengthCounter = LengthCounterTable[Src >> 3];
@@ -150,7 +151,7 @@ private:
 					Start = false;
 				} else {
 					EnvelopeDivider++;
-					if (EnvelopeDivider >= (EnvelopePeriod + 1)) {
+					if (EnvelopeDivider > EnvelopePeriod) {
 						if (EnvelopeCounter == 0) {
 							if (LengthCounterDisable)
 								EnvelopeCounter = 15;
@@ -166,19 +167,10 @@ private:
 					LengthCounter--;
 				}
 			}
-			/* Вычислить свип */
-			inline void CalculateSweep() {
-				uint16 Res;
-
-				Res = Timer >> SweepShiftCount;
-				if (SweepNegative)
-					Res = ~Res;
-				TimerTarget = (Timer + Res) & 0x1fff;
-			}
 			/* Свип */
 			inline void Sweep() {
 				SweepDivider++;
-				if (SweepDivider >= (SweepPeriod + 1)) {
+				if (SweepDivider > SweepPeriod) {
 					if (SweepEnabled && (Timer > 7) && (TimerTarget < 0x0800) &&
 						(SweepShiftCount > 0))
 						Timer = TimerTarget;
@@ -207,9 +199,27 @@ private:
 				return false;
 			}
 			inline bool CanOutput() {
-				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget <= 0x07ff));
+				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget < 0x0800));
+			}
+		};
+		/* Прямоугольный канал 1 */
+		struct SSquareChannel1: public SSquareChannel {
+			using SSquareChannel::SweepShiftCount;
+			using SSquareChannel::SweepNegative;
+			using SSquareChannel::Timer;
+			using SSquareChannel::TimerTarget;
+
+			/* Вычислить свип */
+			inline void CalculateSweep() {
+				uint16 Res;
+
+				Res = Timer >> SweepShiftCount;
+				if (SweepNegative)
+					Res = ~Res;
+				TimerTarget = (Timer + Res) & 0x1fff;
 			}
 		} SquareChannel1;
+		/* Прямоугольный канал 2 */
 		struct SSquareChannel2: public SSquareChannel {
 			using SSquareChannel::SweepShiftCount;
 			using SSquareChannel::SweepNegative;
@@ -233,6 +243,7 @@ private:
 			bool ControlFlag; /* Флаг управления счетчиком */
 			uint8 LinearCounterReload; /* Период счетчика */
 			uint16 Timer; /* Период */
+			uint8 TimerInt;
 			int TimerCounter; /* Счетчик */
 			int LengthCounter; /* Счетчик длины */
 			int LinearCounter; /* Счетчик */
@@ -241,10 +252,10 @@ private:
 				ControlFlag = Src & 0x80; LinearCounterReload = Src & 0x7f;
 			}
 			inline void Write_2(uint8 Src) {
-				Timer = (Timer & 0x0700) | Src;
+				TimerInt = Src;
 			}
 			inline void Write_3(uint8 Src, bool CounterEnable) {
-				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				Timer = (TimerInt & 0x00ff) | ((Src & 0x07) << 8);
 				if (CounterEnable)
 					LengthCounter = LengthCounterTable[Src >> 3];
 				HaltFlag = true;
@@ -292,8 +303,8 @@ private:
 				SqOut += SquareChannel1.Output;
 			if (SquareChannel2.CanOutput())
 				SqOut += SquareChannel2.Output;
-			if (TriangleChannel.CanOutput())
-				TNDOut += TriangleChannel.Output;
+			//if (TriangleChannel.CanOutput())
+				TNDOut += TriangleChannel.Output * 3;
 			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				std::cout << NewOutput << '\t' << UpdCycle << std::endl;
@@ -350,10 +361,12 @@ private:
 			Do_Timer(Cycles - CurCycle);
 			CurCycle = 0;
 		}
-		inline void Write_4015(uint8 Src, SChannels &ChannelsUpd) { if (!(Src & 0x10))
-			DMCRemain = false; /* NoiseCounter = Src & 0x08; */
+		inline void Write_4015(uint8 Src) {
+			if (!(Src & 0x10))
+				DMCRemain = false; /* NoiseCounter = Src & 0x08; */
 			TriangleCounter = Src & 0x04;
-			Square2Counter = Src & 0x02; Square1Counter = Src & 0x01;
+			Square2Counter = Src & 0x02;
+			Square1Counter = Src & 0x01;
 			DMCInterrupt = false;
 			if (!Square1Counter)
 				SquareChannel1.LengthCounter = 0;
@@ -362,13 +375,16 @@ private:
 			if (!TriangleCounter)
 				TriangleChannel.LengthCounter = 0;
 		}
-		inline uint8 Read_4015(const SChannels &ChannelsUpd) {
-			uint8 Res = 0; if (DMCInterrupt) Res |= 0x80;
-			if (FrameInterrupt) Res |= 0x40; if (DMCRemain) Res |= 0x10;
+		inline uint8 Read_4015() {
+			uint8 Res = 0;
+			
+			if (DMCInterrupt) Res |= 0x80;
+			if (FrameInterrupt) Res |= 0x40;
+			if (DMCRemain) Res |= 0x10;
 			/* if (NoiseCounter) Res |= 0x08; */
-			if (ChannelsUpd.TriangleChannel.LengthCounter > 0) Res |= 0x04;
-			if (ChannelsUpd.SquareChannel2.LengthCounter > 0) Res |= 0x02;
-			if (ChannelsUpd.SquareChannel1.LengthCounter > 0) Res |= 0x01;
+			if (TriangleChannel.LengthCounter > 0) Res |= 0x04;
+			if (SquareChannel2.LengthCounter > 0) Res |= 0x02;
+			if (SquareChannel1.LengthCounter > 0) Res |= 0x01;
 			return Res;
 		}
 		inline void Write_4017(uint8 Src) { Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
@@ -482,7 +498,7 @@ public:
 			case 0x4015: /* Состояние APU */
 				/* Отрабатываем прошедшие такты */
 				Preprocess();
-				Res = Channels.Read_4015(Channels);
+				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
 				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
 					(StepCycles[SChannels::Mode_4step - 1] + 2))) {
@@ -508,8 +524,11 @@ public:
 
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
-		/* Отрабатываем прошедшие такты */
-		Preprocess();
+		if (Address == 0x4016) { /* Стробирование контроллеров */
+			InternalData.StrobeCounter_A = 0;
+			InternalData.StrobeCounter_B = 0;
+		} else /* Отрабатываем прошедшие такты */
+			Preprocess();
 		switch (Address) {
 			/* Прямоугольный канал 1 */
 			case 0x4000: /* Вид и огибающая */
@@ -521,7 +540,6 @@ public:
 				break;
 			case 0x4002: /* Период */
 				Channels.SquareChannel1.Write_3(Src);
-				Channels.SquareChannel1.CalculateSweep();
 				break;
 			case 0x4003: /* Счетчик, период */
 				Channels.SquareChannel1.Write_4(Src, Channels.Square1Counter);
@@ -537,7 +555,6 @@ public:
 				break;
 			case 0x4006:
 				Channels.SquareChannel2.Write_3(Src);
-				Channels.SquareChannel2.CalculateSweep();
 				break;
 			case 0x4007:
 				Channels.SquareChannel2.Write_4(Src, Channels.Square2Counter);
@@ -574,13 +591,9 @@ public:
 					CycleData.DMACycle = 3;
 				}
 				Bus->GetPPU()->EnableDMA(Src);
-				break;
+				return;
 			case 0x4015: /* Управление каналами */
-				Channels.Write_4015(Src, Channels);
-				break;
-			case 0x4016: /* Стробирование контроллеров */
-				InternalData.StrobeCounter_A = 0;
-				InternalData.StrobeCounter_B = 0;
+				Channels.Write_4015(Src);
 				break;
 			case 0x4017: /* Счетчик кадров */
 				InternalData.bMode = Src;
@@ -594,6 +607,7 @@ public:
 				CycleData.SupressCounter = CycleData.CurCycle & 1;
 				break;
 		}
+		Channels.Update();
 	}
 
 	/* CPU IDLE */
