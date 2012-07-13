@@ -77,7 +77,7 @@ private:
 	/* Таблица счетчика */
 	static const int LengthCounterTable[32];
 	/* Таблица формы */
-	static const int DutyTable[32];
+	static const bool DutyTable[32];
 	/* Таблица пилообразной формы */
 	static const int SeqTable[32];
 	/* Таблица длин для канала шума */
@@ -128,6 +128,10 @@ private:
 			inline void Write_1(uint8 Src) {
 				DutyMode = Src >> 6; LengthCounterDisable = (Src & 0x20);
 				EnvelopeConstant = (Src & 0x10); EnvelopePeriod = (Src & 0x0f);
+				if (EnvelopeConstant)
+					Output = EnvelopePeriod;
+				else
+					Output = EnvelopeCounter;
 			}
 			inline void Write_2(uint8 Src) {
 				SweepEnabled = (Src & 0x80); SweepPeriod = (Src >> 4) & 0x07;
@@ -150,6 +154,7 @@ private:
 				if (Start) {
 					EnvelopeCounter = 15;
 					EnvelopeDivider = 0;
+					Output = EnvelopeCounter;
 					Start = false;
 				} else {
 					EnvelopeDivider++;
@@ -159,6 +164,7 @@ private:
 								EnvelopeCounter = 15;
 						} else
 							EnvelopeCounter--;
+						Output = EnvelopeCounter;
 						EnvelopeDivider = 0;
 					}
 				}
@@ -186,13 +192,8 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter >= Timer * 2) {
+				if ((TimerCounter >= Timer * 2) && !(TimerCounter & 1)) {
 					TimerCounter -= Timer * 2;
-					if (EnvelopeConstant)
-						Output = EnvelopePeriod;
-					else
-						Output = EnvelopeCounter;
-					Output &= DutyTable[(DutyMode << 3) + DutyCycle];
 					DutyCycle++;
 					if (DutyCycle == 8)
 						DutyCycle = 0;
@@ -201,7 +202,8 @@ private:
 				return false;
 			}
 			inline bool CanOutput() {
-				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget < 0x0800));
+				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget < 0x0800)) &&
+					DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
 		/* Прямоугольный канал 1 */
@@ -312,6 +314,10 @@ private:
 			inline void Write_1(uint8 Src) {
 				LengthCounterDisable = (Src & 0x20); EnvelopeConstant = (Src & 0x10);
 				EnvelopePeriod = (Src & 0x0f);
+				if (EnvelopeConstant)
+					Output = EnvelopePeriod;
+				else
+					Output = EnvelopeCounter;
 			}
 			inline void Write_2(uint8 Src) {
 				Timer = NoiseTable[Src & 0x0f];
@@ -329,6 +335,7 @@ private:
 				if (Start) {
 					EnvelopeCounter = 15;
 					EnvelopeDivider = 0;
+					Output = EnvelopeCounter;
 					Start = false;
 				} else {
 					EnvelopeDivider++;
@@ -338,6 +345,7 @@ private:
 								EnvelopeCounter = 15;
 						} else
 							EnvelopeCounter--;
+						Output = EnvelopeCounter;
 						EnvelopeDivider = 0;
 					}
 				}
@@ -355,19 +363,12 @@ private:
 					TimerCounter -= Timer;
 					Random = (((Random >> 14) ^ (Random >> Shift)) & 0x01) |
 						(Random << 1);
-					if (!(Random & 0x4000)) {
-						if (EnvelopeConstant)
-							Output = EnvelopePeriod;
-						else
-							Output = EnvelopeCounter;
-					} else
-						Output = 0;
 					return true;
 				}
 				return false;
 			}
 			inline bool CanOutput() {
-				return LengthCounter > 0;
+				return (LengthCounter > 0) && !(Random & 0x4000);
 			}
 		} NoiseChannel;
 		/* Обновить выход */
@@ -753,10 +754,10 @@ const int CAPU<_Bus>::LengthCounterTable[32] = {
 
 /* Таблица формы */
 template <class _Bus>
-const int CAPU<_Bus>::DutyTable[32] = {
-	0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00,
-	0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff
+const bool CAPU<_Bus>::DutyTable[32] = {
+	false, true,  false, false, false, false, false, false, false, true,  true,  false,
+	false, false, false, false, false, true,  true,  true,  true,  false, false, false,
+	true,  false, false, true,  true,  true,  true,  true
 };
 
 /* Таблица пилообразной формы */
