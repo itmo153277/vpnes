@@ -82,6 +82,8 @@ private:
 	static const int SeqTable[32];
 	/* Таблица длин для канала шума */
 	static const int NoiseTable[16];
+	/* Таблица длин для ДМ-канала */
+	static const int DMTable[16];
 	/* Таблица выхода прямоугольных каналов */
 	static const double SquareTable[31];
 	/* Таблица выхода остальных каналов */
@@ -91,13 +93,7 @@ private:
 		int CurCycle;
 		int UpdCycle; /* Число тактов с данным выходом */
 		double LastOutput; /* Текущий выход */
-		bool DMCInterrupt; /* Флаг прерывания ДМ-канала */
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
-		bool NoiseCounter; /* Флаг счетчика для шума */
-		bool TriangleCounter; /* Флаг счетчика для пилообразного канала */
-		bool Square2Counter; /* Флаг счетчика для прямоугольного канала 2 */
-		bool Square1Counter; /* Флаг счетчика для прямоугольного канала 1 */
-		bool DMCRemain; /* Флаг опустошения буфера ДМ-канала */
 		bool InterruptInhibit; /* Подавление IRQ */
 		enum SeqMode {
 			Mode_4step = 4,
@@ -107,6 +103,7 @@ private:
 		/* Прямоугольный канал */
 		struct SSquareChannel {
 			int Output; /* Выход на ЦАП */
+			bool UseCounter; /* Использовать счетчик */
 			bool Start; /* Начать */
 			int DutyCycle; /* Цикл */
 			uint8 DutyMode; /* Режим */
@@ -141,10 +138,10 @@ private:
 			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x0700) | Src;
 			}
-			inline void Write_4(uint8 Src, bool CounterEnable) {
+			inline void Write_4(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				Start = true;
-				if (CounterEnable)
+				if (UseCounter)
 					LengthCounter = LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
@@ -206,6 +203,7 @@ private:
 					DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
+
 		/* Прямоугольный канал 1 */
 		struct SSquareChannel1: public SSquareChannel {
 			using SSquareChannel::SweepShiftCount;
@@ -223,6 +221,7 @@ private:
 				TimerTarget = (Timer + Res) & 0x1fff;
 			}
 		} SquareChannel1;
+
 		/* Прямоугольный канал 2 */
 		struct SSquareChannel2: public SSquareChannel {
 			using SSquareChannel::SweepShiftCount;
@@ -240,9 +239,11 @@ private:
 				TimerTarget = (Timer + Res) & 0x1fff;
 			}
 		} SquareChannel2;
+
 		/* Пилообразный канал */
 		struct STriangleChannel {
 			int Output; /* Выход на ЦАП */
+			bool UseCounter; /* Использовать счетчик */
 			bool HaltFlag; /* Флаг сброса */
 			bool ControlFlag; /* Флаг управления счетчиком */
 			uint8 LinearCounterReload; /* Период счетчика */
@@ -257,9 +258,9 @@ private:
 			inline void Write_2(uint8 Src) {
 				Timer = (Timer & 0x0700) | Src;
 			}
-			inline void Write_3(uint8 Src, bool CounterEnable) {
+			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
-				if (CounterEnable)
+				if (UseCounter)
 					LengthCounter = LengthCounterTable[Src >> 3];
 				HaltFlag = true;
 			}
@@ -297,9 +298,11 @@ private:
 				return (LinearCounter > 0) && (LengthCounter > 0);
 			}
 		} TriangleChannel;
+
 		/* Канал шума */
 		struct SNoiseChannel {
 			int Output; /* Выход */
+			bool UseCounter; /* Использовать счетчик */
 			bool Start; /* Начать */
 			bool LengthCounterDisable; /* Отключить счетчик */
 			bool EnvelopeConstant; /* Константный выход */
@@ -323,9 +326,9 @@ private:
 				Timer = NoiseTable[Src & 0x0f];
 				Shift = ((Src & 0x80) ? 8 : 13);
 			}
-			inline void Write_3(uint8 Src, bool CounterEnable) {
+			inline void Write_3(uint8 Src) {
 				Start = true;
-				if (CounterEnable)
+				if (UseCounter)
 					LengthCounter = LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
@@ -371,6 +374,37 @@ private:
 				return (LengthCounter > 0) && !(Random & 0x4000);
 			}
 		} NoiseChannel;
+
+		/* ДМ-канал */
+		struct SDMChannel {
+			uint8 Output; /* Выход на ЦАП */
+			bool InterruptFlag; /* Флаг прерывания */
+			bool LoopFlag; /* Флаг цикличности */
+			uint16 Timer; /* Период */
+			uint16 Address; /* Адрес */
+			uint16 LengthCounter; /* Длина */
+			bool NotEmpty; /* Буфер не пуст */
+			uint8 SampleBuffer; /* Буфер */
+			uint8 ShiftReg; /* Регистр сдвига */
+			bool SilenceFlag; /* Флаг тишины */
+			int TimerCounter; /* Счетчик таймера */
+			inline void Write_1(uint8 Src) {
+				if (!(Src & 0x80))
+					InterruptFlag = false;
+				LoopFlag = Src & 0x40;
+				Timer = DMTable[Src & 0x0f];
+			}
+			inline void Write_2(uint8 Src) {
+				Output = Src & 0x7f;
+			}
+			inline void Write_3(uint8 Src) {
+				Address = 0xc000 | (Src << 6);
+			}
+			inline void Write_4(uint8 Src) {
+				LengthCounter = (Src << 4) | 0x0001;
+			}
+		} DMChannel;
+
 		/* Обновить выход */
 		inline void Update() {
 			int SqOut = 0, TNDOut = 0;
@@ -391,6 +425,7 @@ private:
 				LastOutput = NewOutput;
 			}
 		}
+
 		/* Генерировать форму каналов */
 		inline void Envelope() {
 			SquareChannel1.Envelope();
@@ -442,29 +477,30 @@ private:
 			Do_Timer(Cycles - CurCycle);
 			CurCycle = 0;
 		}
+
 		inline void Write_4015(uint8 Src) {
 			if (!(Src & 0x10))
-				DMCRemain = false;
-			NoiseCounter = Src & 0x08;
-			TriangleCounter = Src & 0x04;
-			Square2Counter = Src & 0x02;
-			Square1Counter = Src & 0x01;
-			DMCInterrupt = false;
-			if (!Square1Counter)
+				DMChannel.LengthCounter = 0;
+			NoiseChannel.UseCounter = Src & 0x08;
+			TriangleChannel.UseCounter = Src & 0x04;
+			SquareChannel2.UseCounter = Src & 0x02;
+			SquareChannel1.UseCounter = Src & 0x01;
+			DMChannel.InterruptFlag = false;
+			if (!SquareChannel1.UseCounter)
 				SquareChannel1.LengthCounter = 0;
-			if (!Square2Counter)
+			if (!SquareChannel2.UseCounter)
 				SquareChannel2.LengthCounter = 0;
-			if (!TriangleCounter)
+			if (!TriangleChannel.UseCounter)
 				TriangleChannel.LengthCounter = 0;
-			if (!NoiseCounter)
+			if (!NoiseChannel.UseCounter)
 				NoiseChannel.LengthCounter = 0;
 		}
 		inline uint8 Read_4015() {
 			uint8 Res = 0;
 			
-			if (DMCInterrupt) Res |= 0x80;
+			if (DMChannel.InterruptFlag) Res |= 0x80;
 			if (FrameInterrupt) Res |= 0x40;
-			if (DMCRemain) Res |= 0x10;
+			if (DMChannel.LengthCounter > 0) Res |= 0x10;
 			if (NoiseChannel.LengthCounter > 0) Res |= 0x08;
 			if (TriangleChannel.LengthCounter > 0) Res |= 0x04;
 			if (SquareChannel2.LengthCounter > 0) Res |= 0x02;
@@ -545,6 +581,7 @@ public:
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
 		memset(&Channels.TriangleChannel, 0, sizeof(Channels.TriangleChannel));
+		Channels.TriangleChannel.Output = SeqTable[0];
 	}
 	inline ~CAPU() {}
 
@@ -596,7 +633,7 @@ public:
 				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
 					(StepCycles[SChannels::Mode_4step - 1] + 2))) {
 					Channels.FrameInterrupt = false;
-					Bus->GetCPU()->GetIRQPin() = false;
+					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
 				}
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
@@ -636,7 +673,7 @@ public:
 				Channels.SquareChannel1.CalculateSweep();
 				break;
 			case 0x4003: /* Счетчик, период */
-				Channels.SquareChannel1.Write_4(Src, Channels.Square1Counter);
+				Channels.SquareChannel1.Write_4(Src);
 				Channels.SquareChannel1.CalculateSweep();
 				break;
 			/* Прямоугольный канал 2 */
@@ -652,7 +689,7 @@ public:
 				Channels.SquareChannel2.CalculateSweep();
 				break;
 			case 0x4007:
-				Channels.SquareChannel2.Write_4(Src, Channels.Square2Counter);
+				Channels.SquareChannel2.Write_4(Src);
 				Channels.SquareChannel2.CalculateSweep();
 				break;
 			/* Пилообразный канал */
@@ -663,7 +700,7 @@ public:
 				Channels.TriangleChannel.Write_2(Src);
 				break;
 			case 0x400b:
-				Channels.TriangleChannel.Write_3(Src, Channels.TriangleCounter);
+				Channels.TriangleChannel.Write_3(Src);
 				break;
 			/* Шум */
 			case 0x400c:
@@ -673,13 +710,22 @@ public:
 				Channels.NoiseChannel.Write_2(Src);
 				break;
 			case 0x400f:
-				Channels.NoiseChannel.Write_3(Src, Channels.NoiseCounter);
+				Channels.NoiseChannel.Write_3(Src);
 				break;
 			/* ДМ-канал */
 			case 0x4010:
+				Channels.DMChannel.Write_1(Src);
+				if (!Channels.DMChannel.InterruptFlag)
+					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+				break;
 			case 0x4011:
+				Channels.DMChannel.Write_2(Src);
+				break;
 			case 0x4012:
+				Channels.DMChannel.Write_3(Src);
+				break;
 			case 0x4013:
+				Channels.DMChannel.Write_4(Src);
 				break;
 			/* Другое */
 			case 0x4014: /* DMA */
@@ -700,7 +746,8 @@ public:
 				InternalData.bMode = Src;
 				/* Запись в 4017 */
 				Channels.Write_4017(Src);
-				Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+				if (!Channels.FrameInterrupt)
+					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
 				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
 				else
@@ -773,6 +820,14 @@ const int CAPU<_Bus>::NoiseTable[16] = {
 	0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0060, 0x0080, 0x00a0,
 	0x00ca, 0x00fe, 0x017c, 0x01fc, 0x02fa, 0x03f8, 0x07f2, 0x0fe4
 };
+
+/* Таблица длин для ДМ-канала */
+template <class _Bus>
+const int CAPU<_Bus>::DMTable[16] = {
+	428, 380, 340, 320, 286, 254, 226, 214,
+	190, 160, 142, 128, 106,  84,  72,  54
+};
+
 /* Таблица выхода прямоугольных сигналов */
 template <class _Bus>
 const double CAPU<_Bus>::SquareTable[31] = {
