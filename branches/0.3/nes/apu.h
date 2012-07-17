@@ -67,6 +67,7 @@ private:
 		int DMACycle;
 		int CurCycle;
 		int CyclesLeft;
+		int WaitPass;
 		int SupressCounter;
 	} CycleData;
 
@@ -190,7 +191,7 @@ private:
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
 				if ((TimerCounter >= Timer * 2) && !(TimerCounter & 1)) {
-					TimerCounter -= Timer * 2;
+					TimerCounter = 0;
 					DutyCycle++;
 					if (DutyCycle == 8)
 						DutyCycle = 0;
@@ -284,7 +285,7 @@ private:
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
 				if (TimerCounter >= Timer) {
-					TimerCounter -= Timer;
+					TimerCounter = 0;
 					if ((LinearCounter > 0) && (LengthCounter > 0)) {
 						Output = SeqTable[Sequencer++];
 						if (Sequencer > 31)
@@ -363,7 +364,7 @@ private:
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
 				if (TimerCounter >= Timer) {
-					TimerCounter -= Timer;
+					TimerCounter = 0;
 					Random = (((Random >> 14) ^ (Random >> Shift)) & 0x01) |
 						(Random << 1);
 					return true;
@@ -379,17 +380,22 @@ private:
 		struct SDMChannel {
 			uint8 Output; /* Выход на ЦАП */
 			bool InterruptFlag; /* Флаг прерывания */
+			bool InterruptEnabled; /* Прерывание включено */
 			bool LoopFlag; /* Флаг цикличности */
 			uint16 Timer; /* Период */
+			uint16 LastAddress; /* Адрес */
+			uint16 LastCounter; /* Длина */
 			uint16 Address; /* Адрес */
 			uint16 LengthCounter; /* Длина */
 			bool NotEmpty; /* Буфер не пуст */
 			uint8 SampleBuffer; /* Буфер */
 			uint8 ShiftReg; /* Регистр сдвига */
+			int ShiftCounter; /* Счетчик сдвигов */
 			bool SilenceFlag; /* Флаг тишины */
 			int TimerCounter; /* Счетчик таймера */
 			inline void Write_1(uint8 Src) {
-				if (!(Src & 0x80))
+				InterruptEnabled = Src & 0x80;
+				if (!InterruptEnabled)
 					InterruptFlag = false;
 				LoopFlag = Src & 0x40;
 				Timer = DMTable[Src & 0x0f];
@@ -399,9 +405,41 @@ private:
 			}
 			inline void Write_3(uint8 Src) {
 				Address = 0xc000 | (Src << 6);
+				LastAddress = Address;
 			}
 			inline void Write_4(uint8 Src) {
-				LengthCounter = (Src << 4) | 0x0001;
+				LastCounter = (Src << 4) | 0x0001;
+				if (LengthCounter == 0)
+					LengthCounter = LastCounter;
+			}
+			/* Таймер */
+			inline bool Do_Timer(int Cycles) {
+				TimerCounter += Cycles;
+				if (TimerCounter >= Timer) {
+					TimerCounter = 0;
+					if (ShiftCounter == 0) {
+						ShiftCounter = 8;
+						if (NotEmpty) {
+							SilenceFlag = false;
+							NotEmpty = false;
+							ShiftReg = SampleBuffer;
+						} else
+							SilenceFlag = true;
+					}
+					if (!SilenceFlag) {
+						if (ShiftReg & 0x01) {
+							if (Output < 0x7e)
+								Output += 2;
+						} else {
+							if (Output > 1)
+								Output -= 2;
+						}
+					}
+					ShiftReg >>= 1;
+					ShiftCounter--;
+					return !SilenceFlag;
+				}
+				return false;
 			}
 		} DMChannel;
 
@@ -463,7 +501,8 @@ private:
 			if (SquareChannel1.Do_Timer(Cycles) |
 				SquareChannel2.Do_Timer(Cycles) |
 				TriangleChannel.Do_Timer(Cycles) |
-				NoiseChannel.Do_Timer(Cycles)) {
+				NoiseChannel.Do_Timer(Cycles) |
+				DMChannel.Do_Timer(Cycles)) {
 				Update();
 			}
 		}
@@ -481,6 +520,8 @@ private:
 		inline void Write_4015(uint8 Src) {
 			if (!(Src & 0x10))
 				DMChannel.LengthCounter = 0;
+			else if (DMChannel.LengthCounter == 0)
+				DMChannel.LengthCounter = DMChannel.LastCounter;
 			NoiseChannel.UseCounter = Src & 0x08;
 			TriangleChannel.UseCounter = Src & 0x04;
 			SquareChannel2.UseCounter = Src & 0x02;
@@ -529,6 +570,30 @@ private:
 					CycleData.SupressCounter = -1;
 				}
 			}
+			if ((CycleData.WasteCycles == 0) && (CycleData.WaitPass > 0)) {
+				CycleData.WaitPass--;
+				if (CycleData.WaitPass == 0) {
+					Bus->GetClock()->Clock(3 * 3);
+					if (Channels.DMChannel.Address < 0x8000)
+						Channels.DMChannel.Address |= 0x8000;
+					Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
+						Channels.DMChannel.Address);
+					Channels.DMChannel.Address++;
+					Channels.DMChannel.LengthCounter--;
+					if (Channels.DMChannel.LengthCounter == 0) {
+						if (Channels.DMChannel.LoopFlag) {
+							Channels.DMChannel.Address =
+								Channels.DMChannel.LastAddress;
+							Channels.DMChannel.LengthCounter =
+								Channels.DMChannel.LastCounter;
+						} else if (Channels.DMChannel.InterruptEnabled) {
+							Channels.DMChannel.InterruptFlag = true;
+							Bus->GetCPU()->GetIRQPin() = true;
+						}
+					}
+					Channels.DMChannel.NotEmpty = true;
+				}
+			}
 			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
 				/* Секвенсер */
 				switch (Channels.Mode) {
@@ -567,6 +632,11 @@ private:
 					CycleData.SupressCounter = 2;
 			}
 			Channels.Do_Timer(1);
+			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
+				(CycleData.WaitPass == 0)) {
+				CycleData.WasteCycles = 4;
+				CycleData.WaitPass = 4;
+			}
 			CycleData.CurCycle++;
 		}
 	}
@@ -657,6 +727,7 @@ public:
 		if (Address == 0x4016) { /* Стробирование контроллеров */
 			InternalData.StrobeCounter_A = 0;
 			InternalData.StrobeCounter_B = 0;
+			return;
 		} else /* Отрабатываем прошедшие такты */
 			Preprocess();
 		switch (Address) {
