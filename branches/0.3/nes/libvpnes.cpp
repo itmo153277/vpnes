@@ -45,6 +45,7 @@ struct NTSC_NES_Config {
 typedef NTSC_NES_Config<CBus, CNROM>::Config NROM_NES_Config;
 typedef NTSC_NES_Config<CBus, CUxROM>::Config UxROM_NES_Config;
 typedef NTSC_NES_Config<CBus, CAxROM>::Config AxROM_NES_Config;
+typedef NTSC_NES_Config<CBus, CMMC1>::Config MMC1_NES_Config;
 
 /* Открыть картридж */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
@@ -53,6 +54,8 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
 	switch (Data->Header.Mapper) {
 		case 0:
 			return new NROM_NES_Config(Data);
+		case 1:
+			return new MMC1_NES_Config(Data);
 		case 2:
 			return new UxROM_NES_Config(Data);
 		case 7:

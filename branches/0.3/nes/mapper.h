@@ -183,6 +183,145 @@ public:
 	}
 };
 
+/* Реализация маппера 1 */
+template <class _Bus>
+class CMMC1: public CNROM<_Bus> {
+	using CNROM<_Bus>::Bus;
+	using CNROM<_Bus>::ROM;
+	using CNROM<_Bus>::CHR;
+	using CNROM<_Bus>::PRGLow;
+	using CNROM<_Bus>::PRGHi;
+private:
+	/* CHR */
+	uint8 *CHRLow;
+	uint8 *CHRHi;
+	/* Регистр сдвига */
+	uint8 ShiftReg;
+	/* Счетчик сдвига */
+	int ShiftCounter;
+	/* RAM Enabled */
+	bool EnableRAM;
+	/* Режим переключения CHR */
+	enum {
+		CHRSwitch_4k,
+		CHRSwitch_8k
+	} CHRSwitch;
+	/* Режим переключения PRG */
+	enum {
+		PRGSwitch_Both,
+		PRGSwitch_Low,
+		PRGSwitch_Hi
+	} PRGSwitch;
+	/* Сброс */
+	inline void Reset() {
+		ShiftReg = 0;
+		ShiftCounter = 0;
+		PRGSwitch = PRGSwitch_Low;
+		PRGHi = ROM->PRG + (ROM->Header.PRGSize - 0x4000);
+	}
+public:
+	inline explicit CMMC1(_Bus *pBus, const ines::NES_ROM_Data *Data):
+		CNROM<_Bus>(pBus, Data) {
+		CHRLow = CHR;
+		CHRHi = CHR + 0x1000;
+		EnableRAM = true;
+		Reset();
+		CHRSwitch = CHRSwitch_4k;
+	}
+
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address < 0x8000) {
+			if (EnableRAM)
+				CNROM<_Bus>::WriteAddress(Address, Src);
+		} else {
+			if (Src & 0x80) { /* Сброс */
+				Reset();
+				return;
+			}
+			ShiftReg = (ShiftReg >> 1) | ((Src & 0x01) << 4);
+			ShiftCounter++;
+			if (ShiftCounter == 5) {
+				ShiftCounter = 0;
+				if (Address < 0xa000) { /* Control */
+					if (ShiftReg & 0x10)
+						CHRSwitch = CHRSwitch_4k;
+					else
+						CHRSwitch = CHRSwitch_8k;
+					switch (ShiftReg & 0x0c) {
+						case 0x00:
+						case 0x04:
+							PRGSwitch = PRGSwitch_Both;
+							break;
+						case 0x08:
+							PRGSwitch = PRGSwitch_Hi;
+							break;
+						case 0x0c:
+							PRGSwitch = PRGSwitch_Low;
+							break;
+					}
+					switch (ShiftReg & 0x03) {
+						case 0x00:
+							Bus->GetSolderPad()->Mirroring = ines::SingleScreen_1;
+							break;
+						case 0x01:
+							Bus->GetSolderPad()->Mirroring = ines::SingleScreen_2;
+							break;
+						case 0x02:
+							Bus->GetSolderPad()->Mirroring = ines::Vertical;
+							break;
+						case 0x03:
+							Bus->GetSolderPad()->Mirroring = ines::Horizontal;
+							break;
+					}
+				} else if (Address < 0xc000) { /* CHR Bank 1 */
+					if (CHRSwitch == CHRSwitch_4k)
+						CHRLow = CHR + (ShiftReg << 12);
+					else {
+						CHRLow = CHR + ((ShiftReg & 0x01) << 12);
+						CHRHi = CHR + ((ShiftReg | 0x01) << 12);
+					}
+				} else if (Address < 0xe000) { /* CHR Bank 2 */
+					if (CHRSwitch == CHRSwitch_4k)
+						CHRHi = CHR + (ShiftReg << 12);
+				} else { /* PRG Bank */
+					switch (PRGSwitch) {
+						case PRGSwitch_Both:
+							PRGLow = ROM->PRG + ((ShiftReg & 0x0e) << 14);
+							PRGHi = PRGLow + 0x4000;
+							break;
+						case PRGSwitch_Low:
+							PRGLow = ROM->PRG + ((ShiftReg & 0x0f) << 14);
+							break;
+						case PRGSwitch_Hi:
+							PRGHi = ROM->PRG + ((ShiftReg & 0x0f) << 14);
+							break;
+					}
+					EnableRAM = ShiftReg & 0x10;
+				}
+				ShiftReg = 0;
+			}
+		}
+	}
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		if (Address < 0x1000)
+			return CHRLow[Address];
+		else
+			return CHRHi[Address & 0x0fff];
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		if (ROM->CHR == NULL) {
+			if (Address < 0x1000)
+				CHRLow[Address] = Src;
+			else
+				CHRHi[Address & 0x0fff] = Src;
+		}
+	}
+};
+
 /* Реализация маппера 2 */
 template <class _Bus>
 class CUxROM: public CNROM<_Bus> {

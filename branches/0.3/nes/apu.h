@@ -458,7 +458,7 @@ private:
 				TNDOut += NoiseChannel.Output * 2;
 			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
-				std::cout << NewOutput << '\t' << UpdCycle << std::endl;
+				//std::cout << NewOutput << '\t' << UpdCycle << std::endl;
 				UpdCycle = 0;
 				LastOutput = NewOutput;
 			}
