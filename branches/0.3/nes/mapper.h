@@ -210,6 +210,35 @@ public:
 	}
 };
 
+/* Реализация маппера 7 */
+template <class _Bus>
+class CAxROM: public CNROM<_Bus> {
+	using CNROM<_Bus>::Bus;
+	using CNROM<_Bus>::ROM;
+	using CNROM<_Bus>::PRGLow;
+	using CNROM<_Bus>::PRGHi;
+public:
+	inline explicit CAxROM(_Bus *pBus, const ines::NES_ROM_Data *Data):
+		CNROM<_Bus>(pBus, Data) {
+		PRGHi = PRGLow + 0x4000;
+	}
+
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address < 0x8000)
+			CNROM<_Bus>::WriteAddress(Address, Src);
+		else {
+			PRGLow = ROM->PRG + ((Src & 0x07) << 15);
+			PRGHi = PRGLow + 0x4000;
+			Bus->GetPPU()->PreRender();
+			if (Src & 0x10)
+				Bus->GetSolderPad()->Mirroring = ines::SingleScreen_2;
+			else
+				Bus->GetSolderPad()->Mirroring = ines::SingleScreen_1;
+		}
+	}
+};
+
 }
 
 #endif
