@@ -151,11 +151,14 @@ public:
 	int PowerOn() {
 		VPNES_FRAME data;
 
+		APU.GetABuf()->Callback(VPNES_PCM_START, APU.GetABuf());
 		for (;;) {
 			data = Clock.ProccessFrame();
+			APU.FlushBuffer();
 			if (Bus.GetCallback()(VPNES_CALLBACK_FRAME, (void *) &data) < 0)
 				break;
 		}
+		APU.GetABuf()->Callback(VPNES_PCM_STOP, APU.GetABuf());
 		return 0;
 	}
 
@@ -170,10 +173,13 @@ public:
 	/* Обновить буферы */
 	int UpdateBuf() {
 		VPNES_INPUT ibuf;
+		VPNES_PCM abuf;
 		VPNES_VIDEO vbuf;
 
 		Bus.GetCallback()(VPNES_CALLBACK_INPUT, (void *) &ibuf);
-		APU.GetBuf() = ibuf;
+		APU.GetIBuf() = ibuf;
+		Bus.GetCallback()(VPNES_CALLBACK_PCM, (void *) &abuf);
+		APU.GetABuf() = abuf;
 		Bus.GetCallback()(VPNES_CALLBACK_VIDEO, (void *) &vbuf);
 		PPU.GetBuf() = vbuf;
 		return 0;

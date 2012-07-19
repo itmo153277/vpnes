@@ -22,6 +22,7 @@
 #include "window.h"
 #include <SDL.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 int WindowState;
@@ -33,6 +34,7 @@ Uint32 framestarttime = 0;
 int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
+VPNES_ABUF abuf;
 VPNES_IBUF ibuf;
 Uint32 Pal[64];
 const Uint8 NES_Palette[64][3] = {
@@ -50,10 +52,51 @@ const Uint8 NES_Palette[64][3] = {
 	{252, 224, 168}, {248, 216, 120}, {216, 248, 120}, {184, 248, 184}, {184, 248, 216},
 	{0,   252, 252}, {216, 216, 216}, {0,   0,   0  }, {0,   0,   0  }
 };
+SDL_AudioSpec *desired = NULL;
+SDL_AudioSpec *obtained = NULL;
+SDL_AudioSpec *hardware_spec = NULL;
+sint16 *PCMBuf[2];
+int PCMindex = 1;
+int PCMready = 0;
+int PCMplay = 0;
+int lastpcm = 0;
 
 #ifndef VERSION
 #define VERSION "0.3"
 #endif
+
+void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
+	memcpy(Stream, PCMBuf[PCMindex], Len);
+	PCMready = 0;
+}
+
+void AudioCallback(int Task, void *Data) {
+	switch (Task) {
+		case VPNES_PCM_START:
+			if (!PCMplay && PCMready) {
+				SDL_PauseAudio(0);
+				PCMplay = -1;
+			}
+			break;
+		case VPNES_PCM_UPDATE:
+			if (PCMready) {
+				if (ftell(stderr) >= 0)
+					fputs("Warning: audio buffer was dropped\n", stderr);
+			}
+			((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
+			PCMready = -1;
+			PCMindex ^= 1;
+			if (!PCMplay) {
+				SDL_PauseAudio(0);
+				PCMplay = -1;
+			}
+			break;
+		case VPNES_PCM_STOP:
+			SDL_PauseAudio(-1);
+			PCMplay = 0;
+			break;
+	}
+}
 
 /* Инициализация SDL */
 int InitMainWindow(int Width, int Height) {
@@ -80,12 +123,35 @@ int InitMainWindow(int Width, int Height) {
 	vbuf.BMask = bufs->format->Bmask;
 	vbuf.AMask = bufs->format->Amask;
 	ibuf = calloc(8, sizeof(int));
+	desired = malloc(sizeof(SDL_AudioSpec));
+	obtained = malloc(sizeof(SDL_AudioSpec));
+	desired->freq = 44100;
+	desired->format = AUDIO_S16SYS;
+	desired->channels = 1;
+	desired->samples = 0x0800;
+	desired->callback = AudioCallbackSDL;
+	desired->userdata = NULL;
+	if ( SDL_OpenAudio(desired, obtained) < 0 ) {
+		free(desired);
+		return -1;
+	}
+	free(desired);
+	hardware_spec = obtained;
+	abuf.Callback = AudioCallback;
+	PCMBuf[0] = malloc(hardware_spec->size);
+	PCMBuf[1] = malloc(hardware_spec->size);
+	abuf.PCM = PCMBuf[PCMindex ^ 1];
+	abuf.Size = hardware_spec->size / sizeof(sint16);
+	abuf.Freq = 44.1;
 	SaveState = 0;
 	return 0;
 }
 
 /* Выход */
 void AppQuit(void) {
+	free(obtained);
+	free(PCMBuf[0]);
+	free(PCMBuf[1]);
 	free(ibuf);
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
@@ -239,6 +305,9 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			return 0;
 		case VPNES_CALLBACK_INPUT:
 			*((VPNES_INPUT *) Data) = ibuf;
+			return 0;
+		case VPNES_CALLBACK_PCM:
+			*((VPNES_PCM *) Data) = &abuf;
 			return 0;
 		case VPNES_CALLBACK_VIDEO:
 			*((VPNES_VIDEO *) Data) = &vbuf;

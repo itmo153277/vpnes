@@ -90,10 +90,51 @@ private:
 	/* Таблица выхода остальных каналов */
 	static const double TNDTable[203];
 
+	/* Аудио буфер */
+	VPNES_ABUF *abuf;
+
 	struct SChannels {
 		int CurCycle;
 		int UpdCycle; /* Число тактов с данным выходом */
 		double LastOutput; /* Текущий выход */
+		double Avr; /* Среднее */
+		double Fixed; /* Коэф */
+		double TimeDiff; /* Различие времени */
+		double Time; /* Время */
+		double Sum; /* Сумма */
+		size_t Pos; /* Позиция */
+
+		/* Вывод семпла */
+		inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
+			float Res = Avr + Sample;
+
+			Avr -= Res / 100 / Buf->Freq;
+			Buf->PCM[Pos] = (sint16) (Res * 37267.0);
+			Pos++;
+			if (Pos == Buf->Size) {
+				Pos = 0;
+				Buf->Callback(VPNES_PCM_UPDATE, Buf);
+			}
+		}
+		/* Дописать буфер */
+		inline void FlushBuffer(VPNES_ABUF *Buf) {
+			int i, num;
+
+			Time += UpdCycle * Fixed * Buf->Freq;
+			num = (int) Time;
+			if (num > 0) {
+				Time -= num;
+				Sum += LastOutput * (1.0 - TimeDiff);
+				OutputSample(Sum, Buf);
+				for (i = 1; i < num; i++)
+					OutputSample(LastOutput, Buf);
+				Sum = LastOutput * Time;
+			} else
+				Sum += LastOutput * (Time - TimeDiff);
+			TimeDiff = Time;
+			UpdCycle = 0;
+		}
+
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
 		bool InterruptInhibit; /* Подавление IRQ */
 		enum SeqMode {
@@ -286,7 +327,7 @@ private:
 				TimerCounter += Cycles;
 				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
-					if ((LinearCounter > 0) && (LengthCounter > 0)) {
+					if ((LinearCounter > 0) && (LengthCounter > 0) && (Timer > 3)) {
 						Output = SeqTable[Sequencer++];
 						if (Sequencer > 31)
 							Sequencer = 0;
@@ -444,7 +485,7 @@ private:
 		} DMChannel;
 
 		/* Обновить выход */
-		inline void Update() {
+		inline void Update(VPNES_ABUF *Buf) {
 			int SqOut = 0, TNDOut = 0;
 			double NewOutput;
 
@@ -459,7 +500,7 @@ private:
 			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				//std::cout << NewOutput << '\t' << UpdCycle << std::endl;
-				UpdCycle = 0;
+				FlushBuffer(Buf);
 				LastOutput = NewOutput;
 			}
 		}
@@ -496,25 +537,15 @@ private:
 			Sweep();
 		}
 		/* Таймер */
-		inline void Do_Timer(int Cycles) {
+		inline void Do_Timer(int Cycles, VPNES_ABUF *Buf) {
 			UpdCycle += Cycles;
 			if (SquareChannel1.Do_Timer(Cycles) |
 				SquareChannel2.Do_Timer(Cycles) |
 				TriangleChannel.Do_Timer(Cycles) |
 				NoiseChannel.Do_Timer(Cycles) |
 				DMChannel.Do_Timer(Cycles)) {
-				Update();
+				Update(Buf);
 			}
-		}
-		/* Таймер (с кешированием) */
-		inline void Timer(int Cycles) {
-			Do_Timer(Cycles - CurCycle);
-			CurCycle = Cycles;
-		}
-		/* Таймер (сбросить кеш) */
-		inline void FlushTimer(int Cycles) {
-			Do_Timer(Cycles - CurCycle);
-			CurCycle = 0;
 		}
 
 		inline void Write_4015(uint8 Src) {
@@ -626,12 +657,12 @@ private:
 						}
 						break;
 				}
-				Channels.Update();
+				Channels.Update(abuf);
 				CycleData.Step++;
 				if (CycleData.Step == Channels.Mode) /* Сбросить счетчик через 2 такта */
 					CycleData.SupressCounter = 2;
 			}
-			Channels.Do_Timer(1);
+			Channels.Do_Timer(1, abuf);
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
 				CycleData.WasteCycles = 4;
@@ -676,12 +707,13 @@ public:
 		memcpy(&temp, &Channels.TriangleChannel,
 			sizeof(typename SChannels::STriangleChannel));
 		memset(&Channels, 0, sizeof(Channels));
+		Channels.Fixed = Bus->GetClock()->GetFix() * 3;
 		Channels.Write_4017(InternalData.bMode);
 		Channels.NoiseChannel.Random = 1;
 		Channels.NoiseChannel.Shift = 13;
 		memcpy(&Channels.TriangleChannel, &temp,
 			sizeof(typename SChannels::STriangleChannel));
-		Channels.Update();
+		Channels.Update(abuf);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.CurCycle = 6;
@@ -826,7 +858,7 @@ public:
 				CycleData.SupressCounter = CycleData.CurCycle & 1;
 				break;
 		}
-		Channels.Update();
+		Channels.Update(abuf);
 	}
 
 	/* CPU IDLE */
@@ -848,7 +880,12 @@ public:
 		return -1;
 	}
 	/* Буфер */
-	inline VPNES_IBUF &GetBuf() { return ibuf; }
+	inline VPNES_ABUF *&GetABuf() { return abuf; }
+	inline VPNES_IBUF &GetIBuf() { return ibuf; }
+	/* Дописать буфер */
+	inline void FlushBuffer() {
+		Channels.FlushBuffer(abuf);
+	}
 };
 
 /* Число тактов для каждого шага */

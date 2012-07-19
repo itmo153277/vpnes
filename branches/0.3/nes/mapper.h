@@ -201,6 +201,8 @@ private:
 	int ShiftCounter;
 	/* RAM Enabled */
 	bool EnableRAM;
+	/* Ignore Write */
+	bool IgnoreWrite;
 	/* Режим переключения CHR */
 	enum {
 		CHRSwitch_4k,
@@ -217,7 +219,6 @@ private:
 		ShiftReg = 0;
 		ShiftCounter = 0;
 		PRGSwitch = PRGSwitch_Low;
-		PRGHi = ROM->PRG + (ROM->Header.PRGSize - 0x4000);
 	}
 public:
 	inline explicit CMMC1(_Bus *pBus, const ines::NES_ROM_Data *Data):
@@ -225,21 +226,29 @@ public:
 		CHRLow = CHR;
 		CHRHi = CHR + 0x1000;
 		EnableRAM = true;
+		IgnoreWrite = false;
 		Reset();
 		CHRSwitch = CHRSwitch_4k;
 	}
 
-	/* Запись памяти */
+	/* Чтение памяти */
+	inline uint8 ReadAddress(uint16 Address) {
+		IgnoreWrite = false;
+		return CNROM<_Bus>::ReadAddress(Address);
+	}
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address < 0x8000) {
 			if (EnableRAM)
 				CNROM<_Bus>::WriteAddress(Address, Src);
 		} else {
+			if (IgnoreWrite)
+				return;
+			IgnoreWrite = true;
 			if (Src & 0x80) { /* Сброс */
 				Reset();
 				return;
 			}
-			ShiftReg = (ShiftReg >> 1) | ((Src & 0x01) << 4);
+			ShiftReg |= (Src & 0x01) << ShiftCounter;
 			ShiftCounter++;
 			if (ShiftCounter == 5) {
 				ShiftCounter = 0;
@@ -278,7 +287,7 @@ public:
 					if (CHRSwitch == CHRSwitch_4k)
 						CHRLow = CHR + (ShiftReg << 12);
 					else {
-						CHRLow = CHR + ((ShiftReg & 0x01) << 12);
+						CHRLow = CHR + ((ShiftReg & 0x1e) << 12);
 						CHRHi = CHR + ((ShiftReg | 0x01) << 12);
 					}
 				} else if (Address < 0xe000) { /* CHR Bank 2 */
@@ -297,7 +306,7 @@ public:
 							PRGHi = ROM->PRG + ((ShiftReg & 0x0f) << 14);
 							break;
 					}
-					EnableRAM = ShiftReg & 0x10;
+					EnableRAM = ~ShiftReg & 0x10;
 				}
 				ShiftReg = 0;
 			}

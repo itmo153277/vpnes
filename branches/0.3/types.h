@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,7 +84,22 @@ typedef VPNES_IBUF VPNES_INPUT;
 
 /* PCM */
 
-/* dunno lol */
+/* Audio Callback */
+typedef void (*VPNES_AUDIO_CALLBACK)(int, void *);
+
+#define VPNES_PCM_START  0x00000000
+#define VPNES_PCM_UPDATE 0x00000002
+#define VPNES_PCM_STOP   0x00000004
+
+/* Данные буфера PCM */
+typedef struct VPNES_ABUF {
+	VPNES_AUDIO_CALLBACK Callback;
+	sint16 *PCM;
+	size_t Size;
+	double Freq;
+} VPNES_ABUF;
+
+typedef VPNES_ABUF * VPNES_PCM;
 
 /* CPUHALT */
 
