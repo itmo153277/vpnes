@@ -497,6 +497,7 @@ private:
 				TNDOut += TriangleChannel.Output * 3;
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
+			TNDOut += DMChannel.Output;
 			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				//std::cout << NewOutput << '\t' << UpdCycle << std::endl;

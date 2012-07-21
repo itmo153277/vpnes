@@ -480,6 +480,11 @@ public:
 		InternalData.NMI = true;
 		InternalData.IRQTrigger = IRQStart;
 	}
+	/* Инициировать IRQ */
+	inline void PullIRQTrigger() {
+		if (InternalData.IRQTrigger == IRQReady)
+			InternalData.IRQTrigger = IRQStart;
+	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }
 	/* RAM */
