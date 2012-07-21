@@ -36,9 +36,12 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		return -1;
 	Data->Header.PRGSize = Header.PRGSize * 0x4000;
 	Data->Header.CHRSize = Header.CHRSize * 0x2000;
-	Data->Header.RAMSize = Header.RAMSize * 0x2000;
 	Data->Header.Mirroring = (SolderPad) (Header.Flags & 0x09);
 	Data->Header.HaveBattery = Header.Flags & 0x02;
+	if (Data->Header.HaveBattery && (Header.RAMSize == 0))
+		Data->Header.RAMSize = 0x2000;
+	else 
+		Data->Header.RAMSize = Header.RAMSize * 0x2000;
 	Data->Header.Mapper = Header.Flags >> 4;
 	if (Header.BadROM)
 		Data->Header.TVSystem = 0;
