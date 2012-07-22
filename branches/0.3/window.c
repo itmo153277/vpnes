@@ -31,6 +31,8 @@ SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
+Uint32 framecheck = 0;
+double framerate = 1.0;
 int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
@@ -66,6 +68,10 @@ int lastpcm = 0;
 #endif
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
+	if (!PCMready) {
+		WindowState = VPNES_UPDATEBUF;
+		abuf.Freq *= 1.06;
+	}
 	memcpy(Stream, PCMBuf[PCMindex], Len);
 	PCMready = 0;
 }
@@ -282,9 +288,19 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
 			delta -= (Uint32) delta;
 			if (delaytime > 0)
-				SDL_Delay((Uint32) delaytime);
+				SDL_Delay((Uint32) (delaytime / framerate));
 			framestarttime = SDL_GetTicks();
+			framerate = (framestarttime - framecheck) / *Tim;
+			if (framerate < 1.5)
+				abuf.Freq += (44.1 * framerate - abuf.Freq) / 16;
+			else
+				abuf.Freq = 44.1;
+			framecheck = framestarttime;
 #endif
+			if (WindowState == VPNES_UPDATEBUF) {
+				abuf.Pos = 0;
+				return -1;
+			}
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
 			CPUHalt = 1;

@@ -52,6 +52,7 @@ int main(int argc, char *argv[]) {
 		NES->UpdateBuf();
 		NES->Reset();
 		do {
+			WindowState = 0;
 			NES->PowerOn();
 			switch (WindowState) {
 				case VPNES_UPDATEBUF:

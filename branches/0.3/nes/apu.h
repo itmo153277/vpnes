@@ -102,17 +102,16 @@ private:
 		double TimeDiff; /* Различие времени */
 		double Time; /* Время */
 		double Sum; /* Сумма */
-		size_t Pos; /* Позиция */
 
 		/* Вывод семпла */
 		inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
 			float Res = Avr + Sample;
 
-			Avr -= Res / 100 / Buf->Freq;
-			Buf->PCM[Pos] = (sint16) (Res * 37267.0);
-			Pos++;
-			if (Pos == Buf->Size) {
-				Pos = 0;
+			Avr -= Res / 128 / Buf->Freq;
+			Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
+			Buf->Pos++;
+			if (Buf->Pos == Buf->Size) {
+				Buf->Pos = 0;
 				Buf->Callback(VPNES_PCM_UPDATE, Buf);
 			}
 		}

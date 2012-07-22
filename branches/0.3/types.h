@@ -96,6 +96,7 @@ typedef struct VPNES_ABUF {
 	VPNES_AUDIO_CALLBACK Callback;
 	sint16 *PCM;
 	size_t Size;
+	size_t Pos;
 	double Freq;
 } VPNES_ABUF;
 
