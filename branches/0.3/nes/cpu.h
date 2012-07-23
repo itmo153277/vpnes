@@ -485,6 +485,11 @@ public:
 		if (InternalData.IRQTrigger == IRQReady)
 			InternalData.IRQTrigger = IRQStart;
 	}
+	/* Сброс IRQ */
+	inline void ResetIRQTrigger() {
+		if ((InternalData.IRQTrigger == IRQStart) && !InternalData.NMI)
+			UpdateTrigger();
+	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }
 	/* RAM */
@@ -709,10 +714,13 @@ int CCPU<_Bus>::Execute() {
 	Cycles = Bus->GetAPU()->WasteCycles();
 	if (Cycles > 0) /* Заняты APU */
 		return Cycles * 3;
-	if (((InternalData.IRQTrigger == IRQReady) ||
-		(InternalData.IRQTrigger == IRQCheck)) &
-		InternalData.IRQ)
-		InternalData.IRQTrigger++;
+	if ((InternalData.IRQTrigger == IRQReady) ||
+		(InternalData.IRQTrigger == IRQCheck)) {
+		if (InternalData.IRQ)
+			InternalData.IRQTrigger++;
+		else
+			InternalData.IRQTrigger = IRQReady;
+	}
 	switch (InternalData.IRQTrigger) {
 		case IRQStart:
 			InternalData.IRQTrigger = IRQSave;

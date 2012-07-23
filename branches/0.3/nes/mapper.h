@@ -531,6 +531,10 @@ private:
 		} CHRSwitch;
 		/* Выбор банка */
 		uint8 MuxAddr;
+		/* RAM Enabled */
+		bool EnableRAM;
+		/* RAM Write */
+		bool EnableWrite;
 	} InternalData;
 
 	struct SIRQCircuit {
@@ -551,13 +555,16 @@ private:
 					IRQCounter = IRQLatch;
 				} else {
 					IRQCounter--;
-					if (IRQCounter == 0)
+					if ((IRQCounter == 0) && IRQEnable)
 						pBus->GetCPU()->PullIRQTrigger();
 				}
 			} else
 				IgnoreAccess = false;
 		}
 	} IRQCircuit;
+	
+	/* Ограничитель PRG */
+	uint8 PRGMask;
 public:
 	inline explicit CMMC3(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
@@ -566,25 +573,126 @@ public:
 		Bus->GetManager()->template SetPointer<MMC3ID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
 		memset(&InternalData, 0, sizeof(InternalData));
-		Bus->GetManager()->template SetPointer<MMC3ID::IRQCircuitID>(\
-			&IRQCircuit, sizeof(IRQCircuit));
-		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
 		InternalData.PRGBanks[1] = 0x2000;
 		InternalData.PRGBanks[3] = ROM->Header.PRGSize - 0x2000;
 		InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
 		for (i = 0; i < 8; i++)
 			InternalData.CHRBanks[i] = i << 10;
+		InternalData.EnableWrite = true;
+		Bus->GetManager()->template SetPointer<MMC3ID::IRQCircuitID>(\
+			&IRQCircuit, sizeof(IRQCircuit));
+		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
+		PRGMask = (ROM->Header.PRGSize >> 13) - 1;
+	}
+
+	/* Чтение памяти */
+	inline uint8 ReadAddress(uint16 Address) {
+		if (Address < 0x8000) {
+			if (InternalData.EnableRAM)
+				return CNROM<_Bus>::ReadAddress(Address);
+			else
+				return 0x40;
+		}
+		return ROM->PRG[InternalData.PRGBanks[(Address & 0x6000) >> 13] |
+			(Address & 0x1fff)];
+	}
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address < 0x8000) {
+			if (InternalData.EnableRAM && InternalData.EnableWrite)
+				CNROM<_Bus>::WriteAddress(Address, Src);
+		} else if (Address < 0xa000) {
+			if (Address & 0x0001) { /* Bank Data */
+				if (InternalData.MuxAddr > 5) /* PRG select */
+					switch (InternalData.PRGSwitch) {
+						case SInternalData::PRGSwitch_Low:
+							InternalData.PRGBanks[InternalData.MuxAddr & 0x01] =
+								(Src & PRGMask) << 13;
+							break;
+						case SInternalData::PRGSwitch_Middle:
+							InternalData.PRGBanks[1 <<
+								(~InternalData.MuxAddr & 0x01)] =
+								(Src & PRGMask) << 13;
+							break;
+					}
+				else { /* CHR Select */
+					Bus->GetPPU()->PreRender();
+					switch (InternalData.CHRSwitch) {
+						case SInternalData::CHRSwitch_24:
+							if (InternalData.MuxAddr < 2) {
+								InternalData.CHRBanks[InternalData.MuxAddr << 1] =
+									(Src & 0xfe) << 10;
+								InternalData.CHRBanks[\
+									(InternalData.MuxAddr << 1) | 0x01] =
+									(Src | 0x01) << 10;
+							} else
+								InternalData.CHRBanks[InternalData.MuxAddr + 2] =
+									Src << 10;
+							break;
+						case SInternalData::CHRSwitch_42:
+							if (InternalData.MuxAddr < 2) {
+								InternalData.CHRBanks[\
+									(InternalData.MuxAddr << 1) | 0x04] =
+									(Src & 0xfe) << 10;
+								InternalData.CHRBanks[\
+									(InternalData.MuxAddr << 1) | 0x05] =
+									(Src | 0x01) << 10;
+							} else
+								InternalData.CHRBanks[InternalData.MuxAddr - 2] =
+									Src << 10;
+							break;
+					}
+				}
+			} else { /* Bank Select */
+				if (Src & 0x80)
+					InternalData.CHRSwitch = SInternalData::CHRSwitch_42;
+				else
+					InternalData.CHRSwitch = SInternalData::CHRSwitch_24;
+				if (Src & 0x40) {
+					InternalData.PRGSwitch = SInternalData::PRGSwitch_Middle;
+					InternalData.PRGBanks[0] = InternalData.PRGBanks[3] - 0x2000;
+				} else {
+					InternalData.PRGSwitch = SInternalData::PRGSwitch_Low;
+					InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
+				}
+				InternalData.MuxAddr = Src & 0x07;
+			}
+		} else if (Address < 0xc000) {
+			if (Address & 0x0001) { /* PRG RAM chip */
+				InternalData.EnableRAM = Src & 0x80;
+				InternalData.EnableWrite = ~Src & 0x40;
+			} else { /* Mirroring */
+				if (Src & 0x01)
+					Bus->GetSolderPad()->Mirroring = ines::Horizontal;
+				else
+					Bus->GetSolderPad()->Mirroring = ines::Vertical;
+			}
+		} else {
+			Bus->GetPPU()->PreRender();
+			if (Address < 0xe000) {
+				if (Address & 0x0001) { /* IRQ Clear */
+					IRQCircuit.IRQCounter = 0;
+				} else { /* IRQ Latch */
+					IRQCircuit.IRQLatch = Src;
+				}
+			} else if (Address & 0x0001) { /* IRQ Enable */
+				IRQCircuit.IRQEnable = true;
+			} else { /* IRQ Disable */
+				IRQCircuit.IRQEnable = false;
+				Bus->GetCPU()->ResetIRQTrigger();
+			}
+		}
 	}
 
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		IRQCircuit.Process(Address, Bus);
-		return CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x0fff)];
+		return CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)];
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 		IRQCircuit.Process(Address, Bus);
-		CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x0fff)] = Src;
+		CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)] = Src;
 	}
 };
 

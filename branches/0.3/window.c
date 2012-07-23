@@ -70,7 +70,7 @@ int lastpcm = 0;
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	if (!PCMready) {
 		WindowState = VPNES_UPDATEBUF;
-		abuf.Freq *= 1.06;
+//		abuf.Freq *= 1.06;
 	}
 	memcpy(Stream, PCMBuf[PCMindex], Len);
 	PCMready = 0;
@@ -291,23 +291,23 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				SDL_Delay((Uint32) (delaytime / framerate));
 			framestarttime = SDL_GetTicks();
 			framerate = (framestarttime - framecheck) / *Tim;
-			if (framerate < 1.5)
-				abuf.Freq += (44.1 * framerate - abuf.Freq) / 16;
-			else
-				abuf.Freq = 44.1;
-			framecheck = framestarttime;
-#endif
+			//if (framerate < 1.5)
+			//	abuf.Freq += (44.1 * framerate - abuf.Freq) / 16;
+			//else
+			//	abuf.Freq = 44.1;
 			if (WindowState == VPNES_UPDATEBUF) {
 				abuf.Pos = 0;
 				return -1;
 			}
+			framecheck = framestarttime;
+#endif
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
 			CPUHalt = 1;
 			SDL_WM_SetCaption("CPU HALTED!", NULL);
 			if (ftell(stderr) >= 0) {
 				HaltData = (VPNES_CPUHALT *) Data;
-				fprintf(stderr, "Fatal Error: CPU halted\n\n"
+				fprintf(stderr, "Fatal Error: CPU halted\n"
 				                "Registers:\n"
 				                "  PC: 0x%4.4x\n"
 				                "   A: 0x%2.2x\n"
