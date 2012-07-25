@@ -252,7 +252,7 @@ public:
 		memset(&InternalData, 0, sizeof(InternalData));
 		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
-		InternalData.CHRSwitch = SInternalData::CHRSwitch_4k;
+		InternalData.CHRSwitch = SInternalData::CHRSwitch_8k;
 		InternalData.PRGSwitch = SInternalData::PRGSwitch_Low;
 		InternalData.CHRHiBank = 0x1000;
 		InternalData.PRGHiBank = ROM->Header.PRGSize - 0x4000;
@@ -281,8 +281,7 @@ public:
 			if (RAM != NULL) {
 				if (!InternalData.EnableRAM)
 					return 0x40;
-				if (Address < 0x7000)
-					return RAM[InternalData.SRAMPage | (Address & 0x1fff)];
+				return RAM[InternalData.SRAMPage | (Address & 0x1fff)];
 			} else if ((ROM->Trainer != NULL) && (Address >= 0x7000)
 				&& (Address < 0x7200))
 				return ROM->Trainer[Address & 0x01ff];
@@ -341,113 +340,111 @@ public:
 							Bus->GetSolderPad()->Mirroring = ines::Horizontal;
 							break;
 					}
-				} else {
-					if (Address < 0xc000) { /* CHR Bank 1 */
+				} else if (Address < 0xc000) { /* CHR Bank 1 */
+					switch (InternalData.Mode) {
+						case SInternalData::MMC1_Normal:
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_4k) {
+								InternalData.CHRLowBank =
+									InternalData.ShiftReg << 12;
+							} else {
+								InternalData.CHRLowBank =
+									(InternalData.ShiftReg & 0x1e) << 12;
+								InternalData.CHRHiBank =
+									(InternalData.ShiftReg | 0x01) << 12;
+							}
+							break;
+						case SInternalData::MMC1_SNROM:
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_4k)
+								InternalData.CHRLowBank =
+									(InternalData.ShiftReg & 0x01) << 12;
+							InternalData.EnableWrite =
+								~InternalData.ShiftReg & 0x10;
+							break;
+						case SInternalData::MMC1_SOROM:
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_4k) {
+								InternalData.CHRLowBank =
+									(InternalData.ShiftReg & 0x01) << 12;
+								InternalData.SRAMPage =
+									(InternalData.ShiftReg & 0x10) << 9;
+							} else
+								InternalData.SRAMPage =
+									(InternalData.ShiftReg & 0x08) << 10;
+							break;
+						case SInternalData::MMC1_SUROM:
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_4k)
+								InternalData.CHRLowBank =
+									(InternalData.ShiftReg & 0x01) << 12;
+							InternalData.PRGPage =
+								(InternalData.ShiftReg & 0x10) << 14;
+							break;
+						case SInternalData::MMC1_SXROM:
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_4k)
+								InternalData.CHRLowBank =
+									(InternalData.ShiftReg & 0x01) << 12;
+							InternalData.SRAMPage =
+								(InternalData.ShiftReg & 0x0c) << 11;
+							InternalData.PRGPage =
+								(InternalData.ShiftReg & 0x10) << 14;
+							break;
+					}
+				} else if (Address < 0xe000) { /* CHR Bank 2 */
+					if (InternalData.CHRSwitch == SInternalData::CHRSwitch_4k) {
 						switch (InternalData.Mode) {
 							case SInternalData::MMC1_Normal:
-								if (InternalData.CHRSwitch ==
-									SInternalData::CHRSwitch_4k) {
-									InternalData.CHRLowBank =
-										InternalData.ShiftReg << 12;
-								} else {
-									InternalData.CHRLowBank =
-										(InternalData.ShiftReg & 0x1e) << 12;
-									InternalData.CHRHiBank =
-										(InternalData.ShiftReg | 0x01) << 12;
-								}
+								InternalData.CHRHiBank =
+									InternalData.ShiftReg << 12;
 								break;
 							case SInternalData::MMC1_SNROM:
-								if (InternalData.CHRSwitch ==
-									SInternalData::CHRSwitch_4k)
-									InternalData.CHRLowBank =
-										(InternalData.ShiftReg & 0x01) << 12;
+								InternalData.CHRHiBank =
+									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.EnableWrite =
 									~InternalData.ShiftReg & 0x10;
 								break;
 							case SInternalData::MMC1_SOROM:
-								if (InternalData.CHRSwitch ==
-									SInternalData::CHRSwitch_4k) {
-									InternalData.CHRLowBank =
-										(InternalData.ShiftReg & 0x01) << 12;
-									InternalData.SRAMPage =
-										(InternalData.ShiftReg & 0x10) << 9;
-								} else
-									InternalData.SRAMPage =
-										(InternalData.ShiftReg & 0x08) << 10;
+								InternalData.CHRHiBank =
+									(InternalData.ShiftReg & 0x01) << 12;
+								InternalData.SRAMPage =
+									(InternalData.ShiftReg & 0x10) << 9;
 								break;
 							case SInternalData::MMC1_SUROM:
-								if (InternalData.CHRSwitch ==
-									SInternalData::CHRSwitch_4k)
-									InternalData.CHRLowBank =
-										(InternalData.ShiftReg & 0x01) << 12;
+								InternalData.CHRHiBank =
+									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.PRGPage =
 									(InternalData.ShiftReg & 0x10) << 14;
 								break;
 							case SInternalData::MMC1_SXROM:
-								if (InternalData.CHRSwitch ==
-									SInternalData::CHRSwitch_4k)
-									InternalData.CHRLowBank =
-										(InternalData.ShiftReg & 0x01) << 12;
+								InternalData.CHRHiBank =
+									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.SRAMPage =
 									(InternalData.ShiftReg & 0x0c) << 11;
 								InternalData.PRGPage =
 									(InternalData.ShiftReg & 0x10) << 14;
 								break;
 						}
-					} else if (Address < 0xe000) { /* CHR Bank 2 */
-						if (InternalData.CHRSwitch == SInternalData::CHRSwitch_4k) {
-							switch (InternalData.Mode) {
-								case SInternalData::MMC1_Normal:
-									InternalData.CHRHiBank =
-										InternalData.ShiftReg << 12;
-									break;
-								case SInternalData::MMC1_SNROM:
-									InternalData.CHRHiBank =
-										(InternalData.ShiftReg & 0x01) << 12;
-									InternalData.EnableWrite =
-										~InternalData.ShiftReg & 0x10;
-									break;
-								case SInternalData::MMC1_SOROM:
-									InternalData.CHRHiBank =
-										(InternalData.ShiftReg & 0x01) << 12;
-									InternalData.SRAMPage =
-										(InternalData.ShiftReg & 0x10) << 9;
-									break;
-								case SInternalData::MMC1_SUROM:
-									InternalData.CHRHiBank =
-										(InternalData.ShiftReg & 0x01) << 12;
-									InternalData.PRGPage =
-										(InternalData.ShiftReg & 0x10) << 14;
-									break;
-								case SInternalData::MMC1_SXROM:
-									InternalData.CHRHiBank =
-										(InternalData.ShiftReg & 0x01) << 12;
-									InternalData.SRAMPage =
-										(InternalData.ShiftReg & 0x0c) << 11;
-									InternalData.PRGPage =
-										(InternalData.ShiftReg & 0x10) << 14;
-									break;
-							}
-						}
-					} else { /* PRG Bank */
-						switch (InternalData.PRGSwitch) {
-							case SInternalData::PRGSwitch_Both:
-								InternalData.PRGLowBank =
-									(InternalData.ShiftReg & 0x0e) << 14;
-								InternalData.PRGHiBank =
-									InternalData.PRGLowBank + 0x4000;
-								break;
-							case SInternalData::PRGSwitch_Low:
-								InternalData.PRGLowBank =
-									(InternalData.ShiftReg & 0x0f) << 14;
-								break;
-							case SInternalData::PRGSwitch_Hi:
-								InternalData.PRGHiBank =
-									(InternalData.ShiftReg & 0x0f) << 14;
-								break;
-						}
-						InternalData.EnableRAM = ~InternalData.ShiftReg & 0x10;
 					}
+				} else { /* PRG Bank */
+					switch (InternalData.PRGSwitch) {
+						case SInternalData::PRGSwitch_Both:
+							InternalData.PRGLowBank =
+								(InternalData.ShiftReg & 0x0e) << 14;
+							InternalData.PRGHiBank =
+								InternalData.PRGLowBank + 0x4000;
+							break;
+						case SInternalData::PRGSwitch_Low:
+							InternalData.PRGLowBank =
+								(InternalData.ShiftReg & 0x0f) << 14;
+							break;
+						case SInternalData::PRGSwitch_Hi:
+							InternalData.PRGHiBank =
+								(InternalData.ShiftReg & 0x0f) << 14;
+							break;
+					}
+					InternalData.EnableRAM = ~InternalData.ShiftReg & 0x10;
 				}
 				InternalData.ShiftReg = 0;
 			}
