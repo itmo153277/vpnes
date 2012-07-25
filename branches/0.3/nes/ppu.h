@@ -247,6 +247,12 @@ private:
 			PalMem[Address & 0x001f] = Src;
 	}
 
+	/* Чтеник с проверкой на A12 */
+	inline uint8 ReadWithA12(uint16 Address) {
+		Bus->GetROM()->UpdatePPUAddress(Address);
+		return Bus->ReadPPUMemory(Address);
+	}
+
 	/* Обработка DMA */
 	inline void ProccessDMA(int Cycles) {
 		/* TODO: Написать нормально (а не заглушку) */
@@ -362,6 +368,7 @@ public:
 				Res = InternalData.Buf_B;
 				InternalData.Buf_B = Bus->ReadPPUMemory(t);
 				Registers.Increment2007(ControlRegisters.VerticalIncrement);
+				Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
 				if (t >= 0x3f00)
 					Res = ReadPalette(t);
 				return Res;
@@ -399,16 +406,20 @@ public:
 				InternalData.Trigger = !InternalData.Trigger;
 				if (InternalData.Trigger)
 					Registers.Write2005_1(Src);
-				else
+				else {
 					Registers.Write2005_2(Src);
+					Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
+				}
 				break;
 			case 0x2006: /* Установить VRAM указатель */
 				PreRender();
 				InternalData.Trigger = !InternalData.Trigger;
 				if (InternalData.Trigger)
 					Registers.Write2006_1(Src);
-				else
+				else {
 					Registers.Write2006_2(Src);
+					Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
+				}
 				break;
 			case 0x2007: /* Запись в VRAM память */
 				PreRender();
@@ -418,6 +429,7 @@ public:
 				else
 					WritePalette(t, Src);
 				Registers.Increment2007(ControlRegisters.VerticalIncrement);
+				Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
 				break;
 		}
 	}
@@ -451,6 +463,7 @@ inline void CPPU<_Bus>::EvaluateSprites() {
 	int n = 0; /* Текущий спрайт в буфере */
 	uint8 *pOAM = OAM; /* Указатель на SPR */
 
+	InternalData.SpriteAddr = 0;
 	Sprites[0].x = -1;
 	for (;;) {
 		if ((((uint8) (InternalData.y - *pOAM)) <
@@ -483,13 +496,11 @@ template <class _Bus>
 inline void CPPU<_Bus>::FetchSprite() {
 	int i = (CycleData.CurCycle >> 3) & 0x07;
 
-	if ((InternalData.SpriteAddr == 0xffff) && !CycleData.CurCycle)
-		return;
 	switch (CycleData.CurCycle & 0x07) {
-		case 4:
+		case 0:
 			if (Sprites[i].x < 0) {
 				InternalData.SpriteAddr = 0xffff;
-				return;
+				break;
 			}
 			switch (ControlRegisters.Size) {
 				case Size8x8:
@@ -525,10 +536,18 @@ inline void CPPU<_Bus>::FetchSprite() {
 								Sprites[i].y, InternalData.SpriteAddr);
 					break;
 				}
-			Sprites[i].ShiftRegA = Bus->ReadPPUMemory(InternalData.SpriteAddr);
+			break;
+		case 4:
+			if (InternalData.SpriteAddr == 0xffff)
+				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
+					Registers.SpritePage | 0x0ff0 : 0x1ff0);
+			Sprites[i].ShiftRegA = ReadWithA12(InternalData.SpriteAddr);
 			break;
 		case 6:
-			Sprites[i].ShiftRegB = Bus->ReadPPUMemory(InternalData.SpriteAddr | 0x08);
+			if (InternalData.SpriteAddr == 0xffff)
+				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
+					Registers.SpritePage | 0x0ff8 : 0x1ff8);
+			Sprites[i].ShiftRegB = ReadWithA12(InternalData.SpriteAddr | 0x08);
 			break;
 	}
 }
@@ -544,10 +563,10 @@ inline void CPPU<_Bus>::FetchBackground() {
 			Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
 			break;
 		case 4: /* Образ A */
-			InternalData.TileA = Bus->ReadPPUMemory(Registers.GetPTAddress());
+			InternalData.TileA = ReadWithA12(Registers.GetPTAddress());
 			break;
 		case 6: /* Образ B */
-			InternalData.TileB = Bus->ReadPPUMemory(Registers.GetPTAddress() | 0x08);
+			InternalData.TileB = ReadWithA12(Registers.GetPTAddress() | 0x08);
 			Registers.IncrementX();
 			break;
 	}
@@ -722,8 +741,9 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				/* cc 320-335 загружаем 16 пикселей */
 				if ((CycleData.CurCycle >= 320) && (CycleData.CurCycle <= 335))
 					FetchNextBackground();
-				if (CycleData.CurCycle == 250) /* cc 250 инкремент y */
+				if (CycleData.CurCycle == 250) { /* cc 250 инкремент y */
 					Registers.IncrementY();
+				}
 				if (CycleData.CurCycle == 256) { /* cc 257 обновляем скроллинг */
 					Registers.UpdateScroll();
 				}

@@ -172,6 +172,9 @@ public:
 			RAM[Address & 0x1fff] = Src;
 	}
 
+	/* Обновление адреса PPU */
+	inline void UpdatePPUAddress(uint16 Address) {
+	}
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		return CHR[Address];
@@ -279,9 +282,7 @@ public:
 				if (!InternalData.EnableRAM)
 					return 0x40;
 				if (Address < 0x7000)
-					return RAM[InternalData.SRAMPage | (Address & 0x0fff)];
-				else
-					return RAM[Address & 0x1fff];
+					return RAM[InternalData.SRAMPage | (Address & 0x1fff)];
 			} else if ((ROM->Trainer != NULL) && (Address >= 0x7000)
 				&& (Address < 0x7200))
 				return ROM->Trainer[Address & 0x01ff];
@@ -294,12 +295,8 @@ public:
 	}
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address < 0x8000) {
-			if (InternalData.EnableRAM && InternalData.EnableWrite && (RAM != NULL)) {
-				if (Address < 0x7000)
-					RAM[InternalData.SRAMPage | (Address & 0x0fff)] = Src;
-				else
-					RAM[Address & 0x1fff] = Src;
-			}
+			if (InternalData.EnableRAM && InternalData.EnableWrite && (RAM != NULL))
+				RAM[InternalData.SRAMPage | (Address & 0x1fff)] = Src;
 		} else {
 			if (InternalData.IgnoreWrite) /* Игнорируем близкие запросы */
 				return;
@@ -551,13 +548,12 @@ private:
 				if (IgnoreAccess)
 					return;
 				IgnoreAccess = true;
-				if (IRQCounter == 0) {
+				if (IRQCounter == 0)
 					IRQCounter = IRQLatch;
-				} else {
+				else
 					IRQCounter--;
-					if ((IRQCounter == 0) && IRQEnable)
-						pBus->GetCPU()->PullIRQTrigger();
-				}
+				if ((IRQCounter == 0) && IRQEnable)
+					pBus->GetCPU()->GetIRQExPin() = true;
 			} else
 				IgnoreAccess = false;
 		}
@@ -578,6 +574,7 @@ public:
 		InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
 		for (i = 0; i < 8; i++)
 			InternalData.CHRBanks[i] = i << 10;
+		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
 		Bus->GetManager()->template SetPointer<MMC3ID::IRQCircuitID>(\
 			&IRQCircuit, sizeof(IRQCircuit));
@@ -679,20 +676,23 @@ public:
 				IRQCircuit.IRQEnable = true;
 			} else { /* IRQ Disable */
 				IRQCircuit.IRQEnable = false;
-				Bus->GetCPU()->ResetIRQTrigger();
+				Bus->GetCPU()->GetIRQExPin() = false;
 			}
 		}
 	}
 
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
-		IRQCircuit.Process(Address, Bus);
 		return CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)];
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
-		IRQCircuit.Process(Address, Bus);
 		CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)] = Src;
+	}
+
+	/* Обновление адреса PPU */
+	inline void UpdatePPUAddress(uint16 Address) {
+		IRQCircuit.Process(Address, Bus);
 	}
 };
 

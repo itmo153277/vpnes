@@ -689,8 +689,8 @@ public:
 	/* Предобработать такты */
 	inline void Preprocess() {
 		/* Обрабатываем текущие такты */
-		Process(Bus->GetClock()->GetPreCycles() - PreprocessedCycles + 3);
-		PreprocessedCycles = Bus->GetClock()->GetPreCycles() + 3;
+		Process(Bus->GetClock()->GetPreCycles() - PreprocessedCycles);
+		PreprocessedCycles = Bus->GetClock()->GetPreCycles();
 	}
 
 	/* Обработать такты */

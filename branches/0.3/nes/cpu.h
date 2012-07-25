@@ -107,20 +107,18 @@ private:
 		bool Halt; /* Зависание */
 		bool NMI; /* Не маскируемое прерывание */
 		bool IRQ; /* Прерывание */
+		bool IRQEx; /* Внешний возбудитель */
 		int IRQTrigger;
 	} InternalData;
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
-		uint8 Res;
-
-		Res = Bus->ReadCPUMemory(Address);
 		Bus->GetClock()->Clock(3);
-		return Res;
+		return Bus->ReadCPUMemory(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
-		Bus->WriteCPUMemory(Address, Src);
 		Bus->GetClock()->Clock(3);
+		Bus->WriteCPUMemory(Address, Src);
 	}
 
 	/* Положить в стек */
@@ -480,18 +478,10 @@ public:
 		InternalData.NMI = true;
 		InternalData.IRQTrigger = IRQStart;
 	}
-	/* Инициировать IRQ */
-	inline void PullIRQTrigger() {
-		if (InternalData.IRQTrigger == IRQReady)
-			InternalData.IRQTrigger = IRQStart;
-	}
-	/* Сброс IRQ */
-	inline void ResetIRQTrigger() {
-		if ((InternalData.IRQTrigger == IRQStart) && !InternalData.NMI)
-			UpdateTrigger();
-	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }
+	/* IRQEx */
+	inline bool &GetIRQExPin() { return InternalData.IRQEx; }
 	/* RAM */
 	inline const uint8 *GetRAM() const { return RAM; }
 private:
@@ -716,7 +706,7 @@ int CCPU<_Bus>::Execute() {
 		return Cycles * 3;
 	if ((InternalData.IRQTrigger == IRQReady) ||
 		(InternalData.IRQTrigger == IRQCheck)) {
-		if (InternalData.IRQ)
+		if (InternalData.IRQ || InternalData.IRQEx)
 			InternalData.IRQTrigger++;
 		else
 			InternalData.IRQTrigger = IRQReady;

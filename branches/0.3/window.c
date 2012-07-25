@@ -295,11 +295,11 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			//	abuf.Freq += (44.1 * framerate - abuf.Freq) / 16;
 			//else
 			//	abuf.Freq = 44.1;
+			framecheck = framestarttime;
 			if (WindowState == VPNES_UPDATEBUF) {
 				abuf.Pos = 0;
 				return -1;
 			}
-			framecheck = framestarttime;
 #endif
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
