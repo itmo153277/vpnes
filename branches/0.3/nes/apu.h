@@ -62,7 +62,6 @@ private:
 
 	/* Данные о тактах */
 	struct SCycleData {
-		int WasteCycles;
 		int Step;
 		int DMACycle;
 		int CurCycle;
@@ -589,9 +588,12 @@ private:
 
 	/* Обработка */
 	inline void Process(int Cycles) {
+		int ReCycle = Cycles;
+
 		CycleData.CyclesLeft += Cycles;
 		while (CycleData.CyclesLeft >= 3) {
 			CycleData.CyclesLeft -= 3;
+			ReCycle -= 3;
 			/* Сброс счетчика */
 			if (CycleData.SupressCounter >= 0) {
 				CycleData.SupressCounter++;
@@ -599,30 +601,6 @@ private:
 					CycleData.CurCycle = 0;
 					CycleData.Step = 0;
 					CycleData.SupressCounter = -1;
-				}
-			}
-			if ((CycleData.WasteCycles == 0) && (CycleData.WaitPass > 0)) {
-				CycleData.WaitPass--;
-				if (CycleData.WaitPass == 0) {
-					Bus->GetClock()->Clock(3 * 3);
-					if (Channels.DMChannel.Address < 0x8000)
-						Channels.DMChannel.Address |= 0x8000;
-					Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
-						Channels.DMChannel.Address);
-					Channels.DMChannel.Address++;
-					Channels.DMChannel.LengthCounter--;
-					if (Channels.DMChannel.LengthCounter == 0) {
-						if (Channels.DMChannel.LoopFlag) {
-							Channels.DMChannel.Address =
-								Channels.DMChannel.LastAddress;
-							Channels.DMChannel.LengthCounter =
-								Channels.DMChannel.LastCounter;
-						} else if (Channels.DMChannel.InterruptEnabled) {
-							Channels.DMChannel.InterruptFlag = true;
-							Bus->GetCPU()->GetIRQPin() = true;
-						}
-					}
-					Channels.DMChannel.NotEmpty = true;
 				}
 			}
 			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
@@ -665,8 +643,37 @@ private:
 			Channels.Do_Timer(1, abuf);
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
-				CycleData.WasteCycles = 4;
-				CycleData.WaitPass = 4;
+				CycleData.WaitPass = -1;
+				if (CycleData.DMACycle >= 0) {
+					Bus->GetPPU()->PreRender();
+					Bus->GetCPU()->Pause(2);
+					if (CycleData.DMACycle >= 0)
+						CycleData.DMACycle -= 6;
+				} else {
+					Bus->GetCPU()->Pause(4);
+				}
+				CycleData.CyclesLeft -= ReCycle;
+				Preprocess();
+				CycleData.CyclesLeft += ReCycle;
+				if (Channels.DMChannel.Address < 0x8000)
+					Channels.DMChannel.Address |= 0x8000;
+				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
+					Channels.DMChannel.Address);
+				Channels.DMChannel.Address++;
+				Channels.DMChannel.LengthCounter--;
+				if (Channels.DMChannel.LengthCounter == 0) {
+					if (Channels.DMChannel.LoopFlag) {
+						Channels.DMChannel.Address =
+							Channels.DMChannel.LastAddress;
+						Channels.DMChannel.LengthCounter =
+							Channels.DMChannel.LastCounter;
+					} else if (Channels.DMChannel.InterruptEnabled) {
+						Channels.DMChannel.InterruptFlag = true;
+						Bus->GetCPU()->GetIRQPin() = true;
+					}
+				}
+				Channels.DMChannel.NotEmpty = true;
+				CycleData.WaitPass = 0;
 			}
 			CycleData.CurCycle++;
 		}
@@ -832,18 +839,19 @@ public:
 				break;
 			/* Другое */
 			case 0x4014: /* DMA */
-				/* ... */
+				Bus->GetPPU()->EnableDMA(Src);
 				if (CycleData.CurCycle & 1) {
-					CycleData.WasteCycles = 513;
+					Bus->GetCPU()->Pause(513);
 					CycleData.DMACycle = 0;
 				} else {
-					CycleData.WasteCycles = 512;
+					Bus->GetCPU()->Pause(512);
 					CycleData.DMACycle = 3;
 				}
-				Bus->GetPPU()->EnableDMA(Src);
 				return;
 			case 0x4015: /* Управление каналами */
 				Channels.Write_4015(Src);
+				if (!Channels.DMChannel.InterruptFlag)
+					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
 				break;
 			case 0x4017: /* Счетчик кадров */
 				InternalData.bMode = Src;
@@ -861,13 +869,6 @@ public:
 		Channels.Update(abuf);
 	}
 
-	/* CPU IDLE */
-	inline int WasteCycles() {
-		int Res = CycleData.WasteCycles;
-
-		CycleData.WasteCycles = 0;
-		return Res;
-	}
 	/* Текущий такт DMA */
 	inline int GetDMACycle(int Cycles) {
 		if (CycleData.DMACycle >= 0) {

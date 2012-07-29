@@ -473,6 +473,11 @@ public:
 		RAM[Address & 0x07ff] = Src;
 	}
 
+	/* Приостановка работы */
+	inline void Pause(int PauseCycles) {
+		Cycles += PauseCycles;
+		Bus->GetClock()->Clock(PauseCycles * 3);
+	}
 	/* Генерировать NMI */
 	inline void GenerateNMI() {
 		InternalData.NMI = true;
@@ -701,9 +706,6 @@ int CCPU<_Bus>::Execute() {
 
 	if (InternalData.Halt) /* Зависли */
 		return 3;
-	Cycles = Bus->GetAPU()->WasteCycles();
-	if (Cycles > 0) /* Заняты APU */
-		return Cycles * 3;
 	if ((InternalData.IRQTrigger == IRQReady) ||
 		(InternalData.IRQTrigger == IRQCheck)) {
 		if (InternalData.IRQ || InternalData.IRQEx)

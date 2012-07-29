@@ -59,10 +59,10 @@ public:
 		do {
 			PreCycles = 0;
 			CyclesDone = Bus->GetCPU()->Execute();
-			Bus->GetPPU()->Clock(CyclesDone);
 			Bus->GetAPU()->Clock(CyclesDone);
+			Bus->GetPPU()->Clock(CyclesDone);
 		} while (!Bus->GetPPU()->IsFrameReady());
-		return (176.0 * Bus->GetPPU()->GetFrameCycles() / 945000.0);
+		return Bus->GetPPU()->GetFrameCycles() * GetFix();
 	}
 
 	/* Точный сдвиг */

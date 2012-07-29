@@ -38,16 +38,17 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 	Data->Header.CHRSize = Header.CHRSize * 0x2000;
 	Data->Header.Mirroring = (SolderPad) (Header.Flags & 0x09);
 	Data->Header.HaveBattery = Header.Flags & 0x02;
-	if (Header.RAMSize == 0)
-		Data->Header.RAMSize = 0x2000;
-	else 
-		Data->Header.RAMSize = Header.RAMSize * 0x2000;
 	Data->Header.Mapper = Header.Flags >> 4;
-	if (Header.BadROM)
+	if (Header.BadROM) {
 		Data->Header.TVSystem = 0;
-	else {
+		Data->Header.RAMSize = 0x2000;
+	} else {
 		Data->Header.Mapper |= Header.Flags_ex & 0xf0;
 		Data->Header.TVSystem = Header.TV_system;
+		if (Header.RAMSize == 0)
+			Data->Header.RAMSize = 0x2000;
+		else 
+			Data->Header.RAMSize = Header.RAMSize * 0x2000;
 		if ((((Header.Flags_unofficial >> 2) & 0x01) == Data->Header.TVSystem) ||
 			(Header.Flags_unofficial & 0x02)) { /* Можно использвать флаги */
 			if ((Header.RAMSize == 0) && (Header.Flags_unofficial & 0x10))

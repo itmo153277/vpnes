@@ -114,6 +114,8 @@ private:
 			((RealReg1 >> 4) & 0x0038) | (RealReg1 & 0x0c00) | 0x23c0; }
 		/* Получить адрес для чтения PatternTable */
 		inline uint16 GetPTAddress() { return BigReg2 | (RealReg1 >> 12); }
+		/* Получить страницу PatternTable */
+		inline uint16 GetPTPage() { return BigReg2 & 0x1000; }
 		/* Получить адрес для чтения Palette */
 		inline uint8 GetPALAddress(uint8 col, uint8 CAR) { if ((col & 0x03) == 0)
 			return 0x00; else return ((CAR & 0x03) << 2) | col; }
@@ -279,7 +281,7 @@ private:
 	/* Загрузить фон следующего сканлайна */
 	inline void FetchNextBackground();
 	/* Рисуем сканалайн */
-	inline void DrawScanline();
+	inline void DrawPixel();
 	/* Рендер */
 	inline void Render(int Cycles);
 public:
@@ -351,6 +353,7 @@ public:
 		uint8 Res;
 		uint16 t;
 
+		PreRender();
 		switch (Address & 0x2007) {
 			case 0x2002: /* Получить информаию о состоянии */
 				InternalData.Trigger = false;
@@ -379,30 +382,26 @@ public:
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		uint16 t;
 
+		PreRender();
 		switch (Address & 0x2007) {
 			case 0x2000: /* Установить режим работы */
-				PreRender();
 				ControlRegisters.Controller(Src);
 				Registers.Write2000(Src);
 				break;
 			case 0x2001: /* Настроить маску */
-				PreRender();
 				ControlRegisters.Mask(Src);
 				break;
 			case 0x2002: /* Мусор */
 				State.SetGarbage(Src);
 				break;
 			case 0x2003: /* Установить указатель памяти SPR */
-				PreRender();
 				InternalData.OAM_addr = Src;
 				break;
 			case 0x2004: /* Записать в память SPR */
-				PreRender();
 				OAM[InternalData.OAM_addr] = Src;
 				InternalData.OAM_addr++;
 				break;
 			case 0x2005: /* Скроллинг */
-				PreRender();
 				InternalData.Trigger = !InternalData.Trigger;
 				if (InternalData.Trigger)
 					Registers.Write2005_1(Src);
@@ -412,7 +411,6 @@ public:
 				}
 				break;
 			case 0x2006: /* Установить VRAM указатель */
-				PreRender();
 				InternalData.Trigger = !InternalData.Trigger;
 				if (InternalData.Trigger)
 					Registers.Write2006_1(Src);
@@ -422,7 +420,6 @@ public:
 				}
 				break;
 			case 0x2007: /* Запись в VRAM память */
-				PreRender();
 				t = Registers.Get2007Address();
 				if (t < 0x3f00)
 					Bus->WritePPUMemory(t, Src);
@@ -498,6 +495,8 @@ inline void CPPU<_Bus>::FetchSprite() {
 
 	switch (CycleData.CurCycle & 0x07) {
 		case 0:
+			if (InternalData.SpriteAddr == 0xffff)
+				break;
 			if (Sprites[i].x < 0) {
 				InternalData.SpriteAddr = 0xffff;
 				break;
@@ -576,7 +575,7 @@ inline void CPPU<_Bus>::FetchBackground() {
 template <class _Bus>
 inline void CPPU<_Bus>::FetchNextBackground() {
 	FetchBackground();
-	if ((CycleData.CurCycle & 0x07) == 6) {
+	if ((CycleData.CurCycle & 7) == 7) {
 		InternalData.ShiftRegA = (InternalData.ShiftRegA << 8) | InternalData.TileA;
 		InternalData.ShiftRegB = (InternalData.ShiftRegB << 8) | InternalData.TileB;
 		Registers.AR = (Registers.AR >> 2) | Registers.TempAR;
@@ -585,118 +584,93 @@ inline void CPPU<_Bus>::FetchNextBackground() {
 
 /* Рисуем пиксель */
 template <class _Bus>
-inline void CPPU<_Bus>::DrawScanline() {
+inline void CPPU<_Bus>::DrawPixel() {
 	int i, rspr, col, scol;
 	uint16 t;
 
-	do {
-		col = 0;
-		if (ControlRegisters.ShowBackground &&
-			(ControlRegisters.BackgroundClip || (InternalData.x > 7))) {
-			if (InternalData.ShiftRegA & Registers.FHMask)
-				col |= 1;
-			if (InternalData.ShiftRegB & Registers.FHMask)
-				col |= 2;
-			t = Registers.GetPALAddress(col, Registers.AR);
-		} else
-			t = 0;
-		/* Рисуем спрайты */
-		scol = 0x10;
-		if (InternalData.x < 255) {
-			for (i = 0; i < 8; i++)
-				if (Sprites[i].x < 0)
-					break;
-				else if (Sprites[i].x == InternalData.x) {
-					/* Нашли спрайт на этом пикселе */
-					Sprites[i].cx++;
-					if (Sprites[i].cx == 9) /* Спрайт уже закончился */
-						continue;
-					Sprites[i].x++;
-					if (scol != 0x10) {
-						if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-							Sprites[i].ShiftRegA >>= 1;
-							Sprites[i].ShiftRegB >>= 1;
-						} else {
-							Sprites[i].ShiftRegA <<= 1;
-							Sprites[i].ShiftRegB <<= 1;
-						}
-						continue;
-					}
+	col = 0;
+	if (ControlRegisters.ShowBackground &&
+		(ControlRegisters.BackgroundClip || (InternalData.x > 7))) {
+		if (InternalData.ShiftRegA & Registers.FHMask)
+			col |= 1;
+		if (InternalData.ShiftRegB & Registers.FHMask)
+			col |= 2;
+		t = Registers.GetPALAddress(col, Registers.AR);
+	} else
+		t = 0;
+	/* Рисуем спрайты */
+	scol = 0x10;
+	if (InternalData.x < 255) {
+		for (i = 0; i < 8; i++)
+			if (Sprites[i].x < 0)
+				break;
+			else if (Sprites[i].x == InternalData.x) {
+				/* Нашли спрайт на этом пикселе */
+				Sprites[i].cx++;
+				if (Sprites[i].cx == 9) /* Спрайт уже закончился */
+					continue;
+				Sprites[i].x++;
+				if (scol != 0x10) {
 					if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-						if (Sprites[i].ShiftRegA & 0x01)
-							scol |= 1;
-						if (Sprites[i].ShiftRegB & 0x01)
-							scol |= 2;
 						Sprites[i].ShiftRegA >>= 1;
 						Sprites[i].ShiftRegB >>= 1;
 					} else {
-						if (Sprites[i].ShiftRegA & 0x80)
-							scol |= 1;
-						if (Sprites[i].ShiftRegB & 0x80)
-							scol |= 2;
 						Sprites[i].ShiftRegA <<= 1;
 						Sprites[i].ShiftRegB <<= 1;
 					}
-					rspr = i;
+					continue;
 				}
-		}
-		if ((scol != 0x10) && ControlRegisters.ShowSprites &&
-			(ControlRegisters.SpriteClip || (InternalData.x > 7))) {
-			if (Sprites[rspr].prim && (col != 0)) {
-				State.SetSprite0Hit();
+				if (Sprites[i].Attrib & 0x40) { /* H-Flip */
+					if (Sprites[i].ShiftRegA & 0x01)
+						scol |= 1;
+					if (Sprites[i].ShiftRegB & 0x01)
+						scol |= 2;
+					Sprites[i].ShiftRegA >>= 1;
+					Sprites[i].ShiftRegB >>= 1;
+				} else {
+					if (Sprites[i].ShiftRegA & 0x80)
+						scol |= 1;
+					if (Sprites[i].ShiftRegB & 0x80)
+						scol |= 2;
+					Sprites[i].ShiftRegA <<= 1;
+					Sprites[i].ShiftRegB <<= 1;
+				}
+				rspr = i;
 			}
-			/* Мы не прозрачны, фон пустой или у нас приоритет */
-			if ((col == 0) || (~Sprites[rspr].Attrib & 0x20))
-				/* Перекрываем пиксель фона */
-				t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
+	}
+	if ((scol != 0x10) && ControlRegisters.ShowSprites &&
+		(ControlRegisters.SpriteClip || (InternalData.x > 7))) {
+		if (Sprites[rspr].prim && (col != 0)) {
+			State.SetSprite0Hit();
 		}
-		DrawPixel(InternalData.x, InternalData.y - 8, vbuf->Pal[PalMem[t] & 0x3f]);
-		InternalData.ShiftRegA <<= 1;
-		InternalData.ShiftRegB <<= 1;
-		if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))
-			Registers.AR >>= 2;
-		InternalData.x++;
-		if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
-			InternalData.ShiftRegA |= InternalData.TileA;
-			InternalData.ShiftRegB |= InternalData.TileB;
-			Registers.AR |= Registers.TempAR;
-		}
-	} while (InternalData.x & 0x01);
+		/* Мы не прозрачны, фон пустой или у нас приоритет */
+		if ((col == 0) || (~Sprites[rspr].Attrib & 0x20))
+			/* Перекрываем пиксель фона */
+			t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
+	}
+	DrawPixel(InternalData.x, InternalData.y - 8, vbuf->Pal[PalMem[t] & 0x3f]);
+	InternalData.ShiftRegA <<= 1;
+	InternalData.ShiftRegB <<= 1;
+	if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))
+		Registers.AR >>= 2;
+	InternalData.x++;
+	if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
+		InternalData.ShiftRegA |= InternalData.TileA;
+		InternalData.ShiftRegB |= InternalData.TileB;
+		Registers.AR |= Registers.TempAR;
+	}
 }
 
 /* Рендер */
 template <class _Bus>
 inline void CPPU<_Bus>::Render(int Cycles) {
-	CycleData.CyclesLeft += Cycles;
-	for (;;) {
-		if ((CycleData.CyclesLeft > 0) && (CycleData.CurCycle == 340)) {
-			CycleData.CyclesLeft--;
-			CycleData.CurCycle = 0;
-			CycleData.Scanline++;
-			if (CycleData.Scanline == 262) {
-				CycleData.Scanline = 0;
-			}
-			if (CycleData.Scanline == 261) { /* sc 261 сброс VBlank и т.п. */
+	for (CycleData.CyclesLeft += Cycles; CycleData.CyclesLeft > 0;
+		CycleData.CyclesLeft--) {
+		if (CycleData.Scanline == 260) {
+			if (CycleData.CurCycle == 340) /* cc 0 — сброс флагов */
 				State.State = 0;
-			}
-			if (CycleData.Scanline == 241) { /* Начало sc 241 ставим VBlank и выполняем NMI */
-				if (!InternalData.SupressVBlank) {
-					State.SetVBlank();
-					if (ControlRegisters.GenerateNMI)
-						Bus->GetCPU()->GenerateNMI();
-				}
-				FrameReady = true;
-				FrameCycles = 341 * 262;
-				InternalData.y = -1;
-			}
 		}
-		if (InternalData.SupressVBlank) { /* Подавляем VBlank (а как же NMI? T_T )*/
-			State.ClearVBlank();
-			InternalData.SupressVBlank = false;
-		}
-		if (CycleData.CyclesLeft < 2)
-			break;
-		if (CycleData.Scanline == 261) { /* sc 261 пре-рендер сканлайн */
+		if (CycleData.Scanline == 261)  { /* sc 261 — пререндер */
 			if (ControlRegisters.ShowSprites) {
 				if (CycleData.CurCycle == 256) /* cc 0-255 выборка спрайтов */
 					EvaluateSprites();
@@ -705,7 +679,11 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 					FetchSprite();
 			}
 			if (ControlRegisters.RenderingEnabled()) {
-				if (CycleData.CurCycle == 304) { /* cc 304 обновляем скроллинг */
+				/* cc 0-255 попытки чтения из таблицы образов */
+				if ((CycleData.CurCycle <= 255) && ((CycleData.CurCycle & 5) == 4))
+					Bus->GetROM()->UpdatePPUAddress(Registers.GetPTPage());
+				/* cc 304 — обновляем скроллинг */
+				if (CycleData.CurCycle == 304) {
 					Registers.RealReg1 = Registers.BigReg1;
 					Registers.FHMask = 0x8000 >> Registers.FH;
 				}
@@ -713,21 +691,22 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				if ((CycleData.CurCycle >= 320) && (CycleData.CurCycle <= 335))
 					FetchNextBackground();
 			}
-			if (CycleData.CurCycle == 320) {
+			if (CycleData.CurCycle == 320) { /* Внутренние y и x */
 				InternalData.y++;
 				InternalData.x = 0;
 			}
-			if (CycleData.CurCycle == 338) { /* Короткий сканлайн */
+			if (CycleData.CurCycle == 336) { /* Пропускаем такт на нечетном кадре */
 				if (ControlRegisters.ShowBackground) {
 					if (InternalData.ShortScanline) {
-						CycleData.CyclesLeft++;
+						CycleData.CurCycle++;
+						FrameCycles--;
 					}
 					InternalData.ShortScanline = !InternalData.ShortScanline;
-				} else
-					InternalData.ShortScanline = false;
+				}// else
+				//	InternalData.ShortScanline = false;
 			}
 		}
-		if (CycleData.Scanline <= 239) { /* sc 0-239 рендеринг видимой области */
+		if (CycleData.Scanline <= 239) { /* sc 0-239 — обработка кадра */
 			if (ControlRegisters.ShowSprites) {
 				if (CycleData.CurCycle == 256) /* cc 0-255 выборка спрайтов */
 					EvaluateSprites();
@@ -741,25 +720,44 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				/* cc 320-335 загружаем 16 пикселей */
 				if ((CycleData.CurCycle >= 320) && (CycleData.CurCycle <= 335))
 					FetchNextBackground();
-				if (CycleData.CurCycle == 250) { /* cc 250 инкремент y */
+				if (CycleData.CurCycle == 250) /* cc 251 инкремент y */
 					Registers.IncrementY();
-				}
-				if (CycleData.CurCycle == 256) { /* cc 257 обновляем скроллинг */
+				if (CycleData.CurCycle == 256) /* cc 257 обновляем скроллинг */
 					Registers.UpdateScroll();
-				}
 			}
 			if (CycleData.CurCycle <= 255) /* cc 0-255 рисуем сканлайн */
-				DrawScanline();
+				DrawPixel();
 			if (CycleData.CurCycle == 320) {
 				InternalData.y++;
 				InternalData.x = 0;
 			}
 		}
-		CycleData.CurCycle += 2;
-		CycleData.CyclesLeft -= 2;
+		if (CycleData.Scanline == 240) { /* sc 241 — начало VBlank */
+			if (CycleData.CurCycle == 340) { /* cc 0 — устанавливаем флаг */
+				State.SetVBlank();
+				if (ControlRegisters.GenerateNMI)
+					Bus->GetCPU()->GenerateNMI();
+				InternalData.y = -1;
+			}
+		}
+		if (InternalData.SupressVBlank) { /* Подавляем VBlank */
+			State.ClearVBlank();
+			InternalData.SupressVBlank = false;
+		}
+		CycleData.CurCycle++;
+		if (CycleData.CurCycle == 341) { /* Конец сканлайна */
+			CycleData.Scanline++;
+			if (CycleData.Scanline == 262) {
+				CycleData.Scanline = 0;
+				/* Отработали полный цикл */
+				FrameReady = true;
+				FrameCycles += 341 * 262;
+			}
+			CycleData.CurCycle = 0;
+		}
+		if ((DMAData.Left > 0) && (Bus->GetAPU()->GetDMACycle(1) == -1))
+			ProccessDMA(-1);
 	}
-	if ((DMAData.Left > 0) && (Bus->GetAPU()->GetDMACycle(Cycles) == -1))
-		ProccessDMA(-1);
 }
 
 }
