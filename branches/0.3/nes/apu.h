@@ -644,7 +644,7 @@ private:
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
 				CycleData.WaitPass = -1;
-				if (CycleData.DMACycle >= 0) {
+				/*if (CycleData.DMACycle >= 0) {
 					Bus->GetPPU()->PreRender();
 					Bus->GetCPU()->Pause(2);
 					if (CycleData.DMACycle >= 0)
@@ -654,7 +654,7 @@ private:
 				}
 				CycleData.CyclesLeft -= ReCycle;
 				Preprocess();
-				CycleData.CyclesLeft += ReCycle;
+				CycleData.CyclesLeft += ReCycle;*/
 				if (Channels.DMChannel.Address < 0x8000)
 					Channels.DMChannel.Address |= 0x8000;
 				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\

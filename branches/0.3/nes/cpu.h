@@ -481,7 +481,8 @@ public:
 	/* Генерировать NMI */
 	inline void GenerateNMI() {
 		InternalData.NMI = true;
-		InternalData.IRQTrigger = IRQStart;
+		if (InternalData.IRQTrigger < IRQSave)
+			InternalData.IRQTrigger = IRQSave;
 	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }

@@ -667,7 +667,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 	for (CycleData.CyclesLeft += Cycles; CycleData.CyclesLeft > 0;
 		CycleData.CyclesLeft--) {
 		if (CycleData.Scanline == 260) {
-			if (CycleData.CurCycle == 340) /* cc 0 — сброс флагов */
+			if (CycleData.CurCycle == 338) /* cc 0 — сброс флагов */
 				State.State = 0;
 		}
 		if (CycleData.Scanline == 261)  { /* sc 261 — пререндер */
@@ -694,16 +694,6 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			if (CycleData.CurCycle == 320) { /* Внутренние y и x */
 				InternalData.y++;
 				InternalData.x = 0;
-			}
-			if (CycleData.CurCycle == 336) { /* Пропускаем такт на нечетном кадре */
-				if (ControlRegisters.ShowBackground) {
-					if (InternalData.ShortScanline) {
-						CycleData.CurCycle++;
-						FrameCycles--;
-					}
-					InternalData.ShortScanline = !InternalData.ShortScanline;
-				}// else
-				//	InternalData.ShortScanline = false;
 			}
 		}
 		if (CycleData.Scanline <= 239) { /* sc 0-239 — обработка кадра */
@@ -733,11 +723,13 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			}
 		}
 		if (CycleData.Scanline == 240) { /* sc 241 — начало VBlank */
-			if (CycleData.CurCycle == 340) { /* cc 0 — устанавливаем флаг */
+			if (CycleData.CurCycle == 338) { /* cc 0 — устанавливаем флаг */
 				State.SetVBlank();
+				InternalData.y = -1;
+			}
+			if (CycleData.CurCycle == 340) {
 				if (ControlRegisters.GenerateNMI)
 					Bus->GetCPU()->GenerateNMI();
-				InternalData.y = -1;
 			}
 		}
 		if (InternalData.SupressVBlank) { /* Подавляем VBlank */
@@ -745,6 +737,16 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			InternalData.SupressVBlank = false;
 		}
 		CycleData.CurCycle++;
+		/* Пропускаем такт на нечетном кадре */
+		if ((CycleData.Scanline == 261) && (CycleData.CurCycle == 335)) {
+			if (ControlRegisters.ShowBackground) {
+				if (InternalData.ShortScanline) {
+					CycleData.CurCycle++;
+					FrameCycles--;
+				}
+				InternalData.ShortScanline = !InternalData.ShortScanline;
+			}
+		}
 		if (CycleData.CurCycle == 341) { /* Конец сканлайна */
 			CycleData.Scanline++;
 			if (CycleData.Scanline == 262) {
