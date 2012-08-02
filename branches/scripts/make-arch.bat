@@ -29,7 +29,7 @@ If Exist win32-builds\BUILD (
 Set /A NextBuildNumber=%BuildNumber% + 1
 Echo %NextBuildNumber% 1> win32-builds\BUILD 2> nul
 
-Call :Command Copy vpnes-0.3-win32.zip vpnes-0.3-win32-%BuildNumber%.zip
+Call :Command Copy vpnes-0.3-win32.zip win32-builds\vpnes-0.3-win32-%BuildNumber%.zip
 
 :Error
 Pause > nul
