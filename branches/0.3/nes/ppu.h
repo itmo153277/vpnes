@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <algorithm>
 #include <cstring>
 #include "manager.h"
 #include "bus.h"
@@ -67,9 +68,11 @@ private:
 	struct SCycleData {
 		int CurCycle; /* Текущий такт */
 		int CyclesLeft; /* Необработанные такты */
+		int CyclesTotal; /* Всего тактов */
 		int DMACycle; /* Такт DMA */
 		int Scanline; /* Текущий сканлайн */
 		bool ShortFrame; /* Короткий фрейм */
+		int DebugTimer;
 	} CycleData;
 
 	/* Данные для обработки DMA */
@@ -83,10 +86,13 @@ private:
 	/* Состояние PPU */
 	struct SState {
 		uint8 State;
+		bool VBlank;
 		/* 0 объект */
 		inline void SetSprite0Hit() { State |= 0x40; }
 		/* VBlank set */
-		inline void SetVBlank() { State |= 0x80; }
+		inline void SetVBlank1() { VBlank = true; }
+		/* VBlank set */
+		inline void SetVBlank2() { if (VBlank) State |= 0x80; VBlank = false; };
 		/* VBlank clear */
 		inline void ClearVBlank() { State &= 0x7f; }
 		/* Overflow set */
@@ -337,6 +343,7 @@ public:
 	/* Сброс */
 	inline void Reset() {
 		FrameReady = false;
+		FrameCycles = 0;
 		PreprocessedCycles = 0;
 		memset(&CycleData, 0, sizeof(CycleData));
 		memset(&DMAData, 0, sizeof(DMAData));
@@ -344,7 +351,7 @@ public:
 		memset(&Registers, 0, sizeof(Registers));
 		memset(OAM, 0xff, 0x0100 * sizeof(uint8));
 		memset(&InternalData, 0, sizeof(InternalData));
-		CycleData.Scanline = 261; /* Начинаем с пре-рендер сканлайна */
+		CycleData.Scanline = -1; /* Начинаем с пре-рендер сканлайна */
 		InternalData.ShortScanline = true;
 	}
 
@@ -358,7 +365,7 @@ public:
 			case 0x2002: /* Получить информаию о состоянии */
 				InternalData.Trigger = false;
 				Res = State.State;
-				InternalData.SupressVBlank = true;
+				State.ClearVBlank();
 				return Res;
 			case 0x2004: /* Взять байт из памяти SPR */
 				if (ControlRegisters.ShowSprites && ((CycleData.Scanline < 240) ||
@@ -664,101 +671,59 @@ inline void CPPU<_Bus>::DrawPixel() {
 /* Рендер */
 template <class _Bus>
 inline void CPPU<_Bus>::Render(int Cycles) {
-	for (CycleData.CyclesLeft += Cycles; CycleData.CyclesLeft > 0;
-		CycleData.CyclesLeft--) {
-		if (CycleData.Scanline == 260) {
-			if (CycleData.CurCycle == 338) /* cc 0 — сброс флагов */
-				State.State = 0;
-		}
-		if (CycleData.Scanline == 261)  { /* sc 261 — пререндер */
-			if (ControlRegisters.ShowSprites) {
-				if (CycleData.CurCycle == 256) /* cc 0-255 выборка спрайтов */
-					EvaluateSprites();
-				/* cc 256-319 загружаем данные спрайтов */
-				if ((CycleData.CurCycle >= 256) && (CycleData.CurCycle <= 319))
-					FetchSprite();
-			}
-			if (ControlRegisters.RenderingEnabled()) {
-				/* cc 0-255 попытки чтения из таблицы образов */
-				if ((CycleData.CurCycle <= 255) && ((CycleData.CurCycle & 5) == 4))
-					Bus->GetROM()->UpdatePPUAddress(Registers.GetPTPage());
-				/* cc 304 — обновляем скроллинг */
-				if (CycleData.CurCycle == 304) {
-					Registers.RealReg1 = Registers.BigReg1;
-					Registers.FHMask = 0x8000 >> Registers.FH;
-				}
-				/* cc 340-335 загружаем первые 16 пикселей */
-				if ((CycleData.CurCycle >= 320) && (CycleData.CurCycle <= 335))
-					FetchNextBackground();
-			}
-			if (CycleData.CurCycle == 320) { /* Внутренние y и x */
-				InternalData.y++;
-				InternalData.x = 0;
-			}
-		}
-		if (CycleData.Scanline <= 239) { /* sc 0-239 — обработка кадра */
-			if (ControlRegisters.ShowSprites) {
-				if (CycleData.CurCycle == 256) /* cc 0-255 выборка спрайтов */
-					EvaluateSprites();
-				/* cc 256-319 загружаем данные спрайтов */
-				if ((CycleData.CurCycle >= 256) && (CycleData.CurCycle <= 319))
-					FetchSprite();
-			}
-			if (ControlRegisters.RenderingEnabled()) {
-				if (CycleData.CurCycle <= 255) /* cc 0-255 подгружаем данные */
-					FetchBackground(); /* Данные для _следующих_ 16 пикселей */
-				/* cc 320-335 загружаем 16 пикселей */
-				if ((CycleData.CurCycle >= 320) && (CycleData.CurCycle <= 335))
-					FetchNextBackground();
-				if (CycleData.CurCycle == 250) /* cc 251 инкремент y */
-					Registers.IncrementY();
-				if (CycleData.CurCycle == 256) /* cc 257 обновляем скроллинг */
-					Registers.UpdateScroll();
-			}
-			if (CycleData.CurCycle <= 255) /* cc 0-255 рисуем сканлайн */
-				DrawPixel();
-			if (CycleData.CurCycle == 320) {
-				InternalData.y++;
-				InternalData.x = 0;
-			}
-		}
-		if (CycleData.Scanline == 240) { /* sc 241 — начало VBlank */
-			if (CycleData.CurCycle == 338) { /* cc 0 — устанавливаем флаг */
-				State.SetVBlank();
-				InternalData.y = -1;
-			}
-			if (CycleData.CurCycle == 340) {
-				if (ControlRegisters.GenerateNMI)
-					Bus->GetCPU()->GenerateNMI();
-			}
-		}
-		if (InternalData.SupressVBlank) { /* Подавляем VBlank */
-			State.ClearVBlank();
-			InternalData.SupressVBlank = false;
-		}
-		CycleData.CurCycle++;
-		/* Пропускаем такт на нечетном кадре */
-		if ((CycleData.Scanline == 261) && (CycleData.CurCycle == 335)) {
-			if (ControlRegisters.ShowBackground) {
-				if (InternalData.ShortScanline) {
-					CycleData.CurCycle++;
-					FrameCycles--;
-				}
-				InternalData.ShortScanline = !InternalData.ShortScanline;
-			}
-		}
-		if (CycleData.CurCycle == 341) { /* Конец сканлайна */
+	CycleData.CyclesLeft += Cycles;
+	CycleData.CyclesTotal += Cycles;
+	CycleData.DebugTimer += Cycles;
+	while (CycleData.CyclesLeft > CycleData.CurCycle) {
+		if (CycleData.CurCycle < 338)
+			CycleData.CurCycle = std::min(338, CycleData.CyclesLeft);
+		if (CycleData.CurCycle == 338) {
 			CycleData.Scanline++;
-			if (CycleData.Scanline == 262) {
-				CycleData.Scanline = 0;
-				/* Отработали полный цикл */
-				FrameReady = true;
-				FrameCycles += 341 * 262;
+			if (CycleData.Scanline != 240) {
+				CycleData.CurCycle = 0;
+				CycleData.CyclesLeft -= 341;
+				continue;
+			} else {
+				CycleData.CyclesTotal -= CycleData.CyclesLeft - 338;
+				if (!FrameReady) {
+					FrameReady = true;
+					FrameCycles = CycleData.CyclesTotal;
+				}
+				CycleData.CyclesTotal = CycleData.CyclesLeft - 338;
+				CycleData.CurCycle = 341 + 340;
+				if (CycleData.CyclesLeft <= 341 + 340)
+					break;
 			}
-			CycleData.CurCycle = 0;
 		}
-		if ((DMAData.Left > 0) && (Bus->GetAPU()->GetDMACycle(1) == -1))
-			ProccessDMA(-1);
+		if (CycleData.CurCycle == 341) {
+			CycleData.DebugTimer -= CycleData.CyclesLeft - 341;
+			State.State = 0;
+			CycleData.CyclesLeft -= 341;
+			CycleData.CurCycle = 0;
+			CycleData.Scanline = -1;
+			continue;
+		}
+		if (CycleData.CurCycle == 341 + 340) {
+			State.SetVBlank1();
+			CycleData.CurCycle = 341 + 341;
+			if (CycleData.CyclesLeft <= 341 + 341)
+				break;
+		}
+		if (CycleData.CurCycle == 341 + 341) {
+			State.SetVBlank2();
+			CycleData.CurCycle = 341 + 343;
+			if (CycleData.CyclesLeft <= 341 + 343)
+				break;
+		}
+		if (CycleData.CurCycle == 341 + 343) {
+			CycleData.DebugTimer = CycleData.CyclesLeft - 341 - 343;
+			if (ControlRegisters.GenerateNMI)
+				Bus->GetCPU()->GenerateNMI();
+			CycleData.CyclesLeft -= 21 * 341;
+			CycleData.CurCycle = 341;
+			continue;
+		}
+		break;
 	}
 }
 

@@ -558,6 +558,8 @@ private:
 	
 	/* Ограничитель PRG */
 	uint8 PRGMask;
+	/* Ограничитель CHR */
+	uint8 CHRMask;
 public:
 	inline explicit CMMC3(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
@@ -577,6 +579,7 @@ public:
 			&IRQCircuit, sizeof(IRQCircuit));
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
 		PRGMask = (ROM->Header.PRGSize >> 13) - 1;
+		CHRMask = (ROM->Header.CHRSize >> 10) - 1;
 	}
 
 	/* Чтение памяти */
@@ -611,6 +614,7 @@ public:
 					}
 				else { /* CHR Select */
 					Bus->GetPPU()->PreRender();
+					Src &= CHRMask;
 					switch (InternalData.CHRSwitch) {
 						case SInternalData::CHRSwitch_24:
 							if (InternalData.MuxAddr < 2) {
