@@ -94,7 +94,7 @@ private:
 		/* VBlank set */
 		inline void SetVBlank2() { if (VBlank) State |= 0x80; VBlank = false; };
 		/* VBlank clear */
-		inline void ClearVBlank() { State &= 0x7f; }
+		inline void ClearVBlank() { State &= 0x7f; VBlank = false; }
 		/* Overflow set */
 		inline void SetOverflow() { State |= 0x20; }
 		/* Garbadge */
@@ -232,8 +232,6 @@ private:
 		uint16 ShiftRegA;
 		/* Регистр сдвига B */
 		uint16 ShiftRegB;
-		/* Подавить VBlank */
-		bool SupressVBlank;
 	} InternalData;
 
 	/* Вывод точки */
@@ -278,16 +276,10 @@ private:
 		}
 	}
 
-	/* Выборка спрайтов */
-	inline void EvaluateSprites();
-	/* Загрузить спрайт */
-	inline void FetchSprite();
-	/* Загрузить фон */
-	inline void FetchBackground();
-	/* Загрузить фон следующего сканлайна */
-	inline void FetchNextBackground();
-	/* Рисуем сканалайн */
-	inline void DrawPixel();
+	/* Точный рендер */
+	inline void FineRender(int Cycles);
+	/* Рендер 8 пикселей сразу */
+	inline void Render_8(int Cycles);
 	/* Рендер */
 	inline void Render(int Cycles);
 public:
@@ -352,6 +344,8 @@ public:
 		memset(OAM, 0xff, 0x0100 * sizeof(uint8));
 		memset(&InternalData, 0, sizeof(InternalData));
 		CycleData.Scanline = -1; /* Начинаем с пре-рендер сканлайна */
+		CycleData.CurCycle = 341;
+		CycleData.CyclesLeft = 341;
 		InternalData.ShortScanline = true;
 	}
 
@@ -460,271 +454,146 @@ public:
 	inline VPNES_VBUF *&GetBuf() { return vbuf; }
 };
 
-/* Выборка спрайтов */
-template <class _Bus>
-inline void CPPU<_Bus>::EvaluateSprites() {
-	int i = 0; /* Всего найдено */
-	int n = 0; /* Текущий спрайт в буфере */
-	uint8 *pOAM = OAM; /* Указатель на SPR */
 
-	InternalData.SpriteAddr = 0;
-	Sprites[0].x = -1;
-	for (;;) {
-		if ((((uint8) (InternalData.y - *pOAM)) <
-			ControlRegisters.Size) && (*pOAM != 0xff)) {
-			/* Спрайт попал в диапазон */
-			/* Заполняем данные */
-			Sprites[i].y = *(pOAM++);
-			Sprites[i].Tile = *(pOAM++);
-			Sprites[i].Attrib = *(pOAM++);
-			Sprites[i].x = *(pOAM++);
-			Sprites[i].cx = 0;
-			Sprites[i].prim = n == 0;
-			i++;
-			if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
-				State.SetOverflow();
-				break;
-			}
-			Sprites[i].x = -1; /* Конец списка */
-		} else
-			pOAM += 4;
-		 /* Следующий спрайт */
-		n++;
-		if (n == 64) /* Просмотрели все спрайты */
-			return;
-	}
+/* Точный рендер */
+template <class _Bus>
+inline void CPPU<_Bus>::FineRender(int Cycles) {
+	CycleData.CurCycle += Cycles;
 }
 
-/* Загрузка битовых образов спрайтов */
+/* Рендер 8 пикселей сразу */
 template <class _Bus>
-inline void CPPU<_Bus>::FetchSprite() {
-	int i = (CycleData.CurCycle >> 3) & 0x07;
-
-	switch (CycleData.CurCycle & 0x07) {
-		case 0:
-			if (InternalData.SpriteAddr == 0xffff)
-				break;
-			if (Sprites[i].x < 0) {
-				InternalData.SpriteAddr = 0xffff;
-				break;
-			}
-			switch (ControlRegisters.Size) {
-				case Size8x8:
-					if (Sprites[i].Attrib & 0x80) /* Flip-V */
-						InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-							Sprites[i].Tile, 7 + Sprites[i].y - InternalData.y,
-							Registers.SpritePage);
-					else
-						InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-							Sprites[i].Tile, InternalData.y - Sprites[i].y,
-							Registers.SpritePage);
-					break;
-				case Size8x16:
-					/* Страница спрайтов */
-					InternalData.SpriteAddr = (Sprites[i].Tile & 0x01) << 12;
-					if (Sprites[i].Attrib & 0x80) { /* Flip-V */
-						if ((InternalData.y - Sprites[i].y) > 7)
-							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-								Sprites[i].Tile & 0xfe, 15 + Sprites[i].y -
-								InternalData.y, InternalData.SpriteAddr);
-						else
-							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-								Sprites[i].Tile | 0x01, 7 + Sprites[i].y -
-								InternalData.y, InternalData.SpriteAddr);
-					} else
-						if ((InternalData.y - Sprites[i].y) > 7)
-							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-								Sprites[i].Tile | 0x01, 8 + InternalData.y -
-								Sprites[i].y, InternalData.SpriteAddr);
-						else
-							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
-								Sprites[i].Tile & 0xfe, InternalData.y -
-								Sprites[i].y, InternalData.SpriteAddr);
-					break;
-				}
-			break;
-		case 4:
-			if (InternalData.SpriteAddr == 0xffff)
-				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
-					Registers.SpritePage | 0x0ff0 : 0x1ff0);
-			Sprites[i].ShiftRegA = ReadWithA12(InternalData.SpriteAddr);
-			break;
-		case 6:
-			if (InternalData.SpriteAddr == 0xffff)
-				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
-					Registers.SpritePage | 0x0ff8 : 0x1ff8);
-			Sprites[i].ShiftRegB = ReadWithA12(InternalData.SpriteAddr | 0x08);
-			break;
-	}
-}
-
-/* Загрузка битовых образов фона */
-template <class _Bus>
-inline void CPPU<_Bus>::FetchBackground() {
-	switch (CycleData.CurCycle & 0x07) {
-		case 0: /* Символ чара */
-			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
-			break;
-		case 2: /* Атрибуты */
-			Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
-			break;
-		case 4: /* Образ A */
-			InternalData.TileA = ReadWithA12(Registers.GetPTAddress());
-			break;
-		case 6: /* Образ B */
-			InternalData.TileB = ReadWithA12(Registers.GetPTAddress() | 0x08);
-			Registers.IncrementX();
-			break;
-	}
-}
-
-/* Подгружаем образы */
-template <class _Bus>
-inline void CPPU<_Bus>::FetchNextBackground() {
-	FetchBackground();
-	if ((CycleData.CurCycle & 7) == 7) {
-		InternalData.ShiftRegA = (InternalData.ShiftRegA << 8) | InternalData.TileA;
-		InternalData.ShiftRegB = (InternalData.ShiftRegB << 8) | InternalData.TileB;
-		Registers.AR = (Registers.AR >> 2) | Registers.TempAR;
-	}
-}
-
-/* Рисуем пиксель */
-template <class _Bus>
-inline void CPPU<_Bus>::DrawPixel() {
-	int i, rspr, col, scol;
-	uint16 t;
-
-	col = 0;
-	if (ControlRegisters.ShowBackground &&
-		(ControlRegisters.BackgroundClip || (InternalData.x > 7))) {
-		if (InternalData.ShiftRegA & Registers.FHMask)
-			col |= 1;
-		if (InternalData.ShiftRegB & Registers.FHMask)
-			col |= 2;
-		t = Registers.GetPALAddress(col, Registers.AR);
-	} else
-		t = 0;
-	/* Рисуем спрайты */
-	scol = 0x10;
-	if (InternalData.x < 255) {
-		for (i = 0; i < 8; i++)
-			if (Sprites[i].x < 0)
-				break;
-			else if (Sprites[i].x == InternalData.x) {
-				/* Нашли спрайт на этом пикселе */
-				Sprites[i].cx++;
-				if (Sprites[i].cx == 9) /* Спрайт уже закончился */
-					continue;
-				Sprites[i].x++;
-				if (scol != 0x10) {
-					if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-						Sprites[i].ShiftRegA >>= 1;
-						Sprites[i].ShiftRegB >>= 1;
-					} else {
-						Sprites[i].ShiftRegA <<= 1;
-						Sprites[i].ShiftRegB <<= 1;
-					}
-					continue;
-				}
-				if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-					if (Sprites[i].ShiftRegA & 0x01)
-						scol |= 1;
-					if (Sprites[i].ShiftRegB & 0x01)
-						scol |= 2;
-					Sprites[i].ShiftRegA >>= 1;
-					Sprites[i].ShiftRegB >>= 1;
-				} else {
-					if (Sprites[i].ShiftRegA & 0x80)
-						scol |= 1;
-					if (Sprites[i].ShiftRegB & 0x80)
-						scol |= 2;
-					Sprites[i].ShiftRegA <<= 1;
-					Sprites[i].ShiftRegB <<= 1;
-				}
-				rspr = i;
-			}
-	}
-	if ((scol != 0x10) && ControlRegisters.ShowSprites &&
-		(ControlRegisters.SpriteClip || (InternalData.x > 7))) {
-		if (Sprites[rspr].prim && (col != 0)) {
-			State.SetSprite0Hit();
-		}
-		/* Мы не прозрачны, фон пустой или у нас приоритет */
-		if ((col == 0) || (~Sprites[rspr].Attrib & 0x20))
-			/* Перекрываем пиксель фона */
-			t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
-	}
-	DrawPixel(InternalData.x, InternalData.y - 8, vbuf->Pal[PalMem[t] & 0x3f]);
-	InternalData.ShiftRegA <<= 1;
-	InternalData.ShiftRegB <<= 1;
-	if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))
-		Registers.AR >>= 2;
-	InternalData.x++;
-	if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
-		InternalData.ShiftRegA |= InternalData.TileA;
-		InternalData.ShiftRegB |= InternalData.TileB;
-		Registers.AR |= Registers.TempAR;
+inline void CPPU<_Bus>::Render_8(int Cycles) {
+	while (Cycles > 0) {
+		CycleData.CurCycle += 8;
+		Cycles--;
 	}
 }
 
 /* Рендер */
 template <class _Bus>
 inline void CPPU<_Bus>::Render(int Cycles) {
+
+#define WAIT_CYCLE(_n) if (CycleData.CyclesLeft <= (_n)) break;\
+	if (CycleData.CurCycle == (_n))
+#define WAIT_CYCLE_RANGE(_a, _b) if (CycleData.CyclesLeft <= (_a)) break;\
+	if (CycleData.CurCycle < (_b))
+
+	int Count, Prec;
+
 	CycleData.CyclesLeft += Cycles;
 	CycleData.CyclesTotal += Cycles;
 	CycleData.DebugTimer += Cycles;
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
-		if (CycleData.CurCycle < 338)
-			CycleData.CurCycle = std::min(338, CycleData.CyclesLeft);
-		if (CycleData.CurCycle == 338) {
+		if (CycleData.CurCycle == 0) {
+			InternalData.x = 0;
+			InternalData.y++;
+		}
+		/* cc 0 - 255 — видимые пиксели, выборка спрайтов и фетчинг BG и SP */
+		if (CycleData.CurCycle < 256) {
+			/* Всего нужно отрисовать */
+			Count = std::min(256, CycleData.CyclesLeft) - CycleData.CurCycle;
+			/* Точная обработка */
+			Prec = std::min(Count, 8 - (CycleData.CurCycle & 7));
+			/* Обрабатываем */
+			FineRender(Prec);
+			if (Count > Prec) {
+				Render_8((Count - Prec) / 8);
+				FineRender((Count - Prec) & 7);
+			}
+		}
+		/* cc 256 - 319 — фетчинг спрайтов */
+		WAIT_CYCLE_RANGE(256, 320) {
+			CycleData.CurCycle = std::min(320, CycleData.CyclesLeft);
+		}
+		/* cc 320 - 335 — фетчинг фона следующего сканлайна */
+		WAIT_CYCLE_RANGE(320, 336) {
+			CycleData.CurCycle = std::min(336, CycleData.CyclesLeft);
+		}
+		/* cc 336 — пустое чтение */
+		WAIT_CYCLE(336) {
+			CycleData.CurCycle++;
+		}
+		/* cc 337 — пропускаем такт */
+		WAIT_CYCLE(337) {
+			if ((CycleData.Scanline == -1) && ControlRegisters.ShowBackground) {
+				if (InternalData.ShortScanline) {
+					CycleData.CyclesTotal--;
+					CycleData.DebugTimer--;
+					CycleData.CyclesLeft++;
+				}
+				InternalData.ShortScanline = !InternalData.ShortScanline;
+			}
+			CycleData.CurCycle++;
+		}
+		/* cc 338 - 341 Конец сканлайна, пропускаем 2 лишних чтения и IDLE такт */
+		WAIT_CYCLE(338) {
 			CycleData.Scanline++;
 			if (CycleData.Scanline != 240) {
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
 				continue;
-			} else {
+			} else { /* 240 сканлайн — начинаем VBlank в конце сканлайна */
 				CycleData.CyclesTotal -= CycleData.CyclesLeft - 338;
-				if (!FrameReady) {
+				if (!FrameReady) { /* Завершили рендер кадра */
 					FrameReady = true;
 					FrameCycles = CycleData.CyclesTotal;
 				}
 				CycleData.CyclesTotal = CycleData.CyclesLeft - 338;
+				/* Ждем 340 такт */
 				CycleData.CurCycle = 341 + 340;
-				if (CycleData.CyclesLeft <= 341 + 340)
-					break;
 			}
 		}
-		if (CycleData.CurCycle == 341) {
-			CycleData.DebugTimer -= CycleData.CyclesLeft - 341;
+		WAIT_CYCLE(341) { /* Сюда можно попасть только на -1 сканлайне */
 			State.State = 0;
-			CycleData.CyclesLeft -= 341;
-			CycleData.CurCycle = 0;
 			CycleData.Scanline = -1;
+		}
+		/* На пре-рендер сканлайне делаем пустые запросы */
+		if (CycleData.CurCycle < 341 + 256) {
+			while (CycleData.CurCycle < std::min(341 + 256, CycleData.CyclesLeft)) {
+				switch ((CycleData.CurCycle - 341) & 7) {
+					case 0: /* Name Table */
+					case 2: /* Attribute Table */
+					case 4: /* Pattern Table */
+					case 6: /* Pattern Table */
+						break;
+				}
+				CycleData.CurCycle += 2;
+			}
+		}
+		/* cc 256 - 319 — фетчинг спрайтов + обновление скроллинга */
+		WAIT_CYCLE_RANGE(341 + 256, 341 + 320) {
+			CycleData.CurCycle = std::min(341 + 320, CycleData.CyclesLeft);
+		}
+		/* с cc 320 возвращаемся на обычный рендеринг */
+		WAIT_CYCLE(341 + 320) {
+			CycleData.CurCycle = 320;
+			CycleData.CyclesLeft -= 341;
 			continue;
 		}
-		if (CycleData.CurCycle == 341 + 340) {
+		WAIT_CYCLE(341 + 340) { /* Устанавливаем внутренний флаг */
 			State.SetVBlank1();
 			CycleData.CurCycle = 341 + 341;
-			if (CycleData.CyclesLeft <= 341 + 341)
-				break;
 		}
-		if (CycleData.CurCycle == 341 + 341) {
+		WAIT_CYCLE(341 + 341) { /* Устанвливаем флаг состояния */
 			State.SetVBlank2();
 			CycleData.CurCycle = 341 + 343;
-			if (CycleData.CyclesLeft <= 341 + 343)
-				break;
 		}
-		if (CycleData.CurCycle == 341 + 343) {
-			CycleData.DebugTimer = CycleData.CyclesLeft - 341 - 343;
+		WAIT_CYCLE(341 + 343) { /* Генерируем NMI */
 			if (ControlRegisters.GenerateNMI)
 				Bus->GetCPU()->GenerateNMI();
+			/* Период VBlank — 20 сканлайнов */
 			CycleData.CyclesLeft -= 21 * 341;
+			/* Ждем -1 сканлайн */
 			CycleData.CurCycle = 341;
 			continue;
 		}
 		break;
 	}
+
+#undef WAIT_CYCLE
+#undef WAIT_CYCLE_RANGE
+
 }
 
 }
