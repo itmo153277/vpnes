@@ -69,7 +69,7 @@ private:
 		int CurCycle; /* Текущий такт */
 		int CyclesLeft; /* Необработанные такты */
 		int CyclesTotal; /* Всего тактов */
-		int DMACycle; /* Такт DMA */
+		int DMACycles; /* Такт DMA */
 		int Scanline; /* Текущий сканлайн */
 		bool ShortFrame; /* Короткий фрейм */
 		int DebugTimer;
@@ -260,19 +260,22 @@ private:
 	}
 
 	/* Обработка DMA */
-	inline void ProccessDMA(int Cycles) {
-		/* TODO: Написать нормально (а не заглушку) */
-		if (Cycles < 0) { /* Дописать полностью */
-			if (InternalData.OAM_addr > 0) {
-				memcpy(OAM + InternalData.OAM_addr, Bus->GetCPU()->GetRAM() +
-					DMAData.Address, (0x0100 - InternalData.OAM_addr) * sizeof(uint8));
-				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address + (0x0100 -
-					InternalData.OAM_addr), InternalData.OAM_addr * sizeof(uint8));
-			} else {
-				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address,
-					0x0100 * sizeof(uint8));
+	inline void ProcessDMA(int Cycles) {
+		if (DMAData.Left > 0) {
+			if (Bus->GetAPU()->GetDMACycle(Cycles) < 0) { /* Дописать полностью */
+				if (InternalData.OAM_addr > 0) {
+					memcpy(OAM + InternalData.OAM_addr, Bus->GetCPU()->GetRAM() +
+						DMAData.Address, (0x0100 - InternalData.OAM_addr) *
+						sizeof(uint8));
+					memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address + (0x0100 -
+						InternalData.OAM_addr), InternalData.OAM_addr * sizeof(uint8));
+				} else {
+					memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address,
+						0x0100 * sizeof(uint8));
+				}
+				DMAData.Left = 0;
 			}
-			DMAData.Left = 0;
+			CycleData.DMACycles -= Cycles;
 		}
 	}
 
@@ -437,6 +440,7 @@ public:
 		PreRender();
 		DMAData.Address = (Page & 7) << 8;
 		DMAData.Left = 256;
+		CycleData.DMACycles = 0;
 	}
 
 	/* Флаг окончания рендеринга фрейма */
@@ -479,11 +483,12 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 #define WAIT_CYCLE_RANGE(_a, _b) if (CycleData.CyclesLeft <= (_a)) break;\
 	if (CycleData.CurCycle < (_b))
 
-	int Count, Prec;
+	int InCycle = CycleData.CurCycle, Count, Prec;
 
 	CycleData.CyclesLeft += Cycles;
 	CycleData.CyclesTotal += Cycles;
 	CycleData.DebugTimer += Cycles;
+	CycleData.DMACycles += Cycles;
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
 		if (CycleData.CurCycle == 0) {
 			InternalData.x = 0;
@@ -521,6 +526,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 					CycleData.CyclesTotal--;
 					CycleData.DebugTimer--;
 					CycleData.CyclesLeft++;
+					InCycle++;
 				}
 				InternalData.ShortScanline = !InternalData.ShortScanline;
 			}
@@ -530,6 +536,8 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		WAIT_CYCLE(338) {
 			CycleData.Scanline++;
 			if (CycleData.Scanline != 240) {
+				InCycle %= 341;
+				ProcessDMA(std::min(341, CycleData.CyclesLeft) - InCycle);
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
 				continue;
@@ -590,6 +598,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		}
 		break;
 	}
+	ProcessDMA(CycleData.DMACycles);
 
 #undef WAIT_CYCLE
 #undef WAIT_CYCLE_RANGE
