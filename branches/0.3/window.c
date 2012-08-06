@@ -32,6 +32,7 @@ SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
+double framejit = 0.0;
 double framerate = 1.0;
 int CPUHalt = 0;
 double delta = 0.0;
@@ -174,6 +175,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 #if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
 	char buf[20];
+	char *bufp;
 #endif
 #if defined(VPNES_SHOW_FPS)
 	static Uint32 fpst = 0;
@@ -205,6 +207,19 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				if (passed > 1000) {
 					fps = cur_frame * 1000.0 / passed;
 					itoa((int) fps, buf, 10);
+					fps -= (int) fps;
+					fps *= 1000;
+					for (bufp = buf; *bufp; bufp++);
+					*bufp = '.';
+					if (fps < 100) {
+						bufp++;
+						*bufp = '0';
+						if (fps < 10) {
+							bufp++;
+							*bufp = '0';
+						}
+					}
+					itoa((int) fps, bufp + 1, 10);
 					SDL_WM_SetCaption(buf, NULL);
 					fpst = SDL_GetTicks();
 					cur_frame = 0;
@@ -287,20 +302,20 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			delta += *Tim;
 			delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
 			delta -= (Uint32) delta;
+			if (framejit > delaytime) {
+				framejit -= delaytime;
+				delaytime = 0;
+			}
 			if (delaytime > 0)
-				SDL_Delay((Uint32) (delaytime / framerate));
+				SDL_Delay((Uint32) (delaytime - framejit));
 			framestarttime = SDL_GetTicks();
-			framerate = (framestarttime - framecheck) / *Tim;
-			//if (framerate < 1.5)
-			//	abuf.Freq += (44.1 * framerate - abuf.Freq) / 16;
-			//else
-			//	abuf.Freq = 44.1;
+			framejit += (framestarttime - framecheck) - *Tim;
 			framecheck = framestarttime;
+#endif
 			if (WindowState == VPNES_UPDATEBUF) {
 				abuf.Pos = 0;
 				return -1;
 			}
-#endif
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
 			CPUHalt = 1;

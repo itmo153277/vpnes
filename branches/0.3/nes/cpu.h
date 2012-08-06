@@ -456,12 +456,14 @@ public:
 	inline int Execute();
 
 	/* Сброс */
-	inline void Reset() {
+	inline int Reset() {
+		Cycles = 7;
 		Registers.s -= 3;
 		State.State |= 0x04; /* Interrupt */
 		memset(&InternalData, 0, sizeof(InternalData));
-		InternalData.IRQ = true;
-		Registers.pc = Bus->ReadCPUMemory(0xfffc) | (Bus->ReadCPUMemory(0xfffd) << 8);
+		Bus->GetClock()->Clock(5);
+		Registers.pc = ReadMemory(0xfffc) | (ReadMemory(0xfffd) << 8);
+		return Cycles * 3;
 	}
 
 	/* Чтение памяти */

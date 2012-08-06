@@ -235,7 +235,7 @@ private:
 	} InternalData;
 
 	/* Вывод точки */
-	inline void DrawPixel(int x, int y, uint32 color) {
+	inline void OutputPixel(int x, int y, uint32 color) {
 		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224))
 			vbuf->Buf[x + y * 256] = color;
 	}
@@ -279,6 +279,15 @@ private:
 		}
 	}
 
+
+	/* Выборка спрайтов */
+	inline void EvaluateSprites();
+	/* Загрузить спрайт */
+	inline void FetchSprite();
+	/* Загрузить фон */
+	inline void FetchBackground();
+	/* Рисуем сканалайн */
+	inline void DrawPixel();
 	/* Точный рендер */
 	inline void FineRender(int Cycles);
 	/* Рендер 8 пикселей сразу */
@@ -365,8 +374,8 @@ public:
 				State.ClearVBlank();
 				return Res;
 			case 0x2004: /* Взять байт из памяти SPR */
-				if (ControlRegisters.ShowSprites && ((CycleData.Scanline < 240) ||
-					(CycleData.Scanline == 261)) && (CycleData.CurCycle < 256))
+				if (ControlRegisters.ShowSprites && (CycleData.Scanline < 240)
+					&& (CycleData.CurCycle < 256))
 					return 0xff;
 				return OAM[InternalData.OAM_addr];
 			case 0x2007: /* Взять байт из памяти PPU */
@@ -458,18 +467,228 @@ public:
 	inline VPNES_VBUF *&GetBuf() { return vbuf; }
 };
 
+/* Выборка спрайтов */
+template <class _Bus>
+inline void CPPU<_Bus>::EvaluateSprites() {
+	int i = 0; /* Всего найдено */
+	int n = 0; /* Текущий спрайт в буфере */
+	uint8 *pOAM = OAM; /* Указатель на SPR */
+
+	if (CycleData.CurCycle < 254)
+		return;
+	InternalData.SpriteAddr = 0;
+	Sprites[0].x = -1;
+	for (;;) {
+		if ((((uint8) (InternalData.y - *pOAM)) <
+			ControlRegisters.Size) && (*pOAM != 0xff)) {
+			/* Спрайт попал в диапазон */
+			/* Заполняем данные */
+			Sprites[i].y = *(pOAM++);
+			Sprites[i].Tile = *(pOAM++);
+			Sprites[i].Attrib = *(pOAM++);
+			Sprites[i].x = *(pOAM++);
+			Sprites[i].cx = 8;
+			Sprites[i].prim = n == 0;
+			i++;
+			if (i == 8) /* Нашли 8 спрайтов — память закончилась =( */ {
+				State.SetOverflow();
+				break;
+			}
+			Sprites[i].x = -1; /* Конец списка */
+		} else
+			pOAM += 4;
+		 /* Следующий спрайт */
+		n++;
+		if (n == 64) /* Просмотрели все спрайты */
+			return;
+	}
+}
+
+/* Загрузка битовых образов спрайтов */
+template <class _Bus>
+inline void CPPU<_Bus>::FetchSprite() {
+	int i = (CycleData.CurCycle >> 3) & 7;
+
+	switch (CycleData.CurCycle & 7) {
+		case 0:
+			if (InternalData.SpriteAddr == 0xffff)
+				break;
+			if (Sprites[i].x < 0) {
+				InternalData.SpriteAddr = 0xffff;
+				break;
+			}
+			switch (ControlRegisters.Size) {
+				case Size8x8:
+					if (Sprites[i].Attrib & 0x80) /* Flip-V */
+						InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+							Sprites[i].Tile, 7 + Sprites[i].y - InternalData.y,
+							Registers.SpritePage);
+					else
+						InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+							Sprites[i].Tile, InternalData.y - Sprites[i].y,
+							Registers.SpritePage);
+					break;
+				case Size8x16:
+					/* Страница спрайтов */
+					InternalData.SpriteAddr = (Sprites[i].Tile & 0x01) << 12;
+					if (Sprites[i].Attrib & 0x80) { /* Flip-V */
+						if ((InternalData.y - Sprites[i].y) > 7)
+							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+								Sprites[i].Tile & 0xfe, 15 + Sprites[i].y -
+								InternalData.y, InternalData.SpriteAddr);
+						else
+							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+								Sprites[i].Tile | 0x01, 7 + Sprites[i].y -
+								InternalData.y, InternalData.SpriteAddr);
+					} else
+						if ((InternalData.y - Sprites[i].y) > 7)
+							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+								Sprites[i].Tile | 0x01, 8 + InternalData.y -
+								Sprites[i].y, InternalData.SpriteAddr);
+						else
+							InternalData.SpriteAddr = Registers.GetSpriteAddress(\
+								Sprites[i].Tile & 0xfe, InternalData.y -
+								Sprites[i].y, InternalData.SpriteAddr);
+					break;
+				}
+			break;
+		case 4:
+			if (InternalData.SpriteAddr == 0xffff)
+				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
+					Registers.SpritePage | 0x0ff0 : 0x1ff0);
+			Sprites[i].ShiftRegA = ReadWithA12(InternalData.SpriteAddr);
+			break;
+		case 6:
+			if (InternalData.SpriteAddr == 0xffff)
+				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
+					Registers.SpritePage | 0x0ff8 : 0x1ff8);
+			Sprites[i].ShiftRegB = ReadWithA12(InternalData.SpriteAddr | 0x08);
+			break;
+	}
+}
+
+/* Загрузка битовых образов фона */
+template <class _Bus>
+inline void CPPU<_Bus>::FetchBackground() {
+	switch (CycleData.CurCycle & 7) {
+		case 0: /* Символ чара */
+			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
+			break;
+		case 2: /* Атрибуты */
+			Registers.ReadAT(Bus->ReadPPUMemory(Registers.GetATAddress()));
+			break;
+		case 4: /* Образ A */
+			InternalData.TileA = ReadWithA12(Registers.GetPTAddress());
+			break;
+		case 6: /* Образ B */
+			InternalData.TileB = ReadWithA12(Registers.GetPTAddress() | 0x08);
+			break;
+	}
+}
+
+/* Рисуем пиксель */
+template <class _Bus>
+inline void CPPU<_Bus>::DrawPixel() {
+	int i, rspr, col, scol;
+	uint16 t;
+
+	col = 0;
+	if (ControlRegisters.ShowBackground &&
+		(ControlRegisters.BackgroundClip || (InternalData.x > 7))) {
+		if (InternalData.ShiftRegA & Registers.FHMask)
+			col |= 1;
+		if (InternalData.ShiftRegB & Registers.FHMask)
+			col |= 2;
+		t = Registers.GetPALAddress(col, Registers.AR);
+	} else
+		t = 0;
+	/* Рисуем спрайты */
+	scol = 0x10;
+	if (InternalData.x < 255) {
+		for (i = 0; i < 8; i++)
+			if (Sprites[i].x < 0)
+				break;
+			else if (Sprites[i].x == InternalData.x) {
+				/* Нашли спрайт на этом пикселе */
+				if (Sprites[i].cx == 0) /* Спрайт уже закончился */
+					continue;
+				Sprites[i].cx--;
+				Sprites[i].x++;
+				if (scol != 0x10) {
+					if (Sprites[i].Attrib & 0x40) { /* H-Flip */
+						Sprites[i].ShiftRegA >>= 1;
+						Sprites[i].ShiftRegB >>= 1;
+					} else {
+						Sprites[i].ShiftRegA <<= 1;
+						Sprites[i].ShiftRegB <<= 1;
+					}
+					continue;
+				}
+				if (Sprites[i].Attrib & 0x40) { /* H-Flip */
+					if (Sprites[i].ShiftRegA & 0x01)
+						scol |= 1;
+					if (Sprites[i].ShiftRegB & 0x01)
+						scol |= 2;
+					Sprites[i].ShiftRegA >>= 1;
+					Sprites[i].ShiftRegB >>= 1;
+				} else {
+					if (Sprites[i].ShiftRegA & 0x80)
+						scol |= 1;
+					if (Sprites[i].ShiftRegB & 0x80)
+						scol |= 2;
+					Sprites[i].ShiftRegA <<= 1;
+					Sprites[i].ShiftRegB <<= 1;
+				}
+				rspr = i;
+			}
+	}
+	if ((scol != 0x10) && ControlRegisters.ShowSprites &&
+		(ControlRegisters.SpriteClip || (InternalData.x > 7))) {
+		if (Sprites[rspr].prim && (col != 0)) {
+			State.SetSprite0Hit();
+		}
+		/* Мы не прозрачны, фон пустой или у нас приоритет */
+		if ((col == 0) || (~Sprites[rspr].Attrib & 0x20))
+			/* Перекрываем пиксель фона */
+			t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
+	}
+	OutputPixel(InternalData.x, InternalData.y - 8, vbuf->Pal[PalMem[t] & 0x3f]);
+	InternalData.ShiftRegA <<= 1;
+	InternalData.ShiftRegB <<= 1;
+	if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))
+		Registers.AR >>= 2;
+	InternalData.x++;
+	if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
+		InternalData.ShiftRegA |= InternalData.TileA;
+		InternalData.ShiftRegB |= InternalData.TileB;
+		Registers.AR |= Registers.TempAR;
+	}
+}
 
 /* Точный рендер */
 template <class _Bus>
 inline void CPPU<_Bus>::FineRender(int Cycles) {
-	CycleData.CurCycle += Cycles;
+	for (; Cycles > 0; CycleData.CurCycle++, Cycles--) {
+		if (ControlRegisters.RenderingEnabled()) {
+			if (~CycleData.CurCycle & 1) {
+				EvaluateSprites();
+				FetchBackground();
+			}
+			if (CycleData.CurCycle == 251)
+				Registers.IncrementY();
+			if ((CycleData.CurCycle & 7) == 3)
+				Registers.IncrementX();
+		}
+		DrawPixel();
+	}
 }
 
 /* Рендер 8 пикселей сразу */
 template <class _Bus>
 inline void CPPU<_Bus>::Render_8(int Cycles) {
 	while (Cycles > 0) {
-		CycleData.CurCycle += 8;
+		//CycleData.CurCycle += 8;
+		FineRender(8);
 		Cycles--;
 	}
 }
@@ -483,7 +702,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 #define WAIT_CYCLE_RANGE(_a, _b) if (CycleData.CyclesLeft <= (_a)) break;\
 	if (CycleData.CurCycle < (_b))
 
-	int InCycle = CycleData.CurCycle, Count, Prec;
+	int InCycle = CycleData.CyclesLeft, Count, Prec;
 
 	CycleData.CyclesLeft += Cycles;
 	CycleData.CyclesTotal += Cycles;
@@ -491,6 +710,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 	CycleData.DMACycles += Cycles;
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
 		if (CycleData.CurCycle == 0) {
+			/* TODO: Если тут DMAData.Left > 0, то большая печалька */
 			InternalData.x = 0;
 			InternalData.y++;
 		}
@@ -509,11 +729,35 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		}
 		/* cc 256 - 319 — фетчинг спрайтов */
 		WAIT_CYCLE_RANGE(256, 320) {
-			CycleData.CurCycle = std::min(320, CycleData.CyclesLeft);
+			if (ControlRegisters.RenderingEnabled()) {
+				if (CycleData.CurCycle == 256)
+					Registers.UpdateScroll();
+				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft)) {
+					FetchSprite();
+					CycleData.CurCycle += 2;
+				}
+			} else
+				CycleData.CurCycle = std::min(320, CycleData.CyclesLeft +
+					(CycleData.CyclesLeft & 1));
 		}
 		/* cc 320 - 335 — фетчинг фона следующего сканлайна */
 		WAIT_CYCLE_RANGE(320, 336) {
-			CycleData.CurCycle = std::min(336, CycleData.CyclesLeft);
+			if (ControlRegisters.RenderingEnabled())
+				while (CycleData.CurCycle < std::min(336, CycleData.CyclesLeft)) {
+					FetchBackground();
+					CycleData.CurCycle += 2;
+					if ((CycleData.CurCycle & 7) == 0) {
+						InternalData.ShiftRegA = (InternalData.ShiftRegA << 8) |
+							InternalData.TileA;
+						InternalData.ShiftRegB = (InternalData.ShiftRegB << 8) |
+							InternalData.TileB;
+						Registers.AR = (Registers.AR >> 2) | Registers.TempAR;
+						Registers.IncrementX();
+					}
+				}
+			else
+				CycleData.CurCycle = std::min(336, CycleData.CyclesLeft +
+					(CycleData.CyclesLeft & 1));
 		}
 		/* cc 336 — пустое чтение */
 		WAIT_CYCLE(336) {
@@ -521,7 +765,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		}
 		/* cc 337 — пропускаем такт */
 		WAIT_CYCLE(337) {
-			if ((CycleData.Scanline == -1) && ControlRegisters.ShowBackground) {
+			if ((CycleData.Scanline == -1) && ControlRegisters.RenderingEnabled()) {
 				if (InternalData.ShortScanline) {
 					CycleData.CyclesTotal--;
 					CycleData.DebugTimer--;
@@ -537,7 +781,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			CycleData.Scanline++;
 			if (CycleData.Scanline != 240) {
 				InCycle %= 341;
-				ProcessDMA(std::min(341, CycleData.CyclesLeft) - InCycle);
+				ProcessDMA(341 - InCycle);
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
 				continue;
@@ -555,23 +799,43 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		WAIT_CYCLE(341) { /* Сюда можно попасть только на -1 сканлайне */
 			State.State = 0;
 			CycleData.Scanline = -1;
+			InternalData.y = -1;
 		}
 		/* На пре-рендер сканлайне делаем пустые запросы */
 		if (CycleData.CurCycle < 341 + 256) {
-			while (CycleData.CurCycle < std::min(341 + 256, CycleData.CyclesLeft)) {
-				switch ((CycleData.CurCycle - 341) & 7) {
-					case 0: /* Name Table */
-					case 2: /* Attribute Table */
-					case 4: /* Pattern Table */
-					case 6: /* Pattern Table */
-						break;
+			if (ControlRegisters.RenderingEnabled()) {
+				while (CycleData.CurCycle < std::min(341 + 256, CycleData.CyclesLeft)) {
+					switch (CycleData.CurCycle & 7) {
+						case 1: /* Name Table */
+							break;
+						case 3: /* Attribute Table */
+							break;
+						case 5: /* Pattern Table */
+						case 7: /* Pattern Table */
+							Bus->GetROM()->UpdatePPUAddress(Registers.GetPTPage());
+							break;
+					}
+					EvaluateSprites();
+					CycleData.CurCycle += 2;
 				}
-				CycleData.CurCycle += 2;
-			}
+			} else
+				CycleData.CurCycle = std::min(341 + 256, CycleData.CyclesLeft +
+					(~CycleData.CyclesLeft & 1));
 		}
 		/* cc 256 - 319 — фетчинг спрайтов + обновление скроллинга */
 		WAIT_CYCLE_RANGE(341 + 256, 341 + 320) {
-			CycleData.CurCycle = std::min(341 + 320, CycleData.CyclesLeft);
+			if (ControlRegisters.RenderingEnabled()) {
+				while (CycleData.CurCycle < std::min(341 + 320, CycleData.CyclesLeft)) {
+					FetchSprite();
+					if (CycleData.CurCycle == 341 + 304) {
+						Registers.RealReg1 = Registers.BigReg1;
+						Registers.FHMask = 0x8000 >> Registers.FH;
+					}
+					CycleData.CurCycle += 2;
+				}
+			} else
+				CycleData.CurCycle = std::min(341 + 320, CycleData.CyclesLeft +
+					(~CycleData.CyclesLeft & 1));
 		}
 		/* с cc 320 возвращаемся на обычный рендеринг */
 		WAIT_CYCLE(341 + 320) {

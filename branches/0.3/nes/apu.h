@@ -325,7 +325,7 @@ private:
 				TimerCounter += Cycles;
 				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
-					if ((LinearCounter > 0) && (LengthCounter > 0) && (Timer > 3)) {
+					if ((LinearCounter > 0) && (LengthCounter > 0)) {
 						Output = SeqTable[Sequencer++];
 						if (Sequencer > 31)
 							Sequencer = 0;
@@ -333,9 +333,6 @@ private:
 					}
 				}
 				return false;
-			}
-			inline bool CanOutput() {
-				return (LinearCounter > 0) && (LengthCounter > 0);
 			}
 		} TriangleChannel;
 
@@ -491,8 +488,7 @@ private:
 				SqOut += SquareChannel1.Output;
 			if (SquareChannel2.CanOutput())
 				SqOut += SquareChannel2.Output;
-			//if (TriangleChannel.CanOutput())
-				TNDOut += TriangleChannel.Output * 3;
+			TNDOut += TriangleChannel.Output * 3;
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
@@ -723,7 +719,7 @@ public:
 		Channels.Update(abuf);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
-		CycleData.CurCycle = 6;
+		CycleData.CurCycle = -1;
 		CycleData.SupressCounter = -1;
 		CycleData.DMACycle = -1;
 		PreprocessedCycles = 0;
