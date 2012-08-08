@@ -563,7 +563,8 @@ private:
 public:
 	inline explicit CMMC3(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
-		int i;
+		int i, j;
+		bool less = false;
 
 		Bus->GetManager()->template SetPointer<MMC3ID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
@@ -579,7 +580,19 @@ public:
 			&IRQCircuit, sizeof(IRQCircuit));
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
 		PRGMask = (ROM->Header.PRGSize >> 13) - 1;
-		CHRMask = (ROM->Header.CHRSize >> 10) - 1;
+		i = ROM->Header.CHRSize;
+		for (;;) {
+			j = i - 1;
+			i &= j;
+			if (i) {
+				less = true;
+			} else
+				break;
+		}
+		if (less)
+			CHRMask = j >> 9;
+		else
+			CHRMask = j >> 10;
 	}
 
 	/* Чтение памяти */
