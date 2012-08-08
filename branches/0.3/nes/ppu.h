@@ -474,13 +474,11 @@ inline void CPPU<_Bus>::EvaluateSprites() {
 	int n = 0; /* Текущий спрайт в буфере */
 	uint8 *pOAM = OAM; /* Указатель на SPR */
 
-	if (CycleData.CurCycle < 254)
-		return;
 	InternalData.SpriteAddr = 0;
 	Sprites[0].x = -1;
 	for (;;) {
 		if ((((uint8) (InternalData.y - *pOAM)) <
-			ControlRegisters.Size) && (*pOAM != 0xff)) {
+			ControlRegisters.Size) && (*pOAM < 0xf0)) {
 			/* Спрайт попал в диапазон */
 			/* Заполняем данные */
 			Sprites[i].y = *(pOAM++);
@@ -604,47 +602,45 @@ inline void CPPU<_Bus>::DrawPixel() {
 		t = 0;
 	/* Рисуем спрайты */
 	scol = 0x10;
-	if (InternalData.x < 255) {
-		for (i = 0; i < 8; i++)
-			if (Sprites[i].x < 0)
-				break;
-			else if (Sprites[i].x == InternalData.x) {
-				/* Нашли спрайт на этом пикселе */
-				if (Sprites[i].cx == 0) /* Спрайт уже закончился */
-					continue;
-				Sprites[i].cx--;
-				Sprites[i].x++;
-				if (scol != 0x10) {
-					if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-						Sprites[i].ShiftRegA >>= 1;
-						Sprites[i].ShiftRegB >>= 1;
-					} else {
-						Sprites[i].ShiftRegA <<= 1;
-						Sprites[i].ShiftRegB <<= 1;
-					}
-					continue;
-				}
+	for (i = 0; i < 8; i++)
+		if (Sprites[i].x < 0)
+			break;
+		else if (Sprites[i].x == InternalData.x) {
+			/* Нашли спрайт на этом пикселе */
+			if (Sprites[i].cx == 0) /* Спрайт уже закончился */
+				continue;
+			Sprites[i].cx--;
+			Sprites[i].x++;
+			if (scol != 0x10) {
 				if (Sprites[i].Attrib & 0x40) { /* H-Flip */
-					if (Sprites[i].ShiftRegA & 0x01)
-						scol |= 1;
-					if (Sprites[i].ShiftRegB & 0x01)
-						scol |= 2;
 					Sprites[i].ShiftRegA >>= 1;
 					Sprites[i].ShiftRegB >>= 1;
 				} else {
-					if (Sprites[i].ShiftRegA & 0x80)
-						scol |= 1;
-					if (Sprites[i].ShiftRegB & 0x80)
-						scol |= 2;
 					Sprites[i].ShiftRegA <<= 1;
 					Sprites[i].ShiftRegB <<= 1;
 				}
-				rspr = i;
+				continue;
 			}
-	}
+			if (Sprites[i].Attrib & 0x40) { /* H-Flip */
+				if (Sprites[i].ShiftRegA & 0x01)
+					scol |= 1;
+				if (Sprites[i].ShiftRegB & 0x01)
+					scol |= 2;
+				Sprites[i].ShiftRegA >>= 1;
+				Sprites[i].ShiftRegB >>= 1;
+			} else {
+				if (Sprites[i].ShiftRegA & 0x80)
+					scol |= 1;
+				if (Sprites[i].ShiftRegB & 0x80)
+					scol |= 2;
+				Sprites[i].ShiftRegA <<= 1;
+				Sprites[i].ShiftRegB <<= 1;
+			}
+			rspr = i;
+		}
 	if ((scol != 0x10) && ControlRegisters.ShowSprites &&
 		(ControlRegisters.SpriteClip || (InternalData.x > 7))) {
-		if (Sprites[rspr].prim && (col != 0)) {
+		if (Sprites[rspr].prim && (col != 0) && (InternalData.x < 255)) {
 			State.SetSprite0Hit();
 		}
 		/* Мы не прозрачны, фон пустой или у нас приоритет */
@@ -671,7 +667,7 @@ inline void CPPU<_Bus>::FineRender(int Cycles) {
 	for (; Cycles > 0; CycleData.CurCycle++, Cycles--) {
 		if (ControlRegisters.RenderingEnabled()) {
 			if (~CycleData.CurCycle & 1) {
-				EvaluateSprites();
+				//EvaluateSprites();
 				FetchBackground();
 			}
 			if (CycleData.CurCycle == 251)
@@ -727,8 +723,12 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				FineRender((Count - Prec) & 7);
 			}
 		}
+		WAIT_CYCLE(256) {
+			EvaluateSprites();
+		}
 		/* cc 256 - 319 — фетчинг спрайтов */
-		WAIT_CYCLE_RANGE(256, 320) {
+		//WAIT_CYCLE_RANGE(256, 320) {
+		if (CycleData.CurCycle < 320) {
 			if (ControlRegisters.RenderingEnabled()) {
 				if (CycleData.CurCycle == 256)
 					Registers.UpdateScroll();
