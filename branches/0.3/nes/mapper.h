@@ -35,6 +35,29 @@
 
 namespace vpnes {
 
+namespace mapper {
+
+/* Получить маску */
+inline int GetMask(int Size) {
+	int i, j;
+	bool less;
+
+	i = Size << 1;
+	for (;;) {
+		j = i - 1;
+		i &= j;
+		if (i) {
+			less = true;
+		} else
+			break;
+	}
+	if (!less)
+		j >>= 1;
+	return j;
+}
+
+}
+
 /* Static SolderPad */
 struct StaticSolderPad {
 	ines::SolderPad Mirroring; /* Текущий переключатель */
@@ -563,8 +586,7 @@ private:
 public:
 	inline explicit CMMC3(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
-		int i, j;
-		bool less = false;
+		int i;
 
 		Bus->GetManager()->template SetPointer<MMC3ID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
@@ -579,20 +601,8 @@ public:
 		Bus->GetManager()->template SetPointer<MMC3ID::IRQCircuitID>(\
 			&IRQCircuit, sizeof(IRQCircuit));
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
-		PRGMask = (ROM->Header.PRGSize >> 13) - 1;
-		i = ROM->Header.CHRSize;
-		for (;;) {
-			j = i - 1;
-			i &= j;
-			if (i) {
-				less = true;
-			} else
-				break;
-		}
-		if (less)
-			CHRMask = j >> 9;
-		else
-			CHRMask = j >> 10;
+		PRGMask = mapper::GetMask(ROM->Header.PRGSize) >> 13;
+		CHRMask = mapper::GetMask(ROM->Header.CHRSize) >> 10;
 	}
 
 	/* Чтение памяти */
