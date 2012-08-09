@@ -32,6 +32,10 @@
 extern "C" {
 #endif
 
+#ifndef VERSION
+#define VERSION "0.3"
+#endif
+
 /* Window States */
 #define VPNES_QUIT       0x00000000
 #define VPNES_UPDATEBUF  0x00000001

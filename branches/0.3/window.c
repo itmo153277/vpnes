@@ -64,10 +64,6 @@ int PCMready = 0;
 int PCMplay = 0;
 int lastpcm = 0;
 
-#ifndef VERSION
-#define VERSION "0.3"
-#endif
-
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	if (!PCMready) {
 		WindowState = VPNES_UPDATEBUF;
@@ -175,7 +171,6 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 #if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
 	char buf[20];
-	char *bufp;
 #endif
 #if defined(VPNES_SHOW_FPS)
 	static Uint32 fpst = 0;
@@ -206,20 +201,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				passed = SDL_GetTicks() - fpst;
 				if (passed > 1000) {
 					fps = cur_frame * 1000.0 / passed;
-					itoa((int) fps, buf, 10);
-					fps -= (int) fps;
-					fps *= 1000;
-					for (bufp = buf; *bufp; bufp++);
-					*bufp = '.';
-					if (fps < 100) {
-						bufp++;
-						*bufp = '0';
-						if (fps < 10) {
-							bufp++;
-							*bufp = '0';
-						}
-					}
-					itoa((int) fps, bufp + 1, 10);
+					snprintf(buf, 20, "%.3lf", fps);
 					SDL_WM_SetCaption(buf, NULL);
 					fpst = SDL_GetTicks();
 					cur_frame = 0;

@@ -22,6 +22,7 @@
 #include <SDL.h>
 #include "types.h"
 
+#include <iostream>
 #include <fstream>
 #include "window.h"
 #include "nes/ines.h"
@@ -35,6 +36,14 @@ int main(int argc, char *argv[]) {
 	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
 
+#ifdef BUILDNUM
+	std::cerr << "VPNES " VERSION " Build " << BUILDNUM <<
+#ifdef SVNREV
+		" (" SVNREV ")" <<
+#endif
+		std::endl;
+	std::cerr << "License: GPL v2" << std::endl;
+#endif
 	/* Открываем образ */
 	if (argc != 2)
 		return 0;

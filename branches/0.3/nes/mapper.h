@@ -40,7 +40,7 @@ namespace mapper {
 /* Получить маску */
 inline int GetMask(int Size) {
 	int i, j;
-	bool less;
+	bool less = false;
 
 	i = Size << 1;
 	for (;;) {
@@ -233,10 +233,8 @@ private:
 			MMC1_SXROM
 		} Mode;
 		/* Банки */
-		int CHRLowBank;
-		int CHRHiBank;
-		int PRGLowBank;
-		int PRGHiBank;
+		int CHRBanks[2];
+		int PRGBank;
 		int PRGPage;
 		int SRAMPage;
 		/* Регистр сдвига */
@@ -251,8 +249,8 @@ private:
 		bool IgnoreWrite;
 		/* Режим переключения CHR */
 		enum {
-			CHRSwitch_4k,
-			CHRSwitch_8k
+			CHRSwitch_4k = 0,
+			CHRSwitch_8k = 1
 		} CHRSwitch;
 		/* Режим переключения PRG */
 		enum {
@@ -267,6 +265,11 @@ private:
 			PRGSwitch = PRGSwitch_Low;
 		}
 	} InternalData;
+
+	/* Ограничитель PRG */
+	int PRGMask;
+	/* Ограничитель CHR */
+	int CHRMask;
 public:
 	inline explicit CMMC1(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
@@ -277,10 +280,8 @@ public:
 		InternalData.EnableWrite = true;
 		InternalData.CHRSwitch = SInternalData::CHRSwitch_8k;
 		InternalData.PRGSwitch = SInternalData::PRGSwitch_Low;
-		InternalData.CHRHiBank = 0x1000;
-		InternalData.PRGHiBank = ROM->Header.PRGSize - 0x4000;
+		InternalData.CHRBanks[1] = 0x1000;
 		if (ROM->Header.PRGSize > 0x40000) { /* SUROM / SXROM */
-			InternalData.PRGHiBank = 0x0f;
 			if (ROM->Header.RAMSize > 0x2000) { /* SXROM */
 				InternalData.Mode = SInternalData::MMC1_SXROM;
 				Bus->GetManager()->template FreeMemory<NROMID::RAMID>();
@@ -295,10 +296,14 @@ public:
 			InternalData.Mode = SInternalData::MMC1_SNROM;
 		} else
 			InternalData.Mode = SInternalData::MMC1_Normal;
+		PRGMask = mapper::GetMask(ROM->Header.PRGSize);
+		CHRMask = mapper::GetMask(ROM->Header.CHRSize);
 	}
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
+		int PRGAddr;
+
 		InternalData.IgnoreWrite = false;
 		if (Address < 0x8000) {
 			if (RAM != NULL) {
@@ -309,11 +314,26 @@ public:
 				&& (Address < 0x7200))
 				return ROM->Trainer[Address & 0x01ff];
 			return 0x40;
-		} else if (Address < 0xc000)
-			return ROM->PRG[InternalData.PRGLowBank | InternalData.PRGPage |
-				(Address & 0x3fff)];
-		return ROM->PRG[InternalData.PRGHiBank | InternalData.PRGPage |
-			(Address & 0x3fff)];
+		}
+		PRGAddr = InternalData.PRGPage;
+		switch (InternalData.PRGSwitch) {
+			case SInternalData::PRGSwitch_Both:
+				PRGAddr |= (InternalData.PRGBank & 0x38000) | (Address & 0x7fff);
+				break;
+			case SInternalData::PRGSwitch_Low:
+				if (Address < 0xc000)
+					PRGAddr |= InternalData.PRGBank;
+				else
+					PRGAddr |= 0x3c000;
+				PRGAddr |= (Address & 0x3fff);
+				break;
+			case SInternalData::PRGSwitch_Hi:
+				if (Address >= 0xc000)
+					PRGAddr |= InternalData.PRGBank;
+				PRGAddr |= (Address & 0x3fff);
+				break;
+		}
+		return ROM->PRG[PRGAddr & PRGMask];
 	}
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address < 0x8000) {
@@ -366,21 +386,12 @@ public:
 				} else if (Address < 0xc000) { /* CHR Bank 1 */
 					switch (InternalData.Mode) {
 						case SInternalData::MMC1_Normal:
-							if (InternalData.CHRSwitch ==
-								SInternalData::CHRSwitch_4k) {
-								InternalData.CHRLowBank =
-									InternalData.ShiftReg << 12;
-							} else {
-								InternalData.CHRLowBank =
-									(InternalData.ShiftReg & 0x1e) << 12;
-								InternalData.CHRHiBank =
-									(InternalData.ShiftReg | 0x01) << 12;
-							}
+							InternalData.CHRBanks[0] = InternalData.ShiftReg << 12;
 							break;
 						case SInternalData::MMC1_SNROM:
 							if (InternalData.CHRSwitch ==
 								SInternalData::CHRSwitch_4k)
-								InternalData.CHRLowBank =
+								InternalData.CHRBanks[0] =
 									(InternalData.ShiftReg & 0x01) << 12;
 							InternalData.EnableWrite =
 								~InternalData.ShiftReg & 0x10;
@@ -388,7 +399,7 @@ public:
 						case SInternalData::MMC1_SOROM:
 							if (InternalData.CHRSwitch ==
 								SInternalData::CHRSwitch_4k) {
-								InternalData.CHRLowBank =
+								InternalData.CHRBanks[0] =
 									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.SRAMPage =
 									(InternalData.ShiftReg & 0x10) << 9;
@@ -399,7 +410,7 @@ public:
 						case SInternalData::MMC1_SUROM:
 							if (InternalData.CHRSwitch ==
 								SInternalData::CHRSwitch_4k)
-								InternalData.CHRLowBank =
+								InternalData.CHRBanks[0] =
 									(InternalData.ShiftReg & 0x01) << 12;
 							InternalData.PRGPage =
 								(InternalData.ShiftReg & 0x10) << 14;
@@ -407,7 +418,7 @@ public:
 						case SInternalData::MMC1_SXROM:
 							if (InternalData.CHRSwitch ==
 								SInternalData::CHRSwitch_4k)
-								InternalData.CHRLowBank =
+								InternalData.CHRBanks[0] =
 									(InternalData.ShiftReg & 0x01) << 12;
 							InternalData.SRAMPage =
 								(InternalData.ShiftReg & 0x0c) << 11;
@@ -419,29 +430,29 @@ public:
 					if (InternalData.CHRSwitch == SInternalData::CHRSwitch_4k) {
 						switch (InternalData.Mode) {
 							case SInternalData::MMC1_Normal:
-								InternalData.CHRHiBank =
+								InternalData.CHRBanks[1] =
 									InternalData.ShiftReg << 12;
 								break;
 							case SInternalData::MMC1_SNROM:
-								InternalData.CHRHiBank =
+								InternalData.CHRBanks[1] =
 									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.EnableWrite =
 									~InternalData.ShiftReg & 0x10;
 								break;
 							case SInternalData::MMC1_SOROM:
-								InternalData.CHRHiBank =
+								InternalData.CHRBanks[1] =
 									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.SRAMPage =
 									(InternalData.ShiftReg & 0x10) << 9;
 								break;
 							case SInternalData::MMC1_SUROM:
-								InternalData.CHRHiBank =
+								InternalData.CHRBanks[1] =
 									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.PRGPage =
 									(InternalData.ShiftReg & 0x10) << 14;
 								break;
 							case SInternalData::MMC1_SXROM:
-								InternalData.CHRHiBank =
+								InternalData.CHRBanks[1] =
 									(InternalData.ShiftReg & 0x01) << 12;
 								InternalData.SRAMPage =
 									(InternalData.ShiftReg & 0x0c) << 11;
@@ -451,22 +462,7 @@ public:
 						}
 					}
 				} else { /* PRG Bank */
-					switch (InternalData.PRGSwitch) {
-						case SInternalData::PRGSwitch_Both:
-							InternalData.PRGLowBank =
-								(InternalData.ShiftReg & 0x0e) << 14;
-							InternalData.PRGHiBank =
-								InternalData.PRGLowBank + 0x4000;
-							break;
-						case SInternalData::PRGSwitch_Low:
-							InternalData.PRGLowBank =
-								(InternalData.ShiftReg & 0x0f) << 14;
-							break;
-						case SInternalData::PRGSwitch_Hi:
-							InternalData.PRGHiBank =
-								(InternalData.ShiftReg & 0x0f) << 14;
-							break;
-					}
+					InternalData.PRGBank = (InternalData.ShiftReg & 0x0f) << 14;
 					InternalData.EnableRAM = ~InternalData.ShiftReg & 0x10;
 				}
 				InternalData.ShiftReg = 0;
@@ -477,17 +473,22 @@ public:
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		if (Address < 0x1000)
-			return CHR[InternalData.CHRLowBank | Address];
+			return CHR[((InternalData.CHRBanks[0] & ~(InternalData.CHRSwitch << 12)) |
+				Address) & CHRMask];
 		else
-			return CHR[InternalData.CHRHiBank | (Address & 0x0fff)];
+			return CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
+				(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) & CHRMask];
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 		if (ROM->CHR == NULL) {
 			if (Address < 0x1000)
-				CHR[InternalData.CHRLowBank | Address] = Src;
+				CHR[((InternalData.CHRBanks[0] & ~(InternalData.CHRSwitch << 12)) |
+					Address) & CHRMask] = Src;
 			else
-				CHR[InternalData.CHRHiBank | (Address & 0x0fff)] = Src;
+				CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
+					(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) &
+					CHRMask] = Src;
 		}
 	}
 };
@@ -543,8 +544,8 @@ private:
 		} PRGSwitch;
 		/* Переключение CHR */
 		enum {
-			CHRSwitch_24,
-			CHRSwitch_42
+			CHRSwitch_24 = 0,
+			CHRSwitch_42 = 4
 		} CHRSwitch;
 		/* Выбор банка */
 		uint8 MuxAddr;
@@ -578,7 +579,7 @@ private:
 				IgnoreAccess = false;
 		}
 	} IRQCircuit;
-	
+
 	/* Ограничитель PRG */
 	uint8 PRGMask;
 	/* Ограничитель CHR */
@@ -635,36 +636,21 @@ public:
 								(Src & PRGMask) << 13;
 							break;
 					}
-				else { /* CHR Select */
+				else {
 					Bus->GetPPU()->PreRender();
 					Src &= CHRMask;
-					switch (InternalData.CHRSwitch) {
-						case SInternalData::CHRSwitch_24:
-							if (InternalData.MuxAddr < 2) {
-								InternalData.CHRBanks[InternalData.MuxAddr << 1] =
-									(Src & 0xfe) << 10;
-								InternalData.CHRBanks[\
-									(InternalData.MuxAddr << 1) | 0x01] =
-									(Src | 0x01) << 10;
-							} else
-								InternalData.CHRBanks[InternalData.MuxAddr + 2] =
-									Src << 10;
-							break;
-						case SInternalData::CHRSwitch_42:
-							if (InternalData.MuxAddr < 2) {
-								InternalData.CHRBanks[\
-									(InternalData.MuxAddr << 1) | 0x04] =
-									(Src & 0xfe) << 10;
-								InternalData.CHRBanks[\
-									(InternalData.MuxAddr << 1) | 0x05] =
-									(Src | 0x01) << 10;
-							} else
-								InternalData.CHRBanks[InternalData.MuxAddr - 2] =
-									Src << 10;
-							break;
-					}
+					if (InternalData.MuxAddr < 2) {
+						InternalData.CHRBanks[InternalData.MuxAddr << 1] =
+							(Src & 0xfe) << 10;
+						InternalData.CHRBanks[\
+							(InternalData.MuxAddr << 1) | 0x01] =
+							(Src | 0x01) << 10;
+					} else
+						InternalData.CHRBanks[InternalData.MuxAddr + 2] =
+							Src << 10;
 				}
 			} else { /* Bank Select */
+				Bus->GetPPU()->PreRender();
 				if (Src & 0x80)
 					InternalData.CHRSwitch = SInternalData::CHRSwitch_42;
 				else
@@ -707,11 +693,13 @@ public:
 
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
-		return CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)];
+		return CHR[InternalData.CHRBanks[((Address & 0x1c00) >> 10) ^
+			InternalData.CHRSwitch] | (Address & 0x03ff)];
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
-		CHR[InternalData.CHRBanks[(Address & 0x1c00) >> 10] | (Address & 0x03ff)] = Src;
+		CHR[InternalData.CHRBanks[((Address & 0x1c00) >> 10) ^ InternalData.CHRSwitch] |
+			(Address & 0x03ff)] = Src;
 	}
 
 	/* Обновление адреса PPU */
