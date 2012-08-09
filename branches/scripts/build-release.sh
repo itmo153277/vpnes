@@ -2,12 +2,17 @@
 
 BUILDNUM=0
 while read line ; do
-BUILDNUM=$line
+	BUILDNUM=$line
 done < win32-builds/BUILD
+if [ $# -gt 0 ] ; then
+	REVSTR="-DSVNREV=\"$1\""
+else
+	REVSTR=""
+fi
 rm -rf release-win32-config
 mkdir release-win32-config
 cd release-win32-config
-LDFLAGS="-static-libgcc" CFLAGS="-O3 -Wall -fomit-frame-pointer -DBUILDNUM=$BUILDNUM" CXXFLAGS="-O3 -Wall -fomit-frame-pointer -static-libstdc++ -DBUILDNUM=$BUILDNUM" ../../vpnes-0.3/configure --with-sdl-prefix=/usr/local/sdl-release --disable-sdltest --host=i686-w64-mingw32 --build=i686-w64-mingw32 || exit 1
+LDFLAGS="-static-libgcc" CFLAGS="-O3 -Wall -fomit-frame-pointer -DBUILDNUM=$BUILDNUM $REVSTR" CXXFLAGS="-O3 -Wall -fomit-frame-pointer -static-libstdc++ -DBUILDNUM=$BUILDNUM $REVSTR" ../../vpnes-0.3/configure --enable-showfps --with-sdl-prefix=/usr/local/sdl-release --disable-sdltest --host=i686-w64-mingw32 --build=i686-w64-mingw32 || exit 1
 make || exit 1 
 make dist || exit 1
 echo Packing exe...
