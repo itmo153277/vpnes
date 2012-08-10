@@ -245,8 +245,6 @@ private:
 		bool EnableRAM;
 		/* RAM Write */
 		bool EnableWrite;
-		/* Ignore Write */
-		bool IgnoreWrite;
 		/* Режим переключения CHR */
 		enum {
 			CHRSwitch_4k = 0,
@@ -304,7 +302,6 @@ public:
 	inline uint8 ReadAddress(uint16 Address) {
 		int PRGAddr;
 
-		InternalData.IgnoreWrite = false;
 		if (Address < 0x8000) {
 			if (RAM != NULL) {
 				if (!InternalData.EnableRAM)
@@ -340,9 +337,9 @@ public:
 			if (InternalData.EnableRAM && InternalData.EnableWrite && (RAM != NULL))
 				RAM[InternalData.SRAMPage | (Address & 0x1fff)] = Src;
 		} else {
-			if (InternalData.IgnoreWrite) /* Игнорируем близкие запросы */
+			/* Игнорируем запись, если не было изменения PRG R/$W */
+			if (!Bus->WasPRGRWClocked())
 				return;
-			InternalData.IgnoreWrite = true;
 			if (Src & 0x80) { /* Сброс */
 				InternalData.Reset();
 				return;

@@ -75,13 +75,18 @@ private:
 	ROMClass *ROM;
 	/* SolderPad */
 	typename ROMClass::SolderPad SolderPad;
+	/* PRG RW State */
+	bool PRGRW;
 public:
 	inline explicit CBus_Basic(VPNES_CALLBACK Callback, CMemoryManager *Manager):
-		_Callback(Callback), _Manager(Manager) {}
+		_Callback(Callback), _Manager(Manager) {
+		PRGRW = false;
+	}
 	inline ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPUMemory(uint16 Address) {
+		PRGRW = true;
 		if (Address < 0x2000) /* CPU internal RAM */
 			return CPU->ReadAddress(Address);
 		if (Address < 0x4000) /* PPU registers */
@@ -100,6 +105,14 @@ public:
 			APU->WriteAddress(Address, Src);
 		else /* Mapper */
 			ROM->WriteAddress(Address, Src);
+	}
+
+	/* Проверяем был ли цикл запись-чтение */
+	inline bool WasPRGRWClocked() {
+		bool Res = PRGRW;
+
+		PRGRW = false;
+		return Res;
 	}
 
 	/* Обращение к памяти PPU */
