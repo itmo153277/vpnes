@@ -235,9 +235,18 @@ private:
 	} InternalData;
 
 	/* Вывод точки */
-	inline void OutputPixel(int x, int y, uint32 color) {
-		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224))
+	inline void OutputPixel(int x, int y, int col) {
+		int color = vbuf->Pal[col];
+
+		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224)) {
+			if (ControlRegisters.IntensifyRed)
+				color &= vbuf->RMask;
+			if (ControlRegisters.IntensifyGreen)
+				color &= vbuf->GMask;
+			if (ControlRegisters.IntensifyBlue)
+				color &= vbuf->BMask;
 			vbuf->Buf[x + y * 256] = color;
+		}
 	}
 
 	/* Палитра */
@@ -658,7 +667,12 @@ inline void CPPU<_Bus>::DrawPixel() {
 			/* Перекрываем пиксель фона */
 			t = Registers.GetPALAddress(scol, Sprites[rspr].Attrib);
 	}
-	OutputPixel(InternalData.x, InternalData.y - 8, vbuf->Pal[PalMem[t] & 0x3f]);
+	col = PalMem[t];
+	if (ControlRegisters.Grayscale)
+		col &= 0x30;
+	else
+		col &= 0x3f;
+	OutputPixel(InternalData.x, InternalData.y - 8, col);
 	InternalData.ShiftRegA <<= 1;
 	InternalData.ShiftRegB <<= 1;
 	if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))

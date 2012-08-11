@@ -32,10 +32,10 @@ SDL_Surface *bufs;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
-double framejit = 0.0f;
-double framerate = 1.0f;
+double framejit = 0.0;
+double framerate = 1.0;
 int CPUHalt = 0;
-double delta = 0.0f;
+double delta = 0.0;
 VPNES_VBUF vbuf;
 VPNES_ABUF abuf;
 VPNES_IBUF ibuf;
@@ -145,7 +145,7 @@ int InitMainWindow(int Width, int Height) {
 	PCMBuf[1] = malloc(hardware_spec->size);
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
-	abuf.Freq = 44.1f;
+	abuf.Freq = 44.1;
 	SaveState = 0;
 	return 0;
 }
