@@ -5,7 +5,7 @@ while read line ; do
 	BUILDNUM=$line
 done < win32-builds/BUILD
 if [ $# -gt 0 ] ; then
-	REVSTR="-DSVNREV=\"$1\""
+	REVSTR="-DSVNREV=\"\\\"$1\\\"\""
 else
 	REVSTR=""
 fi
