@@ -573,13 +573,15 @@ inline void CPPU<_Bus>::FetchSprite() {
 			if (InternalData.SpriteAddr == 0xffff)
 				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
 					Registers.SpritePage | 0x0ff0 : 0x1ff0);
-			Sprites[i].ShiftRegA = ReadWithA12(InternalData.SpriteAddr);
+			else
+				Sprites[i].ShiftRegA = ReadWithA12(InternalData.SpriteAddr);
 			break;
 		case 6:
 			if (InternalData.SpriteAddr == 0xffff)
 				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
 					Registers.SpritePage | 0x0ff8 : 0x1ff8);
-			Sprites[i].ShiftRegB = ReadWithA12(InternalData.SpriteAddr | 0x08);
+			else
+				Sprites[i].ShiftRegB = ReadWithA12(InternalData.SpriteAddr | 0x08);
 			break;
 	}
 }
