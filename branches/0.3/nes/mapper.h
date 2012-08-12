@@ -695,8 +695,9 @@ public:
 	}
 	/* Запись памяти PPU */
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
-		CHR[InternalData.CHRBanks[((Address & 0x1c00) >> 10) ^ InternalData.CHRSwitch] |
-			(Address & 0x03ff)] = Src;
+		if (ROM->CHR == NULL)
+			CHR[InternalData.CHRBanks[((Address & 0x1c00) >> 10) ^
+				 InternalData.CHRSwitch] | (Address & 0x03ff)] = Src;
 	}
 
 	/* Обновление адреса PPU */
