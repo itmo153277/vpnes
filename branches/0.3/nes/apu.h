@@ -28,8 +28,6 @@
 
 #include "../types.h"
 
-#include <iostream>
-
 #include <cstring>
 #include "manager.h"
 #include "bus.h"
@@ -104,7 +102,7 @@ private:
 
 		/* Вывод семпла */
 		inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
-			float Res = Avr + Sample;
+			double Res = Avr + Sample;
 
 			Avr -= Res / 128 / Buf->Freq;
 			Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
@@ -239,7 +237,7 @@ private:
 				return false;
 			}
 			inline bool CanOutput() {
-				return (LengthCounter > 0) && ((Timer > 7) || (TimerTarget < 0x0800)) &&
+				return (LengthCounter > 0) && (Timer > 7) && (TimerTarget < 0x0800) &&
 					DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
@@ -275,7 +273,7 @@ private:
 
 				Res = Timer >> SweepShiftCount;
 				if (SweepNegative)
-					Res = ~Res + 1;
+					Res = -Res;
 				TimerTarget = (Timer + Res) & 0x1fff;
 			}
 		} SquareChannel2;
@@ -494,7 +492,6 @@ private:
 			TNDOut += DMChannel.Output;
 			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
-				//std::cout << NewOutput << '\t' << UpdCycle << std::endl;
 				FlushBuffer(Buf);
 				LastOutput = NewOutput;
 			}
