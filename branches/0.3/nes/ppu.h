@@ -176,17 +176,38 @@ private:
 		bool SpriteClip; /* Не показывать 8 пикселей слева */
 		bool ShowBackground; /* Рендерить фон */
 		bool ShowSprites; /* Рендерить спрайты */
-		bool IntensifyRed; /* Только красный */
-		bool IntensifyGreen; /* Только зеленый */
-		bool IntensifyBlue; /* Только синий */
+		int IntensifyRed; /* Только красный */
+		int IntensifyGreen; /* Только зеленый */
+		int IntensifyBlue; /* Только синий */
+		int IntensifySum;
 		inline void Controller(uint8 Src) { VerticalIncrement = Src & 0x04;
 			Size = (Src & 0x20) ? Size8x16 : Size8x8; GenerateNMI = Src & 0x80; }
 		inline void Mask(uint8 Src) { Grayscale = Src & 0x01;
 			BackgroundClip = Src & 0x02; SpriteClip = Src & 0x04;
 			ShowBackground = Src & 0x08; ShowSprites = Src & 0x10;
-			IntensifyRed = Src & 0x20; IntensifyGreen = Src & 0x40;
-			IntensifyBlue = Src & 0x80; }
+			if (Src & 0x20) IntensifyRed = 1; else IntensifyRed = 0;
+			if (Src & 0x40) IntensifyGreen = 1; else IntensifyGreen = 0;
+			if (Src & 0x80) IntensifyBlue = 1; else IntensifyBlue = 0;
+			IntensifySum = IntensifyRed + IntensifyGreen + IntensifyBlue; }
 		inline bool RenderingEnabled() { return ShowBackground || ShowSprites; }
+		/* Увеличить интенсивность */
+		inline void Intensify(uint32 &Colour, uint32 MaskA, uint32 MaskB, uint32 MaskC) {
+			double A = Colour & MaskA, B = Colour & MaskB, C = Colour & MaskC;
+
+			Colour = 0;
+			A *= (IntensifyRed + 1) * 3.0 / (IntensifySum + 3);
+			B *= (IntensifyGreen + 1) * 3.0 / (IntensifySum + 3);
+			C *= (IntensifyBlue + 1) * 3.0 / (IntensifySum + 3);
+#define ApplyMask(x) \
+			if (x > Mask##x)\
+				Colour |= Mask##x;\
+			else\
+				Colour |= ((uint32) x) & Mask##x
+			ApplyMask(A);
+			ApplyMask(B);
+			ApplyMask(C);
+#undef ApplyMask
+		}
 	} ControlRegisters;
 
 	/* Данные спрайтов */
@@ -236,15 +257,11 @@ private:
 
 	/* Вывод точки */
 	inline void OutputPixel(int x, int y, int col) {
-		int color = vbuf->Pal[col];
+		uint32 color = vbuf->Pal[col];
 
 		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224)) {
-			if (ControlRegisters.IntensifyRed)
-				color &= vbuf->RMask;
-			if (ControlRegisters.IntensifyGreen)
-				color &= vbuf->GMask;
-			if (ControlRegisters.IntensifyBlue)
-				color &= vbuf->BMask;
+			if (ControlRegisters.IntensifySum > 0)
+				ControlRegisters.Intensify(color, vbuf->RMask, vbuf->GMask, vbuf->BMask);
 			vbuf->Buf[x + y * 256] = color;
 		}
 	}
