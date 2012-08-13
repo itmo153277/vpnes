@@ -154,6 +154,7 @@ private:
 			uint8 SweepShiftCount; /* Число сдвигов */
 			uint16 Timer; /* Период */
 			uint16 TimerTarget; /* Обновление периода */
+			bool Valid; /* Новый период правильный */
 			int TimerCounter; /* Счетчик */
 			int LengthCounter; /* Счетчик */
 			int EnvelopeCounter; /* Счетчик огибающей */
@@ -214,9 +215,8 @@ private:
 			inline void Sweep() {
 				SweepDivider++;
 				if (SweepDivider > SweepPeriod) {
-					if (SweepEnabled && (Timer > 7) && (TimerTarget < 0x0800) &&
-						(SweepShiftCount > 0))
-						Timer = TimerTarget;
+					if (SweepEnabled && Valid && (SweepShiftCount > 0))
+						Timer = TimerTarget & 0x07ff;
 					SweepDivider = 0;
 				}
 				if (SweepReload) { /* Сброс _после_ обновления */
@@ -237,7 +237,7 @@ private:
 				return false;
 			}
 			inline bool CanOutput() {
-				return (LengthCounter > 0) && (Timer > 7) && (TimerTarget < 0x0800) &&
+				return (LengthCounter > 0) && Valid &&
 					DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
@@ -248,6 +248,7 @@ private:
 			using SSquareChannel::SweepNegative;
 			using SSquareChannel::Timer;
 			using SSquareChannel::TimerTarget;
+			using SSquareChannel::Valid;
 
 			/* Вычислить свип */
 			inline void CalculateSweep() {
@@ -256,7 +257,8 @@ private:
 				Res = Timer >> SweepShiftCount;
 				if (SweepNegative)
 					Res = ~Res;
-				TimerTarget = (Timer + Res) & 0x1fff;
+				TimerTarget = Timer + Res;
+				Valid = (Timer > 7) && (SweepNegative || (TimerTarget < 0x0800));
 			}
 		} SquareChannel1;
 
@@ -266,6 +268,7 @@ private:
 			using SSquareChannel::SweepNegative;
 			using SSquareChannel::Timer;
 			using SSquareChannel::TimerTarget;
+			using SSquareChannel::Valid;
 
 			/* Вычислить свип */
 			inline void CalculateSweep() {
@@ -274,7 +277,8 @@ private:
 				Res = Timer >> SweepShiftCount;
 				if (SweepNegative)
 					Res = -Res;
-				TimerTarget = (Timer + Res) & 0x1fff;
+				TimerTarget = Timer + Res;
+				Valid = (Timer > 7) && (SweepNegative || (TimerTarget < 0x0800));
 			}
 		} SquareChannel2;
 
