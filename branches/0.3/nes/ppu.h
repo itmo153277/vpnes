@@ -870,14 +870,16 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		/* cc 256 - 319 — фетчинг спрайтов + обновление скроллинга */
 		if (CycleData.CurCycle < 341 + 320) {
 			if (ControlRegisters.RenderingEnabled()) {
-				while (CycleData.CurCycle < std::min(341 + 320, CycleData.CyclesLeft)) {
+				CycleData.CurCycle -= 341;
+				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft - 341)) {
 					FetchSprite();
-					if (CycleData.CurCycle == 341 + 304) {
+					if (CycleData.CurCycle == 304) {
 						Registers.RealReg1 = Registers.BigReg1;
 						Registers.FHMask = 0x8000 >> Registers.FH;
 					}
 					CycleData.CurCycle += 2;
 				}
+				CycleData.CurCycle += 341;
 			} else
 				CycleData.CurCycle = std::min(341 + 320, CycleData.CyclesLeft +
 					(~CycleData.CyclesLeft & 1));
