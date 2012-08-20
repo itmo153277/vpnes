@@ -109,6 +109,7 @@ private:
 		uint16 TempAR;
 		uint16 AR; /* Информация о аттрибутах */
 		uint16 FHMask; /* Маска регистра */
+		uint16 FHUpd;
 		uint16 FH; /* Настоящий регистр */
 		uint16 SpritePage; /* Страница для спрайтов */
 		/* Получить адрес для 0x2007 */
@@ -157,7 +158,7 @@ private:
 			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
 		/* Обновление скроллинга */
 		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f);
-			FHMask = 0x8000 >> FH; }
+			FHMask = 0x8000 >> FH; FHUpd = FH;}
 	} Registers;
 
 	/* Размер спрайта */
@@ -195,9 +196,9 @@ private:
 			double A = Colour & MaskA, B = Colour & MaskB, C = Colour & MaskC;
 
 			Colour = 0;
-			A *= (IntensifyRed + 1) * 3.0 / (IntensifySum + 3);
-			B *= (IntensifyGreen + 1) * 3.0 / (IntensifySum + 3);
-			C *= (IntensifyBlue + 1) * 3.0 / (IntensifySum + 3);
+			A *= (6 - IntensifyGreen - IntensifyBlue) / 6.0;
+			B *= (6 - IntensifyGreen - IntensifyRed) / 6.0;
+			C *= (6 - IntensifyRed - IntensifyBlue) / 6.0;
 #define ApplyMask(x) \
 			if (x > Mask##x)\
 				Colour |= Mask##x;\
@@ -694,7 +695,7 @@ inline void CPPU<_Bus>::DrawPixel() {
 	OutputPixel(InternalData.x, InternalData.y - 8, col);
 	InternalData.ShiftRegA <<= 1;
 	InternalData.ShiftRegB <<= 1;
-	if ((InternalData.x & 0x07) == (Registers.FH ^ 0x07))
+	if ((InternalData.x & 0x07) == (Registers.FHUpd ^ 0x07))
 		Registers.AR >>= 2;
 	InternalData.x++;
 	if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
@@ -876,6 +877,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 					if (CycleData.CurCycle == 304) {
 						Registers.RealReg1 = Registers.BigReg1;
 						Registers.FHMask = 0x8000 >> Registers.FH;
+						Registers.FHUpd = Registers.FH;
 					}
 					CycleData.CurCycle += 2;
 				}

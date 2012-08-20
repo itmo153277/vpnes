@@ -54,6 +54,12 @@ int main(int argc, char *argv[]) {
 	ROM.close();
 	if (NESConfig == NULL)
 		return 0;
+	std::cerr << "ROM: " << Data.Header.Mapper << " mapper, PRG " << Data.Header.PRGSize <<
+		", W-RAM " << Data.Header.RAMSize << (Data.Header.HaveBattery ? " (battery "
+		"backed), CHR " : " (no battery), CHR " ) << Data.Header.CHRSize <<
+		((Data.CHR == NULL) ? " RAM, System " : ", System ") << Data.Header.TVSystem <<
+		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
+		", no trainer" : ", have trainer 512") << std::endl;
 	/* Инициализация окна */
 	if (InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight()) == 0) {
 		/* Включаем приставку */
