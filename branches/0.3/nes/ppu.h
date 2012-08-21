@@ -68,6 +68,7 @@ private:
 	struct SCycleData {
 		int CurCycle; /* Текущий такт */
 		int CyclesLeft; /* Необработанные такты */
+		int LastCycle;
 		int CyclesTotal; /* Всего тактов */
 		int DMACycles; /* Такт DMA */
 		int Scanline; /* Текущий сканлайн */
@@ -372,6 +373,7 @@ public:
 		/* Обрабатываем необработанные такты */
 		Render(Cycles - PreprocessedCycles);
 		PreprocessedCycles = 0;
+		CycleData.LastCycle = CycleData.CyclesLeft;
 	}
 
 	/* Предобработка */
@@ -395,6 +397,7 @@ public:
 		CycleData.Scanline = -1; /* Начинаем с пре-рендер сканлайна */
 		CycleData.CurCycle = 341;
 		CycleData.CyclesLeft = 341;
+		CycleData.LastCycle = 341;
 		InternalData.ShortScanline = true;
 	}
 
@@ -500,6 +503,14 @@ public:
 		FrameReady = false;
 		return Res;
 	}
+	inline int GetCurCycle() {
+		int Cycle = std::min(CycleData.CurCycle, CycleData.CyclesLeft) -
+			CycleData.LastCycle;
+
+		if (Cycle < Bus->GetClock()->GetPreCycles())
+			Cycle = Bus->GetClock()->GetPreCycles();
+		return Cycle;
+	}
 	/* Буфер */
 	inline VPNES_VBUF *&GetBuf() { return vbuf; }
 };
@@ -515,7 +526,7 @@ inline void CPPU<_Bus>::EvaluateSprites() {
 	Sprites[0].x = -1;
 	for (;;) {
 		if ((((uint8) (InternalData.y - *pOAM)) <
-			ControlRegisters.Size) && (*pOAM < 0xf0)) {
+			ControlRegisters.Size) && (((uint8) (*pOAM + 1)) < 0xf0)) {
 			/* Спрайт попал в диапазон */
 			/* Заполняем данные */
 			Sprites[i].y = *(pOAM++);
@@ -809,10 +820,8 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		}
 		/* cc 337 — пропускаем такт */
 		WAIT_CYCLE(337) {
-			if ((CycleData.Scanline == -1) && ControlRegisters.RenderingEnabled()) {
-				if (InternalData.ShortScanline) {
-					CycleData.CyclesTotal--;
-					CycleData.DebugTimer--;
+			if (CycleData.Scanline == -1) {
+				if (ControlRegisters.RenderingEnabled() && InternalData.ShortScanline) {
 					CycleData.CyclesLeft++;
 					InCycle++;
 				}
@@ -828,6 +837,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				ProcessDMA(341 - InCycle);
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
+				CycleData.LastCycle -= 341;
 				continue;
 			} else { /* 240 сканлайн — начинаем VBlank в конце сканлайна */
 				CycleData.CyclesTotal -= CycleData.CyclesLeft - 338;
@@ -850,12 +860,12 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 			if (ControlRegisters.RenderingEnabled()) {
 				while (CycleData.CurCycle < std::min(341 + 256, CycleData.CyclesLeft)) {
 					switch (CycleData.CurCycle & 7) {
-						case 1: /* Name Table */
+						case 5: /* Name Table */
 							break;
-						case 3: /* Attribute Table */
+						case 7: /* Attribute Table */
 							break;
-						case 5: /* Pattern Table */
-						case 7: /* Pattern Table */
+						case 1: /* Pattern Table */
+						case 3: /* Pattern Table */
 							Bus->GetROM()->UpdatePPUAddress(Registers.GetPTPage());
 							break;
 					}
@@ -872,6 +882,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		if (CycleData.CurCycle < 341 + 320) {
 			if (ControlRegisters.RenderingEnabled()) {
 				CycleData.CurCycle -= 341;
+				CycleData.LastCycle -= 341;
 				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft - 341)) {
 					FetchSprite();
 					if (CycleData.CurCycle == 304) {
@@ -882,6 +893,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 					CycleData.CurCycle += 2;
 				}
 				CycleData.CurCycle += 341;
+				CycleData.LastCycle += 341;
 			} else
 				CycleData.CurCycle = std::min(341 + 320, CycleData.CyclesLeft +
 					(~CycleData.CyclesLeft & 1));
@@ -890,6 +902,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 		WAIT_CYCLE(341 + 320) {
 			CycleData.CurCycle = 320;
 			CycleData.CyclesLeft -= 341;
+			CycleData.LastCycle -= 341;
 			continue;
 		}
 		WAIT_CYCLE(341 + 340) { /* Устанавливаем внутренний флаг */
@@ -905,6 +918,7 @@ inline void CPPU<_Bus>::Render(int Cycles) {
 				Bus->GetCPU()->GenerateNMI();
 			/* Период VBlank — 20 сканлайнов */
 			CycleData.CyclesLeft -= 21 * 341;
+			CycleData.LastCycle -= 21 * 341;
 			/* Ждем -1 сканлайн */
 			CycleData.CurCycle = 341;
 			continue;

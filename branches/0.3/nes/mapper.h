@@ -570,8 +570,10 @@ private:
 					IRQCounter = IRQLatch;
 				else
 					IRQCounter--;
-				if ((IRQCounter == 0) && IRQEnable)
+				if ((IRQCounter == 0) && IRQEnable) {
 					pBus->GetCPU()->GetIRQExPin() = true;
+					pBus->GetCPU()->RaiseIRQ();
+				}
 			} else
 				IgnoreAccess = false;
 		}

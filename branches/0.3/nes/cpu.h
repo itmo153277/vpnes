@@ -486,6 +486,12 @@ public:
 		if (InternalData.IRQTrigger < IRQSave)
 			InternalData.IRQTrigger = IRQSave;
 	}
+	inline void RaiseIRQ() {
+		if (InternalData.IRQTrigger > IRQCheck)
+			return;
+		if ((Bus->GetPPU()->GetCurCycle() + 2) < Cycles * 3)
+			UpdateTrigger(IRQSave);
+	}
 	/* IRQ */
 	inline bool &GetIRQPin() { return InternalData.IRQ; }
 	/* IRQEx */

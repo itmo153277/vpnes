@@ -49,6 +49,7 @@ private:
 public:
 	inline explicit CClock(_Bus *pBus) {
 		Bus = pBus;
+		PreCycles = 0;
 	}
 	inline ~CClock() {}
 
@@ -57,8 +58,8 @@ public:
 		int CyclesDone;
 
 		do {
-			PreCycles = 0;
 			CyclesDone = Bus->GetCPU()->Execute();
+			PreCycles = 0;
 			Bus->GetAPU()->Clock(CyclesDone);
 			Bus->GetPPU()->Clock(CyclesDone);
 		} while (!Bus->GetPPU()->IsFrameReady());
