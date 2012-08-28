@@ -43,8 +43,11 @@ typedef APUGroup<3>::ID::NoBatteryID ChannelsID;
 }
 
 /* APU */
-template <class _Bus, class _Tables>
+template <class _Bus, class _Settings>
 class CAPU: public CDevice {
+public:
+	/* Таблицы */
+	typedef typename _Settings::Tables Tables;
 private:
 	/* Шина */
 	_Bus *Bus;
@@ -161,7 +164,7 @@ private:
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				Start = true;
 				if (UseCounter)
-					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
+					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
 			inline void Envelope() {
@@ -218,7 +221,7 @@ private:
 			}
 			inline bool CanOutput() {
 				return (LengthCounter > 0) && Valid &&
-					_Tables::DutyTable[(DutyMode << 3) + DutyCycle];
+					Tables::DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
 
@@ -283,7 +286,7 @@ private:
 			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				if (UseCounter)
-					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
+					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 				HaltFlag = true;
 			}
 			/* Счетчик длины */
@@ -308,7 +311,7 @@ private:
 				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
 					if ((LinearCounter > 0) && (LengthCounter > 0)) {
-						Output = _Tables::SeqTable[Sequencer++];
+						Output = Tables::SeqTable[Sequencer++];
 						if (Sequencer > 31)
 							Sequencer = 0;
 						return true;
@@ -342,13 +345,13 @@ private:
 					Output = EnvelopeCounter;
 			}
 			inline void Write_2(uint8 Src) {
-				Timer = _Tables::NoiseTable[Src & 0x0f];
+				Timer = Tables::NoiseTable[Src & 0x0f];
 				Shift = ((Src & 0x80) ? 8 : 13);
 			}
 			inline void Write_3(uint8 Src) {
 				Start = true;
 				if (UseCounter)
-					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
+					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
 			inline void Envelope() {
@@ -416,7 +419,7 @@ private:
 				if (!InterruptEnabled)
 					InterruptFlag = false;
 				LoopFlag = Src & 0x40;
-				Timer = _Tables::DMTable[Src & 0x0f];
+				Timer = Tables::DMTable[Src & 0x0f];
 			}
 			inline void Write_2(uint8 Src) {
 				Output = Src & 0x7f;
@@ -474,7 +477,7 @@ private:
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
-			NewOutput = _Tables::SquareTable[SqOut] + _Tables::TNDTable[TNDOut];
+			NewOutput = Tables::SquareTable[SqOut] + Tables::TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				FlushBuffer(Buf);
 				LastOutput = NewOutput;
@@ -578,7 +581,7 @@ private:
 					CycleData.SupressCounter = -1;
 				}
 			}
-			if (CycleData.CurCycle == _Tables::StepCycles[CycleData.Step]) {
+			if (CycleData.CurCycle == Tables::StepCycles[CycleData.Step]) {
 				/* Секвенсер */
 				switch (Channels.Mode) {
 					case SChannels::Mode_4step:
@@ -653,7 +656,7 @@ public:
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
 		memset(&Channels.TriangleChannel, 0, sizeof(Channels.TriangleChannel));
-		Channels.TriangleChannel.Output = _Tables::SeqTable[0];
+		Channels.TriangleChannel.Output = Tables::SeqTable[0];
 	}
 	inline ~CAPU() {}
 
@@ -703,7 +706,7 @@ public:
 				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
 				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
-					(_Tables::StepCycles[SChannels::Mode_4step - 1] + 2))) {
+					(Tables::StepCycles[SChannels::Mode_4step - 1] + 2))) {
 					Channels.FrameInterrupt = false;
 //					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
 				}
@@ -713,7 +716,7 @@ public:
 					return 0x40 | ibuf[InternalData.StrobeCounter_A++];
 				if (InternalData.StrobeCounter_A < 8) {
 					Res = 0x40 | (ibuf[InternalData.StrobeCounter_A] &
-						~ibuf[_Tables::ButtonsRemap[\
+						~ibuf[Tables::ButtonsRemap[\
 						InternalData.StrobeCounter_A & 0x03]]);
 					InternalData.StrobeCounter_A++;
 					return Res;
@@ -951,12 +954,12 @@ const double NTSC_Tables::TNDTable[203] = {
 }
 
 /* Стандартный АПУ */
-template <class _Tables>
+template <class _Settings>
 struct StdAPU {
 	template <class _Bus>
-	class APU: public CAPU<_Bus, _Tables> {
+	class APU: public CAPU<_Bus, _Settings> {
 	public:
-		inline explicit APU(_Bus *pBus): CAPU<_Bus, _Tables>(pBus) {}
+		inline explicit APU(_Bus *pBus): CAPU<_Bus, _Settings>(pBus) {}
 		inline ~APU() {}
 	};
 };

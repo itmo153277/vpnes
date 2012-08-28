@@ -52,8 +52,20 @@ typedef PPUGroup<11>::ID::NoBatteryID InternalDataID;
 }
 
 /* PPU */
-template <class _Bus, int _ClockDivider>
+template <class _Bus, class _Settings>
 class CPPU: public CDevice {
+public:
+	/* Делитель частоты */
+	enum { ClockDivider = _Settings::PPU_Divider };
+	/* Параметры экрана */
+	struct Screen {
+		enum {
+			Top = _Settings::Top,
+			Left = _Settings::Left,
+			Right = _Settings::Right,
+			Bottom = _Settings::Bottom
+		};
+	};
 private:
 	/* Шина */
 	_Bus *Bus;
@@ -261,10 +273,11 @@ private:
 	inline void OutputPixel(int x, int y, int col) {
 		uint32 color = vbuf->Pal[col];
 
-		if ((x >= 0) && (y >= 0) && (x < 256) && (y < 224)) {
+		if ((x >= Screen::Left) && (y >= Screen::Top) &&
+			(x < Screen::Right) && (y < Screen::Bottom)) {
 			if (ControlRegisters.IntensifySum > 0)
 				ControlRegisters.Intensify(color, vbuf->RMask, vbuf->GMask, vbuf->BMask);
-			vbuf->Buf[x + y * 256] = color;
+			vbuf->Buf[(x - Screen::Left) + (y - Screen::Top) * 256] = color;
 		}
 	}
 
@@ -476,8 +489,8 @@ public:
 };
 
 /* Выборка спрайтов */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::EvaluateSprites() {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::EvaluateSprites() {
 	int i = 0; /* Всего найдено */
 	int n = 0; /* Текущий спрайт в буфере */
 	uint8 *pOAM = OAM; /* Указатель на SPR */
@@ -511,8 +524,8 @@ inline void CPPU<_Bus, _ClockDivider>::EvaluateSprites() {
 }
 
 /* Загрузка битовых образов спрайтов */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::FetchSprite() {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::FetchSprite() {
 	int i = (CycleData.CurCycle >> 3) & 7;
 
 	switch (CycleData.CurCycle & 7) {
@@ -576,8 +589,8 @@ inline void CPPU<_Bus, _ClockDivider>::FetchSprite() {
 }
 
 /* Загрузка битовых образов фона */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::FetchBackground() {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::FetchBackground() {
 	switch (CycleData.CurCycle & 7) {
 		case 0: /* Символ чара */
 			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
@@ -595,8 +608,8 @@ inline void CPPU<_Bus, _ClockDivider>::FetchBackground() {
 }
 
 /* Рисуем пиксель */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::DrawPixel() {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::DrawPixel() {
 	int i, rspr, col, scol;
 	uint16 t;
 
@@ -663,7 +676,7 @@ inline void CPPU<_Bus, _ClockDivider>::DrawPixel() {
 		col &= 0x30;
 	else
 		col &= 0x3f;
-	OutputPixel(InternalData.x, InternalData.y - 8, col);
+	OutputPixel(InternalData.x, InternalData.y, col);
 	InternalData.ShiftRegA <<= 1;
 	InternalData.ShiftRegB <<= 1;
 	if ((InternalData.x & 0x07) == (Registers.FHUpd ^ 0x07))
@@ -677,8 +690,8 @@ inline void CPPU<_Bus, _ClockDivider>::DrawPixel() {
 }
 
 /* Точный рендер */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::FineRender(int Cycles) {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::FineRender(int Cycles) {
 	for (; Cycles > 0; CycleData.CurCycle++, Cycles--) {
 		if (ControlRegisters.RenderingEnabled()) {
 			if (~CycleData.CurCycle & 1) {
@@ -695,8 +708,8 @@ inline void CPPU<_Bus, _ClockDivider>::FineRender(int Cycles) {
 }
 
 /* Рендер 8 пикселей сразу */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::Render_8(int Cycles) {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::Render_8(int Cycles) {
 	while (Cycles > 0) {
 		//CycleData.CurCycle += 8;
 		FineRender(8);
@@ -705,8 +718,8 @@ inline void CPPU<_Bus, _ClockDivider>::Render_8(int Cycles) {
 }
 
 /* Рендер */
-template <class _Bus, int _ClockDivider>
-inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
+template <class _Bus, class _Settings>
+inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 
 #define WAIT_CYCLE(_n) if (CycleData.CyclesLeft <= (_n)) break;\
 	if (CycleData.CurCycle == (_n))
@@ -716,8 +729,8 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 	int Count, Prec, ActCycles;
 
 	CycleData.PrecCycles += Cycles;
-	ActCycles = CycleData.PrecCycles / _ClockDivider;
-	CycleData.PrecCycles %= _ClockDivider;
+	ActCycles = CycleData.PrecCycles / ClockDivider;
+	CycleData.PrecCycles %= ClockDivider;
 	CycleData.CyclesLeft += ActCycles;
 	CycleData.CyclesTotal += ActCycles;
 	CycleData.DebugTimer += ActCycles;
@@ -784,7 +797,7 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 		WAIT_CYCLE(337) {
 			if (CycleData.Scanline == -1) {
 				if (ControlRegisters.RenderingEnabled() && InternalData.ShortScanline) {
-					CycleData.CyclesLeft++;
+					_Settings::SkipPPUClock(CycleData.CyclesLeft);
 				}
 				InternalData.ShortScanline = !InternalData.ShortScanline;
 			}
@@ -793,7 +806,7 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 		/* cc 338 - 341 Конец сканлайна, пропускаем 2 лишних чтения и IDLE такт */
 		WAIT_CYCLE(338) {
 			CycleData.Scanline++;
-			if (CycleData.Scanline != 240) {
+			if (CycleData.Scanline != _Settings::ActiveScanlines) {
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
 				CycleData.LastCycle -= 341;
@@ -802,11 +815,12 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 				CycleData.CyclesTotal -= CycleData.CyclesLeft - 338;
 				if (!FrameReady) { /* Завершили рендер кадра */
 					FrameReady = true;
-					FrameCycles = CycleData.CyclesTotal * _ClockDivider;
+					FrameCycles = CycleData.CyclesTotal * ClockDivider;
 				}
 				CycleData.CyclesTotal = CycleData.CyclesLeft - 338;
 				/* Ждем 340 такт */
 				CycleData.CurCycle = 341 + 340;
+				CycleData.CyclesLeft -= (_Settings::PostRender - 1) * 341;
 			}
 		}
 		WAIT_CYCLE(341) { /* Сюда можно попасть только на -1 сканлайне */
@@ -875,9 +889,9 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 		WAIT_CYCLE(341 + 343) { /* Генерируем NMI */
 //			if (ControlRegisters.GenerateNMI)
 //				Bus->GetCPU()->GenerateNMI();
-			/* Период VBlank — 20 сканлайнов */
-			CycleData.CyclesLeft -= 21 * 341;
-			CycleData.LastCycle -= 21 * 341;
+			/* Период VBlank — 20/70 сканлайнов */
+			CycleData.CyclesLeft -= (_Settings::VBlank + 1) * 341;
+			CycleData.LastCycle -= (_Settings::VBlank + 1) * 341;
 			/* Ждем -1 сканлайн */
 			CycleData.CurCycle = 341;
 			continue;
@@ -891,12 +905,12 @@ inline void CPPU<_Bus, _ClockDivider>::Render(int Cycles) {
 }
 
 /* Стандартный ГПУ */
-template <int _ClockDivider>
+template <class _Settings>
 struct StdPPU {
 	template <class _Bus>
-	class PPU: public CPPU<_Bus, _ClockDivider> {
+	class PPU: public CPPU<_Bus, _Settings> {
 	public:
-		inline explicit PPU(_Bus *pBus): CPPU<_Bus, _ClockDivider>(pBus) {}
+		inline explicit PPU(_Bus *pBus): CPPU<_Bus, _Settings>(pBus) {}
 		inline ~PPU() {}
 	};
 };

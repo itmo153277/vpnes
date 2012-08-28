@@ -95,14 +95,14 @@ public:
 };
 
 /* Стандартный шаблон для параметров NES */
-template <class _Nes, int _Width, int _Height>
+template <class _Nes, class _ScreenSettings>
 class CNESConfigTemplate: public CNESConfig {
 private:
 	const ines::NES_ROM_Data *Data;
 public:
 	inline explicit CNESConfigTemplate(const ines::NES_ROM_Data *ROM) {
-		Width = _Width;
-		Height = _Height;
+		Width = _ScreenSettings::Right - _ScreenSettings::Left;
+		Height = _ScreenSettings::Bottom - _ScreenSettings::Top;
 		Data = ROM;
 	}
 	inline ~CNESConfigTemplate() {}
