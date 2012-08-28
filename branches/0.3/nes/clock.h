@@ -38,30 +38,29 @@ namespace MiscID {
 
 }
 
-/* Генератор (NTSC) */
-template <class _Bus>
-class CClock {
+/* Генератор */
+template <class _Bus, class _Oscillator>
+class CStdClock {
 private:
 	/* Шина */
 	_Bus *Bus;
 	/* Текущий такт */
 	int PreCycles;
 public:
-	inline explicit CClock(_Bus *pBus) {
+	inline explicit CStdClock(_Bus *pBus) {
 		Bus = pBus;
-		PreCycles = 0;
 	}
-	inline ~CClock() {}
+	inline ~CStdClock() {}
 
 	/* Обработать кадр */
 	inline double ProccessFrame() {
-		int CyclesDone;
 
 		do {
-			CyclesDone = Bus->GetCPU()->Execute();
 			PreCycles = 0;
-			Bus->GetAPU()->Clock(CyclesDone);
-			Bus->GetPPU()->Clock(CyclesDone);
+			Bus->GetCPU()->Execute();
+			Bus->GetAPU()->Clock(Bus->GetCPU()->GetCycles());
+			Bus->GetPPU()->Clock(Bus->GetCPU()->GetCycles() *
+				_Bus::CPUClass::ClockDivider);
 		} while (!Bus->GetPPU()->IsFrameReady());
 		return Bus->GetPPU()->GetFrameCycles() * GetFix();
 	}
@@ -72,9 +71,22 @@ public:
 	}
 
 	/* Получить точный сдвиг */
-	inline const int &GetPreCycles() const { return PreCycles; }
+	inline int GetPreCycles() const { return PreCycles *
+		_Bus::CPUClass::ClockDivider; }
+	inline int GetPreCPUCycles() const { return PreCycles; }
 	/* Получить точный коэф */
-	inline double GetFix() const { return 176.0 / 945000.0; }
+	inline double GetFix() const { return _Oscillator::GetFreq(); }
+};
+
+/* Стандартный генератор */
+template <class _Oscillator>
+struct StdClock {
+	template <class _Bus>
+	class CClock: public CStdClock<_Bus, _Oscillator> {
+	public:
+		inline explicit CClock(_Bus *pBus): CStdClock<_Bus, _Oscillator>(pBus) {}
+		inline ~CClock() {}
+	};
 };
 
 }

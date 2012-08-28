@@ -39,12 +39,13 @@ namespace CPUID {
 typedef CPUGroup<1>::ID::NoBatteryID StateID;
 typedef CPUGroup<2>::ID::NoBatteryID RegistersID;
 typedef CPUGroup<3>::ID::NoBatteryID RAMID;
-typedef CPUGroup<4>::ID::NoBatteryID InternalDataID;
+typedef CPUGroup<4>::ID::NoBatteryID CycleDataID;
+typedef CPUGroup<5>::ID::NoBatteryID InternalDataID;
 
 }
 
 /* CPU */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 class CCPU: public CDevice {
 private:
 	/* Шина */
@@ -62,9 +63,6 @@ private:
 
 	/* Таблица опкодов */
 	static const SOpcode Opcodes[256];
-
-	/* Такты */
-	int Cycles;
 
 	/* Регистр состояния */
 	struct SState {
@@ -95,29 +93,25 @@ private:
 	/* Встроенная память */
 	uint8 *RAM;
 
-#define IRQLow     0 /* Не обрабатывать IRQ */
-#define IRQReady   IRQLow   + 1 /* Проверить на обработку IRQ */
-#define IRQStart   IRQReady + 1 /* Начать ообработку IRQ */
-#define IRQCheck   IRQStart + 1 /* Проверить для немедленной обработки IRQ */
-#define IRQSave    IRQCheck + 1 /* Сохранить контекст */
-#define IRQExecute IRQSave  + 1 /* Выполнить IRQ */
+	/* Данные о тактах */
+	struct SCycleData {
+		int NMICycle; /* Такт распознавания NMI */
+		int IRQCycle; /* Такт распознавания IRQ */
+		int Cycles; /* Всего тактов */
+	} CycleData;
 
 	/* Внутренние данные */
 	struct SInternalData {
 		bool Halt; /* Зависание */
-		bool NMI; /* Не маскируемое прерывание */
-		bool IRQ; /* Прерывание */
-		bool IRQEx; /* Внешний возбудитель */
-		int IRQTrigger;
 	} InternalData;
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
-		Bus->GetClock()->Clock(3);
+		Bus->GetClock()->Clock(1);
 		return Bus->ReadCPUMemory(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
-		Bus->GetClock()->Clock(3);
+		Bus->GetClock()->Clock(1);
 		Bus->WriteCPUMemory(Address, Src);
 	}
 
@@ -137,14 +131,6 @@ private:
 	/* Достать из стека слово */
 	inline uint16 PopWord() {
 		return PopByte() | (PopByte() << 8);
-	}
-
-	/* Обновить состояние триггера */
-	inline void UpdateTrigger(int NewState = IRQReady) {
-		if (State.Interrupt())
-			InternalData.IRQTrigger = IRQLow;
-		else
-			InternalData.IRQTrigger = NewState;
 	}
 
 	/* Адресация */
@@ -233,7 +219,7 @@ private:
 			//CPU.Bus->GetClock()->Clock(??); /* Неизвестное поведение */
 			Res = CPU.Registers.pc + (sint8) CPU.ReadMemory(CPU.Registers.pc - 1);
 			if ((Res & 0xff00) != (CPU.Registers.pc & 0xff00))
-				CPU.Cycles++;
+				CPU.CycleData.Cycles++;
 			return Res;
 		}
 	};
@@ -250,7 +236,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) { /* Перепрыгнули страницу */
 				CPU.ReadMemory(Address - 0x0100); /* Промазал Ha-Ha */
-				CPU.Cycles++;
+				CPU.CycleData.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -288,7 +274,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.Cycles++;
+				CPU.CycleData.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -372,7 +358,7 @@ private:
 			uint8 AddressOffset;
 
 			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
-			CPU.Bus->GetClock()->Clock(9);
+			CPU.Bus->GetClock()->Clock(3);
 			return CPU.RAM[AddressOffset] | (CPU.RAM[(uint8) (AddressOffset + 1)] << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
@@ -409,7 +395,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.Cycles++;
+				CPU.CycleData.Cycles++;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -447,23 +433,24 @@ public:
 		RAM = (uint8 *) Bus->GetManager()->template GetPointer<CPUID::RAMID>(\
 			0x0800 * sizeof(uint8));
 		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
+		Bus->GetManager()->template SetPointer<CPUID::CycleDataID>(\
+			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<CPUID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
 	}
 	inline ~CCPU() {}
 
 	/* Обработать такты */
-	inline int Execute();
+	inline void Execute();
 
 	/* Сброс */
-	inline int Reset() {
-		Cycles = 7;
+	inline void Reset() {
+		CycleData.Cycles = 7;
 		Registers.s -= 3;
 		State.State |= 0x04; /* Interrupt */
 		memset(&InternalData, 0, sizeof(InternalData));
 		Bus->GetClock()->Clock(5);
 		Registers.pc = ReadMemory(0xfffc) | (ReadMemory(0xfffd) << 8);
-		return Cycles * 3;
 	}
 
 	/* Чтение памяти */
@@ -475,29 +462,12 @@ public:
 		RAM[Address & 0x07ff] = Src;
 	}
 
-	/* Приостановка работы */
-	inline void Pause(int PauseCycles) {
-		Cycles += PauseCycles;
-		Bus->GetClock()->Clock(PauseCycles * 3);
-	}
-	/* Генерировать NMI */
-	inline void GenerateNMI() {
-		InternalData.NMI = true;
-		if (InternalData.IRQTrigger < IRQSave)
-			InternalData.IRQTrigger = IRQSave;
-	}
-	inline void RaiseIRQ() {
-		if (InternalData.IRQTrigger > IRQCheck)
-			return;
-		if ((Bus->GetPPU()->GetCurCycle() + 2) < Cycles * 3)
-			UpdateTrigger(IRQSave);
-	}
-	/* IRQ */
-	inline bool &GetIRQPin() { return InternalData.IRQ; }
-	/* IRQEx */
-	inline bool &GetIRQExPin() { return InternalData.IRQEx; }
+	/* Получить число тактов */
+	inline int GetCycles() const { return CycleData.Cycles; }
 	/* RAM */
 	inline const uint8 *GetRAM() const { return RAM; }
+	/* Делитель */
+	enum { ClockDivider = _ClockDivider };
 private:
 	/* Команды CPU */
 
@@ -709,54 +679,25 @@ private:
 	void OpBRK();
 };
 
-template <class _Bus>
-int CCPU<_Bus>::Execute() {
+template <class _Bus, int _ClockDivider>
+void CCPU<_Bus, _ClockDivider>::Execute() {
 	uint8 opcode;
 
 	if (InternalData.Halt) /* Зависли */
-		return 3;
-	if ((InternalData.IRQTrigger == IRQReady) ||
-		(InternalData.IRQTrigger == IRQCheck)) {
-		if (InternalData.IRQ || InternalData.IRQEx)
-			InternalData.IRQTrigger++;
-		else
-			InternalData.IRQTrigger = IRQReady;
-	}
-	switch (InternalData.IRQTrigger) {
-		case IRQStart:
-			InternalData.IRQTrigger = IRQSave;
-			break;
-		case IRQSave:
-			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State); /* Сохраняем состояние */
-			InternalData.IRQTrigger = IRQExecute;
-			return 12; /* 4 такта */
-		case IRQExecute: /* Выполняем прерываение */
-			/* Прыгаем */
-			if (InternalData.NMI) {
-				Registers.pc = Bus->ReadCPUMemory(0xfffa) |
-					(Bus->ReadCPUMemory(0xfffb) << 8);
-				InternalData.NMI = false;
-			} else
-				Registers.pc = Bus->ReadCPUMemory(0xfffe) |
-					(Bus->ReadCPUMemory(0xffff) << 8);
-			InternalData.IRQTrigger = IRQLow;
-			return 9; /* 3 такта */
-	}
+		return;
 	/* Текущий опкод */
 	opcode = ReadMemory(Registers.pc);
 	Registers.pc += Opcodes[opcode].Length;
-	Cycles = Opcodes[opcode].Cycles;
+	CycleData.Cycles = Opcodes[opcode].Cycles;
 	/* Выполняем */
 	(this->*Opcodes[opcode].Handler)();
-	return Cycles * 3;
 }
 
 /* Команды */
 
 /* Неизвестный опкод */
-template <class _Bus>
-void CCPU<_Bus>::OpIllegal() {
+template <class _Bus, int _ClockDivider>
+void CCPU<_Bus, _ClockDivider>::OpIllegal() {
 	VPNES_CPUHALT HaltData;
 
 	/* Зависание */
@@ -773,59 +714,59 @@ void CCPU<_Bus>::OpIllegal() {
 /* Управление памятью */
 
 /* Загрузить в A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpLDA() {
+void CCPU<_Bus, _ClockDivider>::OpLDA() {
 	Registers.a = _Addr::ReadByte(*this);
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* Загрузить в X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpLDX() {
+void CCPU<_Bus, _ClockDivider>::OpLDX() {
 	Registers.x = _Addr::ReadByte(*this);
 	State.NFlag(Registers.x);
 	State.ZFlag(Registers.x);
 }
 
 /* Загрузить в Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpLDY() {
+void CCPU<_Bus, _ClockDivider>::OpLDY() {
 	Registers.y = _Addr::ReadByte(*this);
 	State.NFlag(Registers.y);
 	State.ZFlag(Registers.y);
 }
 
 /* Сохранить A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSTA() {
+void CCPU<_Bus, _ClockDivider>::OpSTA() {
 	_Addr::WriteByte(*this, Registers.a);
 }
 
 /* Сохранить X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSTX() {
+void CCPU<_Bus, _ClockDivider>::OpSTX() {
 	_Addr::WriteByte(*this, Registers.x);
 }
 
 /* Сохранить Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSTY() {
+void CCPU<_Bus, _ClockDivider>::OpSTY() {
 	_Addr::WriteByte(*this, Registers.y);
 }
 
 /* Арифметические опрации */
 
 /* Сложение */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpADC() {
+void CCPU<_Bus, _ClockDivider>::OpADC() {
 	uint16 temp, src;
 
 	src = _Addr::ReadByte(*this);
@@ -838,9 +779,9 @@ void CCPU<_Bus>::OpADC() {
 }
 
 /* Вычитание */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSBC() {
+void CCPU<_Bus, _ClockDivider>::OpSBC() {
 	uint16 temp, src;
 
 	src = _Addr::ReadByte(*this);
@@ -855,9 +796,9 @@ void CCPU<_Bus>::OpSBC() {
 /* Инкремент / декремент */
 
 /* Инкремент */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpINC() {
+void CCPU<_Bus, _ClockDivider>::OpINC() {
 	uint8 src;
 	uint16 Address;
 
@@ -869,27 +810,27 @@ void CCPU<_Bus>::OpINC() {
 }
 
 /* Инкремент X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpINX() {
+void CCPU<_Bus, _ClockDivider>::OpINX() {
 	Registers.x++;
 	State.NFlag(Registers.x);
 	State.ZFlag(Registers.x);
 }
 
 /* Инкремент Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpINY() {
+void CCPU<_Bus, _ClockDivider>::OpINY() {
 	Registers.y++;
 	State.NFlag(Registers.y);
 	State.ZFlag(Registers.y);
 }
 
 /* Декремент */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpDEC() {
+void CCPU<_Bus, _ClockDivider>::OpDEC() {
 	uint8 src;
 	uint16 Address;
 
@@ -901,18 +842,18 @@ void CCPU<_Bus>::OpDEC() {
 }
 
 /* Декремент X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpDEX() {
+void CCPU<_Bus, _ClockDivider>::OpDEX() {
 	Registers.x--;
 	State.NFlag(Registers.x);
 	State.ZFlag(Registers.x);
 }
 
 /* Декремент Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpDEY() {
+void CCPU<_Bus, _ClockDivider>::OpDEY() {
 	Registers.y--;
 	State.NFlag(Registers.y);
 	State.ZFlag(Registers.y);
@@ -921,9 +862,9 @@ void CCPU<_Bus>::OpDEY() {
 /* Сдвиги */
 
 /* Сдвиг влево */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpASL() {
+void CCPU<_Bus, _ClockDivider>::OpASL() {
 	uint8 src;
 	uint16 Address;
 
@@ -936,9 +877,9 @@ void CCPU<_Bus>::OpASL() {
 }
 
 /* Сдвиг вправо */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpLSR() {
+void CCPU<_Bus, _ClockDivider>::OpLSR() {
 	uint8 src;
 	uint16 Address;
 
@@ -951,9 +892,9 @@ void CCPU<_Bus>::OpLSR() {
 }
 
 /* Циклический сдвиг влево */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpROL() {
+void CCPU<_Bus, _ClockDivider>::OpROL() {
 	uint8 src, temp;
 	uint16 Address;
 
@@ -966,9 +907,9 @@ void CCPU<_Bus>::OpROL() {
 }
 
 /* Циклический сдвиг вправо */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpROR() {
+void CCPU<_Bus, _ClockDivider>::OpROR() {
 	uint8 src, temp;
 	uint16 Address;
 
@@ -983,27 +924,27 @@ void CCPU<_Bus>::OpROR() {
 /* Логические операции */
 
 /* Логическое и */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpAND(){
+void CCPU<_Bus, _ClockDivider>::OpAND(){
 	Registers.a &= _Addr::ReadByte(*this);
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* Логическое или */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpORA(){
+void CCPU<_Bus, _ClockDivider>::OpORA(){
 	Registers.a |= _Addr::ReadByte(*this);
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* Исключающаее или */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpEOR() {
+void CCPU<_Bus, _ClockDivider>::OpEOR() {
 	Registers.a ^= _Addr::ReadByte(*this);
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
@@ -1012,9 +953,9 @@ void CCPU<_Bus>::OpEOR() {
 /* Сравнения */
 
 /* Сравнение с A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCMP() {
+void CCPU<_Bus, _ClockDivider>::OpCMP() {
 	uint16 temp;
 
 	temp = Registers.a - _Addr::ReadByte(*this);
@@ -1024,9 +965,9 @@ void CCPU<_Bus>::OpCMP() {
 }
 
 /* Сравнение с X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCPX() {
+void CCPU<_Bus, _ClockDivider>::OpCPX() {
 	uint16 temp;
 
 	temp = Registers.x - _Addr::ReadByte(*this);
@@ -1036,9 +977,9 @@ void CCPU<_Bus>::OpCPX() {
 }
 
 /* Сравнение с Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCPY() {
+void CCPU<_Bus, _ClockDivider>::OpCPY() {
 	uint16 temp;
 
 	temp = Registers.y - _Addr::ReadByte(*this);
@@ -1048,9 +989,9 @@ void CCPU<_Bus>::OpCPY() {
 }
 
 /* Битова проверка */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBIT() {
+void CCPU<_Bus, _ClockDivider>::OpBIT() {
 	uint16 src;
 
 	src = _Addr::ReadByte(*this);
@@ -1062,547 +1003,548 @@ void CCPU<_Bus>::OpBIT() {
 /* Переходы */
 
 /* Переход по !C */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBCC() {
+void CCPU<_Bus, _ClockDivider>::OpBCC() {
 	if (!State.Carry()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по C */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBCS() {
+void CCPU<_Bus, _ClockDivider>::OpBCS() {
 	if (State.Carry()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по !Z */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBNE() {
+void CCPU<_Bus, _ClockDivider>::OpBNE() {
 	if (!State.Zero()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по Z */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBEQ() {
+void CCPU<_Bus, _ClockDivider>::OpBEQ() {
 	if (State.Zero()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по !N */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBPL() {
+void CCPU<_Bus, _ClockDivider>::OpBPL() {
 	if (!State.Negative()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по N */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBMI() {
+void CCPU<_Bus, _ClockDivider>::OpBMI() {
 	if (State.Negative()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по !V */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBVC() {
+void CCPU<_Bus, _ClockDivider>::OpBVC() {
 	if (!State.Overflow()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Переход по V */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBVS() {
+void CCPU<_Bus, _ClockDivider>::OpBVS() {
 	if (State.Overflow()) {
 		Registers.pc = _Addr::GetAddr(*this);
-		Cycles++;
+		CycleData.Cycles++;
 	}
 }
 
 /* Копирование регистров */
 
 /* A -> X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTAX() {
+void CCPU<_Bus, _ClockDivider>::OpTAX() {
 	Registers.x = Registers.a;
 	State.NFlag(Registers.x);
 	State.ZFlag(Registers.x);
 }
 
 /* X -> A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTXA() {
+void CCPU<_Bus, _ClockDivider>::OpTXA() {
 	Registers.a = Registers.x;
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* A -> Y */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTAY() {
+void CCPU<_Bus, _ClockDivider>::OpTAY() {
 	Registers.y = Registers.a;
 	State.NFlag(Registers.y);
 	State.ZFlag(Registers.y);
 }
 
 /* Y -> A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTYA() {
+void CCPU<_Bus, _ClockDivider>::OpTYA() {
 	Registers.a = Registers.y;
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* S -> X */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTSX() {
+void CCPU<_Bus, _ClockDivider>::OpTSX() {
 	Registers.x = Registers.s;
 	State.NFlag(Registers.x);
 	State.ZFlag(Registers.x);
 }
 
 /* X -> S */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpTXS() {
+void CCPU<_Bus, _ClockDivider>::OpTXS() {
 	Registers.s = Registers.x;
 }
 
 /* Стек */
 
 /* Положить в стек A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpPHA() {
+void CCPU<_Bus, _ClockDivider>::OpPHA() {
 	PushByte(Registers.a);
 }
 
 /* Достать и з стека A */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpPLA() {
+void CCPU<_Bus, _ClockDivider>::OpPLA() {
 	Registers.a = PopByte();
 	State.NFlag(Registers.a);
 	State.ZFlag(Registers.a);
 }
 
 /* Положить в стек P */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpPHP() {
+void CCPU<_Bus, _ClockDivider>::OpPHP() {
 	PushByte(State.State | 0x10); /* Флаг B не используется */
 }
 
 /* Достать из стека P */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpPLP() {
+void CCPU<_Bus, _ClockDivider>::OpPLP() {
 	State.SetState(PopByte());
-	if (InternalData.IRQTrigger < IRQStart)
-		UpdateTrigger();
+	// IRQ
 }
 
 /* Прыжки */
 
 /* Безусловный переход */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpJMP() {
+void CCPU<_Bus, _ClockDivider>::OpJMP() {
 	Registers.pc = _Addr::GetAddr(*this);
 }
 
 /* Вызов подпрограммы */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpJSR() {
+void CCPU<_Bus, _ClockDivider>::OpJSR() {
 	PushWord(Registers.pc - 1);
 	Registers.pc = _Addr::GetAddr(*this);
 }
 
 /* Выход из подпрограммы */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpRTS() {
+void CCPU<_Bus, _ClockDivider>::OpRTS() {
 	Registers.pc = PopWord() + 1;
 }
 
 /* Выход из прерывания */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpRTI() {
+void CCPU<_Bus, _ClockDivider>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
-	UpdateTrigger(IRQCheck);
+	// IRQ
 }
 
 /* Управление флагами */
 
 /* Установить C */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSEC() {
+void CCPU<_Bus, _ClockDivider>::OpSEC() {
 	State.State |= 0x01;
 }
 
 /* Установить D */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSED() {
+void CCPU<_Bus, _ClockDivider>::OpSED() {
 	State.State |= 0x08;
 }
 
 /* Установить I */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpSEI() {
+void CCPU<_Bus, _ClockDivider>::OpSEI() {
 	State.State |= 0x04;
-	if (InternalData.IRQTrigger == IRQReady)
-		InternalData.IRQTrigger = IRQLow;
+	// IRQ
 }
 
 /* Сбросить C */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCLC() {
+void CCPU<_Bus, _ClockDivider>::OpCLC() {
 	State.State &= 0xfe;
 }
 
 /* Сбросить D */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCLD() {
+void CCPU<_Bus, _ClockDivider>::OpCLD() {
 	State.State &= 0xf7;
 }
 
 /* Сбросить I */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCLI() {
+void CCPU<_Bus, _ClockDivider>::OpCLI() {
 	State.State &= 0xfb;
-	if (InternalData.IRQTrigger == IRQLow)
-		InternalData.IRQTrigger = IRQReady;
+	// IRQ
 }
 
 /* Сбросить V */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpCLV() {
+void CCPU<_Bus, _ClockDivider>::OpCLV() {
 	State.State &= 0xbf;
 }
 
 /* Другое */
 
 /* Нет операции */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpNOP() {
+void CCPU<_Bus, _ClockDivider>::OpNOP() {
 }
 
 /* Вызвать прерывание */
-template <class _Bus>
+template <class _Bus, int _ClockDivider>
 template <class _Addr>
-void CCPU<_Bus>::OpBRK() {
+void CCPU<_Bus, _ClockDivider>::OpBRK() {
 	/* BRK использует только 4 такта. Все остальное в главном цикле */
 	PushWord(Registers.pc + 1);
 	PushByte(State.State | 0x10);
 	State.State |= 0x04;
-	InternalData.IRQTrigger = IRQExecute;
+	// IRQ
 }
 
 /* Таблица опкодов */
-template <class _Bus>
-const typename CCPU<_Bus>::SOpcode CCPU<_Bus>::Opcodes[256] = {
-	{4, 1, &CCPU<_Bus>::OpBRK<CCPU<_Bus>::Implied>},      /* 0x00 */ /* BRK */
-	{6, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageInd>},  /* 0x01 */ /* ORA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x02 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x03 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x04 */
-	{3, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPage>},     /* 0x05 */ /* ORA */
-	{5, 2, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPage>},     /* 0x06 */ /* ASL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x07 */
-	{3, 1, &CCPU<_Bus>::OpPHP<CCPU<_Bus>::Implied>},      /* 0x08 */ /* PHP */
-	{2, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::Immediate>},    /* 0x09 */ /* ORA */
-	{2, 1, &CCPU<_Bus>::OpASL<CCPU<_Bus>::Accumulator>},  /* 0x0a */ /* ASL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x0b */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x0c */
-	{4, 3, &CCPU<_Bus>::OpORA<CCPU<_Bus>::Absolute>},     /* 0x0d */ /* ORA */
-	{6, 3, &CCPU<_Bus>::OpASL<CCPU<_Bus>::Absolute>},     /* 0x0e */ /* ASL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x0f */
-	{2, 2, &CCPU<_Bus>::OpBPL<CCPU<_Bus>::Relative>},     /* 0x10 */ /* BPL */
-	{5, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageIndY>}, /* 0x11 */ /* ORA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x12 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x13 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x14 */
-	{4, 2, &CCPU<_Bus>::OpORA<CCPU<_Bus>::ZeroPageX>},    /* 0x15 */ /* ORA */
-	{6, 2, &CCPU<_Bus>::OpASL<CCPU<_Bus>::ZeroPageX>},    /* 0x16 */ /* ASL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x17 */
-	{2, 1, &CCPU<_Bus>::OpCLC<CCPU<_Bus>::Implied>},      /* 0x18 */ /* CLC */
-	{4, 3, &CCPU<_Bus>::OpORA<CCPU<_Bus>::AbsoluteY>},    /* 0x19 */ /* ORA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x1a */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x1b */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x1c */
-	{4, 3, &CCPU<_Bus>::OpORA<CCPU<_Bus>::AbsoluteX>},    /* 0x1d */ /* ORA */
-	{7, 3, &CCPU<_Bus>::OpASL<CCPU<_Bus>::AbsoluteX>},    /* 0x1e */ /* ASL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x1f */
-	{6, 3, &CCPU<_Bus>::OpJSR<CCPU<_Bus>::Absolute>},     /* 0x20 */ /* JSR */
-	{6, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageInd>},  /* 0x21 */ /* AND */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x22 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x23 */
-	{3, 2, &CCPU<_Bus>::OpBIT<CCPU<_Bus>::ZeroPage>},     /* 0x24 */ /* BIT */
-	{3, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPage>},     /* 0x25 */ /* AND */
-	{5, 2, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPage>},     /* 0x26 */ /* ROL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x27 */
-	{4, 1, &CCPU<_Bus>::OpPLP<CCPU<_Bus>::Implied>},      /* 0x28 */ /* PLP */
-	{2, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::Immediate>},    /* 0x29 */ /* AND */
-	{2, 1, &CCPU<_Bus>::OpROL<CCPU<_Bus>::Accumulator>},  /* 0x2a */ /* ROL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x2b */
-	{4, 3, &CCPU<_Bus>::OpBIT<CCPU<_Bus>::Absolute>},     /* 0x2c */ /* BIT */
-	{4, 3, &CCPU<_Bus>::OpAND<CCPU<_Bus>::Absolute>},     /* 0x2d */ /* AND */
-	{6, 3, &CCPU<_Bus>::OpROL<CCPU<_Bus>::Absolute>},     /* 0x2e */ /* ROL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x2f */
-	{2, 2, &CCPU<_Bus>::OpBMI<CCPU<_Bus>::Relative>},     /* 0x30 */ /* BMI */
-	{5, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageIndY>}, /* 0x31 */ /* AND */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x32 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x33 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x34 */
-	{4, 2, &CCPU<_Bus>::OpAND<CCPU<_Bus>::ZeroPageX>},    /* 0x35 */ /* AND */
-	{6, 2, &CCPU<_Bus>::OpROL<CCPU<_Bus>::ZeroPageX>},    /* 0x36 */ /* ROL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x37 */
-	{2, 1, &CCPU<_Bus>::OpSEC<CCPU<_Bus>::Implied>},      /* 0x38 */ /* SEC */
-	{4, 3, &CCPU<_Bus>::OpAND<CCPU<_Bus>::AbsoluteY>},    /* 0x39 */ /* AND */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x3a */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x3b */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x3c */
-	{4, 3, &CCPU<_Bus>::OpAND<CCPU<_Bus>::AbsoluteX>},    /* 0x3d */ /* AMD */
-	{7, 3, &CCPU<_Bus>::OpROL<CCPU<_Bus>::AbsoluteX>},    /* 0x3e */ /* ROL */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x3f */
-	{6, 1, &CCPU<_Bus>::OpRTI<CCPU<_Bus>::Implied>},      /* 0x40 */ /* RTI */
-	{6, 2, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageInd>},  /* 0x41 */ /* EOR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x42 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x43 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x44 */
-	{3, 2, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPage>},     /* 0x45 */ /* EOR */
-	{5, 2, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::ZeroPage>},     /* 0x46 */ /* LSR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x47 */
-	{3, 1, &CCPU<_Bus>::OpPHA<CCPU<_Bus>::Implied>},      /* 0x48 */ /* PHA */
-	{2, 2, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::Immediate>},    /* 0x49 */ /* EOR */
-	{2, 1, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::Accumulator>},  /* 0x4a */ /* LSR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x4b */
-	{3, 3, &CCPU<_Bus>::OpJMP<CCPU<_Bus>::Absolute>},     /* 0x4c */ /* JMP */
-	{4, 3, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::Absolute>},     /* 0x4d */ /* EOR */
-	{6, 3, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::Absolute>},     /* 0x4e */ /* LSR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x4f */
-	{2, 2, &CCPU<_Bus>::OpBVC<CCPU<_Bus>::Relative>},     /* 0x50 */ /* BVC */
-	{5, 2, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageIndY>}, /* 0x51 */ /* EOR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x52 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x53 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x54 */
-	{4, 2, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::ZeroPageX>},    /* 0x55 */ /* EOR */
-	{6, 2, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::ZeroPageX>},    /* 0x56 */ /* LSR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x57 */
-	{2, 1, &CCPU<_Bus>::OpCLI<CCPU<_Bus>::Implied>},      /* 0x58 */ /* CLI */
-	{4, 3, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::AbsoluteY>},    /* 0x59 */ /* EOR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x5a */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x5b */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x5c */
-	{4, 3, &CCPU<_Bus>::OpEOR<CCPU<_Bus>::AbsoluteX>},    /* 0x5d */ /* EOR */
-	{7, 3, &CCPU<_Bus>::OpLSR<CCPU<_Bus>::AbsoluteX>},    /* 0x5e */ /* LSR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x5f */
-	{6, 1, &CCPU<_Bus>::OpRTS<CCPU<_Bus>::Implied>},      /* 0x60 */ /* RTS */
-	{6, 2, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageInd>},  /* 0x61 */ /* ADC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x62 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x63 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x64 */
-	{3, 2, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPage>},     /* 0x65 */ /* ADC */
-	{5, 2, &CCPU<_Bus>::OpROR<CCPU<_Bus>::ZeroPage>},     /* 0x66 */ /* ROR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x67 */
-	{4, 1, &CCPU<_Bus>::OpPLA<CCPU<_Bus>::Implied>},      /* 0x68 */ /* PLA */
-	{2, 2, &CCPU<_Bus>::OpADC<CCPU<_Bus>::Immediate>},    /* 0x69 */ /* ADC */
-	{2, 1, &CCPU<_Bus>::OpROR<CCPU<_Bus>::Accumulator>},  /* 0x6a */ /* ROR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x6b */
-	{5, 3, &CCPU<_Bus>::OpJMP<CCPU<_Bus>::AbsoluteInd>},  /* 0x6c */ /* JMP */
-	{4, 3, &CCPU<_Bus>::OpADC<CCPU<_Bus>::Absolute>},     /* 0x6d */ /* ADC */
-	{6, 3, &CCPU<_Bus>::OpROR<CCPU<_Bus>::Absolute>},     /* 0x6e */ /* ROR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x6f */
-	{2, 2, &CCPU<_Bus>::OpBVS<CCPU<_Bus>::Relative>},     /* 0x70 */ /* BVS */
-	{5, 2, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageIndY>}, /* 0x71 */ /* ADC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x72 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x73 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x74 */
-	{4, 2, &CCPU<_Bus>::OpADC<CCPU<_Bus>::ZeroPageX>},    /* 0x75 */ /* ADC */
-	{6, 2, &CCPU<_Bus>::OpROR<CCPU<_Bus>::ZeroPageX>},    /* 0x76 */ /* ROR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x77 */
-	{2, 1, &CCPU<_Bus>::OpSEI<CCPU<_Bus>::Implied>},      /* 0x78 */ /* SEI */
-	{4, 3, &CCPU<_Bus>::OpADC<CCPU<_Bus>::AbsoluteY>},    /* 0x79 */ /* ADC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x7a */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x7b */
-	{0, 1, &CCPU<_Bus>::OpIllegal},                       /* 0x7c */
-	{4, 3, &CCPU<_Bus>::OpADC<CCPU<_Bus>::AbsoluteX>},    /* 0x7d */ /* ADC */
-	{7, 3, &CCPU<_Bus>::OpROR<CCPU<_Bus>::AbsoluteX>},    /* 0x7e */ /* ROR */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x7f */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x80 */
-	{6, 2, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageInd>},  /* 0x81 */ /* STA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x82 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x83 */
-	{3, 2, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::ZeroPage>},     /* 0x84 */ /* STY */
-	{3, 2, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPage>},     /* 0x85 */ /* STA */
-	{3, 2, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::ZeroPage>},     /* 0x86 */ /* STX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x87 */
-	{2, 1, &CCPU<_Bus>::OpDEY<CCPU<_Bus>::Implied>},      /* 0x88 */ /* DEY */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x89 */
-	{2, 1, &CCPU<_Bus>::OpTXA<CCPU<_Bus>::Implied>},      /* 0x8a */ /* TXA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x8b */
-	{4, 3, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::Absolute>},     /* 0x8c */ /* STY */
-	{4, 3, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::Absolute>},     /* 0x8d */ /* STA */
-	{4, 3, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::Absolute>},     /* 0x8e */ /* STX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x8f */
-	{2, 2, &CCPU<_Bus>::OpBCC<CCPU<_Bus>::Relative>},     /* 0x90 */ /* BCC */
-	{6, 2, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageIndY>}, /* 0x91 */ /* STA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x92 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x93 */
-	{4, 2, &CCPU<_Bus>::OpSTY<CCPU<_Bus>::ZeroPageX>},    /* 0x94 */ /* STY */
-	{4, 2, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::ZeroPageX>},    /* 0x95 */ /* STA */
-	{4, 2, &CCPU<_Bus>::OpSTX<CCPU<_Bus>::ZeroPageY>},    /* 0x96 */ /* STX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x97 */
-	{2, 1, &CCPU<_Bus>::OpTYA<CCPU<_Bus>::Implied>},      /* 0x98 */ /* TYA */
-	{5, 3, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::AbsoluteY>},    /* 0x99 */ /* STA */
-	{2, 1, &CCPU<_Bus>::OpTXS<CCPU<_Bus>::Implied>},      /* 0x9a */ /* TXS */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x9b */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x9c */
-	{5, 3, &CCPU<_Bus>::OpSTA<CCPU<_Bus>::AbsoluteX>},    /* 0x9d */ /* STA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x9e */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0x9f */
-	{2, 2, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::Immediate>},    /* 0xa0 */ /* LDY */
-	{6, 2, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageInd>},  /* 0xa1 */ /* LDA */
-	{2, 2, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::Immediate>},    /* 0xa2 */ /* LDX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xa3 */
-	{3, 2, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::ZeroPage>},     /* 0xa4 */ /* LDY */
-	{3, 2, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPage>},     /* 0xa5 */ /* LDA */
-	{3, 2, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::ZeroPage>},     /* 0xa6 */ /* LDX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xa7 */
-	{2, 1, &CCPU<_Bus>::OpTAY<CCPU<_Bus>::Implied>},      /* 0xa8 */ /* TAY */
-	{2, 2, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::Immediate>},    /* 0xa9 */ /* LDA */
-	{2, 1, &CCPU<_Bus>::OpTAX<CCPU<_Bus>::Implied>},      /* 0xaa */ /* TAX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xab */
-	{4, 3, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::Absolute>},     /* 0xac */ /* LDY */
-	{4, 3, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::Absolute>},     /* 0xad */ /* LDA */
-	{4, 3, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::Absolute>},     /* 0xae */ /* LDX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xaf */
-	{2, 2, &CCPU<_Bus>::OpBCS<CCPU<_Bus>::Relative>},     /* 0xb0 */ /* BCS */
-	{5, 2, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageIndY>}, /* 0xb1 */ /* LDA */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xb2 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xb3 */
-	{4, 2, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::ZeroPageX>},    /* 0xb4 */ /* LDY */
-	{4, 2, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::ZeroPageX>},    /* 0xb5 */ /* LDA */
-	{4, 2, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::ZeroPageY>},    /* 0xb6 */ /* LDX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xb7 */
-	{2, 1, &CCPU<_Bus>::OpCLV<CCPU<_Bus>::Implied>},      /* 0xb8 */ /* CLV */
-	{4, 3, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::AbsoluteY>},    /* 0xb9 */ /* LDA */
-	{2, 1, &CCPU<_Bus>::OpTSX<CCPU<_Bus>::Implied>},      /* 0xba */ /* TSX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xbb */
-	{4, 3, &CCPU<_Bus>::OpLDY<CCPU<_Bus>::AbsoluteX>},    /* 0xbc */ /* LDY */
-	{4, 3, &CCPU<_Bus>::OpLDA<CCPU<_Bus>::AbsoluteX>},    /* 0xbd */ /* LDA */
-	{4, 3, &CCPU<_Bus>::OpLDX<CCPU<_Bus>::AbsoluteY>},    /* 0xbe */ /* LDX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xbf */
-	{2, 2, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::Immediate>},    /* 0xc0 */ /* CPY */
-	{6, 2, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageInd>},  /* 0xc1 */ /* CMP */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xc2 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xc3 */
-	{3, 2, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::ZeroPage>},     /* 0xc4 */ /* CPY */
-	{3, 2, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPage>},     /* 0xc5 */ /* CMP */
-	{5, 2, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::ZeroPage>},     /* 0xc6 */ /* DEC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xc7 */
-	{2, 1, &CCPU<_Bus>::OpINY<CCPU<_Bus>::Implied>},      /* 0xc8 */ /* INY */
-	{2, 2, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::Immediate>},    /* 0xc9 */ /* CMP */
-	{2, 1, &CCPU<_Bus>::OpDEX<CCPU<_Bus>::Implied>},      /* 0xca */ /* DEX */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xcb */
-	{4, 3, &CCPU<_Bus>::OpCPY<CCPU<_Bus>::Absolute>},     /* 0xcc */ /* CPY */
-	{4, 3, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::Absolute>},     /* 0xcd */ /* CMP */
-	{6, 3, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::Absolute>},     /* 0xce */ /* DEC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xcf */
-	{2, 2, &CCPU<_Bus>::OpBNE<CCPU<_Bus>::Relative>},     /* 0xd0 */ /* BNE */
-	{5, 2, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageIndY>}, /* 0xd1 */ /* CMP */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xd2 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xd3 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xd4 */
-	{4, 2, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::ZeroPageX>},    /* 0xd5 */ /* CMP */
-	{6, 2, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::ZeroPageX>},    /* 0xd6 */ /* DEC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xd7 */
-	{2, 1, &CCPU<_Bus>::OpCLD<CCPU<_Bus>::Implied>},      /* 0xd8 */ /* CLD */
-	{4, 3, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::AbsoluteY>},    /* 0xd9 */ /* CMP */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xda */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xdb */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xdc */
-	{4, 3, &CCPU<_Bus>::OpCMP<CCPU<_Bus>::AbsoluteX>},    /* 0xdd */ /* CMP */
-	{7, 3, &CCPU<_Bus>::OpDEC<CCPU<_Bus>::AbsoluteX>},    /* 0xde */ /* DEC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xdf */
-	{2, 2, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::Immediate>},    /* 0xe0 */ /* CPX */
-	{6, 2, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageInd>},  /* 0xe1 */ /* SBC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xe2 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xe3 */
-	{3, 2, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::ZeroPage>},     /* 0xe4 */ /* CPX */
-	{3, 2, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPage>},     /* 0xe5 */ /* SBC */
-	{5, 2, &CCPU<_Bus>::OpINC<CCPU<_Bus>::ZeroPage>},     /* 0xe6 */ /* INC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xe7 */
-	{2, 1, &CCPU<_Bus>::OpINX<CCPU<_Bus>::Implied>},      /* 0xe8 */ /* INX */
-	{2, 2, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::Immediate>},    /* 0xe9 */ /* SBC */
-	{2, 1, &CCPU<_Bus>::OpNOP<CCPU<_Bus>::Implied>},      /* 0xea */ /* NOP */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xeb */
-	{4, 3, &CCPU<_Bus>::OpCPX<CCPU<_Bus>::Absolute>},     /* 0xec */ /* CPX */
-	{4, 3, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::Absolute>},     /* 0xed */ /* SBC */
-	{6, 3, &CCPU<_Bus>::OpINC<CCPU<_Bus>::Absolute>},     /* 0xee */ /* INC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xef */
-	{2, 2, &CCPU<_Bus>::OpBEQ<CCPU<_Bus>::Relative>},     /* 0xf0 */ /* BEQ */
-	{5, 2, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageIndY>}, /* 0xf1 */ /* SBC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xf2 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xf3 */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xf4 */
-	{4, 2, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::ZeroPageX>},    /* 0xf5 */ /* SBC */
-	{6, 2, &CCPU<_Bus>::OpINC<CCPU<_Bus>::ZeroPageX>},    /* 0xf6 */ /* INC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xf7 */
-	{2, 1, &CCPU<_Bus>::OpSED<CCPU<_Bus>::Implied>},      /* 0xf8 */ /* SED */
-	{4, 3, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::AbsoluteY>},    /* 0xf9 */ /* SBC */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xfa */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xfb */
-	{1, 0, &CCPU<_Bus>::OpIllegal},                       /* 0xfc */
-	{4, 3, &CCPU<_Bus>::OpSBC<CCPU<_Bus>::AbsoluteX>},    /* 0xfd */ /* SBC */
-	{7, 3, &CCPU<_Bus>::OpINC<CCPU<_Bus>::AbsoluteX>},    /* 0xfe */ /* INC */
-	{1, 0, &CCPU<_Bus>::OpIllegal}                        /* 0xff */
+template <class _Bus, int _ClockDivider>
+const typename CCPU<_Bus, _ClockDivider>::SOpcode CCPU<_Bus, _ClockDivider>::Opcodes[256] = {
+	{4, 1, &CCPU<_Bus, _ClockDivider>::OpBRK<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x00 */ /* BRK */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0x01 */ /* ORA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x02 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x03 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x04 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x05 */ /* ORA */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpASL<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x06 */ /* ASL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x07 */
+	{3, 1, &CCPU<_Bus, _ClockDivider>::OpPHP<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x08 */ /* PHP */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0x09 */ /* ORA */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpASL<CCPU<_Bus, _ClockDivider>::Accumulator>},  /* 0x0a */ /* ASL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x0b */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x0c */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x0d */ /* ORA */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpASL<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x0e */ /* ASL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x0f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBPL<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0x10 */ /* BPL */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0x11 */ /* ORA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x12 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x13 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x14 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x15 */ /* ORA */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpASL<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x16 */ /* ASL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x17 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpCLC<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x18 */ /* CLC */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0x19 */ /* ORA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x1a */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x1b */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x1c */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpORA<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x1d */ /* ORA */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpASL<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x1e */ /* ASL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x1f */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpJSR<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x20 */ /* JSR */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0x21 */ /* AND */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x22 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x23 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpBIT<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x24 */ /* BIT */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x25 */ /* AND */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpROL<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x26 */ /* ROL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x27 */
+	{4, 1, &CCPU<_Bus, _ClockDivider>::OpPLP<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x28 */ /* PLP */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0x29 */ /* AND */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpROL<CCPU<_Bus, _ClockDivider>::Accumulator>},  /* 0x2a */ /* ROL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x2b */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpBIT<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x2c */ /* BIT */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x2d */ /* AND */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpROL<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x2e */ /* ROL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x2f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBMI<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0x30 */ /* BMI */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0x31 */ /* AND */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x32 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x33 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x34 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x35 */ /* AND */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpROL<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x36 */ /* ROL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x37 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpSEC<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x38 */ /* SEC */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0x39 */ /* AND */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x3a */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x3b */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x3c */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpAND<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x3d */ /* AMD */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpROL<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x3e */ /* ROL */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x3f */
+	{6, 1, &CCPU<_Bus, _ClockDivider>::OpRTI<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x40 */ /* RTI */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0x41 */ /* EOR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x42 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x43 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x44 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x45 */ /* EOR */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpLSR<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x46 */ /* LSR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x47 */
+	{3, 1, &CCPU<_Bus, _ClockDivider>::OpPHA<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x48 */ /* PHA */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0x49 */ /* EOR */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpLSR<CCPU<_Bus, _ClockDivider>::Accumulator>},  /* 0x4a */ /* LSR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x4b */
+	{3, 3, &CCPU<_Bus, _ClockDivider>::OpJMP<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x4c */ /* JMP */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x4d */ /* EOR */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpLSR<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x4e */ /* LSR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x4f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBVC<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0x50 */ /* BVC */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0x51 */ /* EOR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x52 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x53 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x54 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x55 */ /* EOR */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpLSR<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x56 */ /* LSR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x57 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpCLI<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x58 */ /* CLI */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0x59 */ /* EOR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x5a */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x5b */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x5c */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpEOR<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x5d */ /* EOR */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpLSR<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x5e */ /* LSR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x5f */
+	{6, 1, &CCPU<_Bus, _ClockDivider>::OpRTS<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x60 */ /* RTS */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0x61 */ /* ADC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x62 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x63 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x64 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x65 */ /* ADC */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpROR<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x66 */ /* ROR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x67 */
+	{4, 1, &CCPU<_Bus, _ClockDivider>::OpPLA<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x68 */ /* PLA */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0x69 */ /* ADC */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpROR<CCPU<_Bus, _ClockDivider>::Accumulator>},  /* 0x6a */ /* ROR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x6b */
+	{5, 3, &CCPU<_Bus, _ClockDivider>::OpJMP<CCPU<_Bus, _ClockDivider>::AbsoluteInd>},  /* 0x6c */ /* JMP */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x6d */ /* ADC */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpROR<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x6e */ /* ROR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x6f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBVS<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0x70 */ /* BVS */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0x71 */ /* ADC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x72 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x73 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x74 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x75 */ /* ADC */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpROR<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x76 */ /* ROR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x77 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpSEI<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x78 */ /* SEI */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0x79 */ /* ADC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x7a */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x7b */
+	{0, 1, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x7c */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpADC<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x7d */ /* ADC */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpROR<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x7e */ /* ROR */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x7f */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x80 */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0x81 */ /* STA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x82 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x83 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpSTY<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x84 */ /* STY */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x85 */ /* STA */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpSTX<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0x86 */ /* STX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x87 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpDEY<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x88 */ /* DEY */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x89 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTXA<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x8a */ /* TXA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x8b */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSTY<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x8c */ /* STY */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x8d */ /* STA */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSTX<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0x8e */ /* STX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x8f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBCC<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0x90 */ /* BCC */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0x91 */ /* STA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x92 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x93 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpSTY<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x94 */ /* STY */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0x95 */ /* STA */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpSTX<CCPU<_Bus, _ClockDivider>::ZeroPageY>},    /* 0x96 */ /* STX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x97 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTYA<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x98 */ /* TYA */
+	{5, 3, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0x99 */ /* STA */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTXS<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0x9a */ /* TXS */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x9b */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x9c */
+	{5, 3, &CCPU<_Bus, _ClockDivider>::OpSTA<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0x9d */ /* STA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x9e */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0x9f */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpLDY<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xa0 */ /* LDY */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0xa1 */ /* LDA */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpLDX<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xa2 */ /* LDX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xa3 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpLDY<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xa4 */ /* LDY */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xa5 */ /* LDA */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpLDX<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xa6 */ /* LDX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xa7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTAY<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xa8 */ /* TAY */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xa9 */ /* LDA */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTAX<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xaa */ /* TAX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xab */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDY<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xac */ /* LDY */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xad */ /* LDA */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDX<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xae */ /* LDX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xaf */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBCS<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0xb0 */ /* BCS */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0xb1 */ /* LDA */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xb2 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xb3 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpLDY<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xb4 */ /* LDY */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xb5 */ /* LDA */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpLDX<CCPU<_Bus, _ClockDivider>::ZeroPageY>},    /* 0xb6 */ /* LDX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xb7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpCLV<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xb8 */ /* CLV */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0xb9 */ /* LDA */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpTSX<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xba */ /* TSX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xbb */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDY<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xbc */ /* LDY */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDA<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xbd */ /* LDA */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpLDX<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0xbe */ /* LDX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xbf */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpCPY<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xc0 */ /* CPY */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0xc1 */ /* CMP */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xc2 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xc3 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpCPY<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xc4 */ /* CPY */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xc5 */ /* CMP */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpDEC<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xc6 */ /* DEC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xc7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpINY<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xc8 */ /* INY */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xc9 */ /* CMP */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpDEX<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xca */ /* DEX */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xcb */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpCPY<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xcc */ /* CPY */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xcd */ /* CMP */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpDEC<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xce */ /* DEC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xcf */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBNE<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0xd0 */ /* BNE */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0xd1 */ /* CMP */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xd2 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xd3 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xd4 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xd5 */ /* CMP */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpDEC<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xd6 */ /* DEC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xd7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpCLD<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xd8 */ /* CLD */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0xd9 */ /* CMP */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xda */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xdb */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xdc */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpCMP<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xdd */ /* CMP */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpDEC<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xde */ /* DEC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xdf */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpCPX<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xe0 */ /* CPX */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::ZeroPageInd>},  /* 0xe1 */ /* SBC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xe2 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xe3 */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpCPX<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xe4 */ /* CPX */
+	{3, 2, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xe5 */ /* SBC */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpINC<CCPU<_Bus, _ClockDivider>::ZeroPage>},     /* 0xe6 */ /* INC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xe7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpINX<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xe8 */ /* INX */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::Immediate>},    /* 0xe9 */ /* SBC */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpNOP<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xea */ /* NOP */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xeb */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpCPX<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xec */ /* CPX */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xed */ /* SBC */
+	{6, 3, &CCPU<_Bus, _ClockDivider>::OpINC<CCPU<_Bus, _ClockDivider>::Absolute>},     /* 0xee */ /* INC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xef */
+	{2, 2, &CCPU<_Bus, _ClockDivider>::OpBEQ<CCPU<_Bus, _ClockDivider>::Relative>},     /* 0xf0 */ /* BEQ */
+	{5, 2, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::ZeroPageIndY>}, /* 0xf1 */ /* SBC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xf2 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xf3 */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xf4 */
+	{4, 2, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xf5 */ /* SBC */
+	{6, 2, &CCPU<_Bus, _ClockDivider>::OpINC<CCPU<_Bus, _ClockDivider>::ZeroPageX>},    /* 0xf6 */ /* INC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xf7 */
+	{2, 1, &CCPU<_Bus, _ClockDivider>::OpSED<CCPU<_Bus, _ClockDivider>::Implied>},      /* 0xf8 */ /* SED */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::AbsoluteY>},    /* 0xf9 */ /* SBC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xfa */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xfb */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal},                                      /* 0xfc */
+	{4, 3, &CCPU<_Bus, _ClockDivider>::OpSBC<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xfd */ /* SBC */
+	{7, 3, &CCPU<_Bus, _ClockDivider>::OpINC<CCPU<_Bus, _ClockDivider>::AbsoluteX>},    /* 0xfe */ /* INC */
+	{1, 0, &CCPU<_Bus, _ClockDivider>::OpIllegal}                                       /* 0xff */
 };
 
-#undef IRQExecute
-#undef IRQSave
-#undef IRQStart
-#undef IRQReady
-#undef IRQCheck
-#undef IRQLow
+/* Стандартный ЦПУ */
+template <int _ClockDivider>
+struct StdCPU {
+	template <class _Bus>
+	class CPU: public CCPU<_Bus, _ClockDivider> {
+	public:
+		inline explicit CPU(_Bus *pBus): CCPU<_Bus, _ClockDivider>(pBus) {}
+		inline ~CPU() {}
+	};
+};
 
 }
 

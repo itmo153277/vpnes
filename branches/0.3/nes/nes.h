@@ -164,13 +164,11 @@ public:
 
 	/* Программный сброс */
 	int Reset() {
-		int Cycles;
-		
-		Cycles = CPU.Reset();
+		CPU.Reset();
 		APU.Reset();
 		PPU.Reset();
-		APU.Clock(Cycles);
-		PPU.Clock(Cycles);
+		APU.Clock(CPU.GetCycles());
+		PPU.Clock(CPU.GetCycles());
 		return 0;
 	}
 

@@ -43,7 +43,7 @@ typedef APUGroup<3>::ID::NoBatteryID ChannelsID;
 }
 
 /* APU */
-template <class _Bus>
+template <class _Bus, class _Tables>
 class CAPU: public CDevice {
 private:
 	/* Шина */
@@ -61,31 +61,11 @@ private:
 	/* Данные о тактах */
 	struct SCycleData {
 		int Step;
-		int DMACycle;
 		int CurCycle;
 		int CyclesLeft;
 		int WaitPass;
 		int SupressCounter;
 	} CycleData;
-
-	/* Число тактов на каждом шаге */
-	static const int StepCycles[6];
-	/* Перекрываемые кнопки контроллера */
-	static const int ButtonsRemap[4];
-	/* Таблица счетчика */
-	static const int LengthCounterTable[32];
-	/* Таблица формы */
-	static const bool DutyTable[32];
-	/* Таблица пилообразной формы */
-	static const int SeqTable[32];
-	/* Таблица длин для канала шума */
-	static const int NoiseTable[16];
-	/* Таблица длин для ДМ-канала */
-	static const int DMTable[16];
-	/* Таблица выхода прямоугольных каналов */
-	static const double SquareTable[31];
-	/* Таблица выхода остальных каналов */
-	static const double TNDTable[203];
 
 	/* Аудио буфер */
 	VPNES_ABUF *abuf;
@@ -181,7 +161,7 @@ private:
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				Start = true;
 				if (UseCounter)
-					LengthCounter = LengthCounterTable[Src >> 3];
+					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
 			inline void Envelope() {
@@ -238,7 +218,7 @@ private:
 			}
 			inline bool CanOutput() {
 				return (LengthCounter > 0) && Valid &&
-					DutyTable[(DutyMode << 3) + DutyCycle];
+					_Tables::DutyTable[(DutyMode << 3) + DutyCycle];
 			}
 		};
 
@@ -303,7 +283,7 @@ private:
 			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				if (UseCounter)
-					LengthCounter = LengthCounterTable[Src >> 3];
+					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
 				HaltFlag = true;
 			}
 			/* Счетчик длины */
@@ -328,7 +308,7 @@ private:
 				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
 					if ((LinearCounter > 0) && (LengthCounter > 0)) {
-						Output = SeqTable[Sequencer++];
+						Output = _Tables::SeqTable[Sequencer++];
 						if (Sequencer > 31)
 							Sequencer = 0;
 						return true;
@@ -362,13 +342,13 @@ private:
 					Output = EnvelopeCounter;
 			}
 			inline void Write_2(uint8 Src) {
-				Timer = NoiseTable[Src & 0x0f];
+				Timer = _Tables::NoiseTable[Src & 0x0f];
 				Shift = ((Src & 0x80) ? 8 : 13);
 			}
 			inline void Write_3(uint8 Src) {
 				Start = true;
 				if (UseCounter)
-					LengthCounter = LengthCounterTable[Src >> 3];
+					LengthCounter = _Tables::LengthCounterTable[Src >> 3];
 			}
 			/* Генерация формы */
 			inline void Envelope() {
@@ -436,7 +416,7 @@ private:
 				if (!InterruptEnabled)
 					InterruptFlag = false;
 				LoopFlag = Src & 0x40;
-				Timer = DMTable[Src & 0x0f];
+				Timer = _Tables::DMTable[Src & 0x0f];
 			}
 			inline void Write_2(uint8 Src) {
 				Output = Src & 0x7f;
@@ -494,7 +474,7 @@ private:
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
-			NewOutput = SquareTable[SqOut] + TNDTable[TNDOut];
+			NewOutput = _Tables::SquareTable[SqOut] + _Tables::TNDTable[TNDOut];
 			if (LastOutput != NewOutput) {
 				FlushBuffer(Buf);
 				LastOutput = NewOutput;
@@ -585,12 +565,10 @@ private:
 
 	/* Обработка */
 	inline void Process(int Cycles) {
-		int ReCycle = Cycles;
 
 		CycleData.CyclesLeft += Cycles;
-		while (CycleData.CyclesLeft >= 3) {
-			CycleData.CyclesLeft -= 3;
-			ReCycle -= 3;
+		while (CycleData.CyclesLeft > 0) {
+			CycleData.CyclesLeft--;
 			/* Сброс счетчика */
 			if (CycleData.SupressCounter >= 0) {
 				CycleData.SupressCounter++;
@@ -600,7 +578,7 @@ private:
 					CycleData.SupressCounter = -1;
 				}
 			}
-			if (CycleData.CurCycle == StepCycles[CycleData.Step]) {
+			if (CycleData.CurCycle == _Tables::StepCycles[CycleData.Step]) {
 				/* Секвенсер */
 				switch (Channels.Mode) {
 					case SChannels::Mode_4step:
@@ -612,7 +590,7 @@ private:
 							case 3:
 								if (!Channels.InterruptInhibit) {
 									Channels.FrameInterrupt = true;
-									Bus->GetCPU()->GetIRQPin() = true;
+//									Bus->GetCPU()->GetIRQPin() = true;
 								}
 							case 1:
 								Channels.OddClock();
@@ -641,17 +619,6 @@ private:
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
 				CycleData.WaitPass = -1;
-				/*if (CycleData.DMACycle >= 0) {
-					Bus->GetPPU()->PreRender();
-					Bus->GetCPU()->Pause(2);
-					if (CycleData.DMACycle >= 0)
-						CycleData.DMACycle -= 6;
-				} else {
-					Bus->GetCPU()->Pause(4);
-				}
-				CycleData.CyclesLeft -= ReCycle;
-				Preprocess();
-				CycleData.CyclesLeft += ReCycle;*/
 				if (Channels.DMChannel.Address < 0x8000)
 					Channels.DMChannel.Address |= 0x8000;
 				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
@@ -666,7 +633,7 @@ private:
 							Channels.DMChannel.LastCounter;
 					} else if (Channels.DMChannel.InterruptEnabled) {
 						Channels.DMChannel.InterruptFlag = true;
-						Bus->GetCPU()->GetIRQPin() = true;
+//						Bus->GetCPU()->GetIRQPin() = true;
 					}
 				}
 				Channels.DMChannel.NotEmpty = true;
@@ -686,15 +653,15 @@ public:
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
 		memset(&Channels.TriangleChannel, 0, sizeof(Channels.TriangleChannel));
-		Channels.TriangleChannel.Output = SeqTable[0];
+		Channels.TriangleChannel.Output = _Tables::SeqTable[0];
 	}
 	inline ~CAPU() {}
 
 	/* Предобработать такты */
 	inline void Preprocess() {
 		/* Обрабатываем текущие такты */
-		Process(Bus->GetClock()->GetPreCycles() - PreprocessedCycles);
-		PreprocessedCycles = Bus->GetClock()->GetPreCycles();
+		Process(Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles);
+		PreprocessedCycles = Bus->GetClock()->GetPreCPUCycles();
 	}
 
 	/* Обработать такты */
@@ -711,7 +678,7 @@ public:
 		memcpy(&temp, &Channels.TriangleChannel,
 			sizeof(typename SChannels::STriangleChannel));
 		memset(&Channels, 0, sizeof(Channels));
-		Channels.Fixed = Bus->GetClock()->GetFix() * 3;
+		Channels.Fixed = Bus->GetClock()->GetFix() * _Bus::CPUClass::ClockDivider;
 		Channels.Write_4017(InternalData.bMode);
 		Channels.NoiseChannel.Random = 1;
 		Channels.NoiseChannel.Shift = 13;
@@ -722,7 +689,6 @@ public:
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.CurCycle = -1;
 		CycleData.SupressCounter = -1;
-		CycleData.DMACycle = -1;
 		PreprocessedCycles = 0;
 	}
 
@@ -737,9 +703,9 @@ public:
 				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
 				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
-					(StepCycles[SChannels::Mode_4step - 1] + 2))) {
+					(_Tables::StepCycles[SChannels::Mode_4step - 1] + 2))) {
 					Channels.FrameInterrupt = false;
-					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
+//					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
 				}
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
@@ -747,7 +713,8 @@ public:
 					return 0x40 | ibuf[InternalData.StrobeCounter_A++];
 				if (InternalData.StrobeCounter_A < 8) {
 					Res = 0x40 | (ibuf[InternalData.StrobeCounter_A] &
-						~ibuf[ButtonsRemap[InternalData.StrobeCounter_A & 0x03]]);
+						~ibuf[_Tables::ButtonsRemap[\
+						InternalData.StrobeCounter_A & 0x03]]);
 					InternalData.StrobeCounter_A++;
 					return Res;
 				}
@@ -822,8 +789,8 @@ public:
 			/* ДМ-канал */
 			case 0x4010:
 				Channels.DMChannel.Write_1(Src);
-				if (!Channels.DMChannel.InterruptFlag)
-					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+//				if (!Channels.DMChannel.InterruptFlag)
+//					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
 				break;
 			case 0x4011:
 				Channels.DMChannel.Write_2(Src);
@@ -836,26 +803,19 @@ public:
 				break;
 			/* Другое */
 			case 0x4014: /* DMA */
-				Bus->GetPPU()->EnableDMA(Src);
-				if (CycleData.CurCycle & 1) {
-					Bus->GetCPU()->Pause(513);
-					CycleData.DMACycle = 0;
-				} else {
-					Bus->GetCPU()->Pause(512);
-					CycleData.DMACycle = 3;
-				}
+				/* DMA */
 				return;
 			case 0x4015: /* Управление каналами */
 				Channels.Write_4015(Src);
-				if (!Channels.DMChannel.InterruptFlag)
-					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+//				if (!Channels.DMChannel.InterruptFlag)
+//					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
 				break;
 			case 0x4017: /* Счетчик кадров */
 				InternalData.bMode = Src;
 				/* Запись в 4017 */
 				Channels.Write_4017(Src);
-				if (!Channels.FrameInterrupt)
-					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
+//				if (!Channels.FrameInterrupt)
+//					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
 				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
 				else
@@ -866,17 +826,6 @@ public:
 		Channels.Update(abuf);
 	}
 
-	/* Текущий такт DMA */
-	inline int GetDMACycle(int Cycles) {
-		if (CycleData.DMACycle >= 0) {
-			CycleData.DMACycle += Cycles;
-			if (CycleData.DMACycle >= 1539)
-				CycleData.DMACycle = -1;
-			else
-				return CycleData.DMACycle / 3;
-		}
-		return -1;
-	}
 	/* Буфер */
 	inline VPNES_ABUF *&GetABuf() { return abuf; }
 	inline VPNES_IBUF &GetIBuf() { return ibuf; }
@@ -886,57 +835,73 @@ public:
 	}
 };
 
+namespace apu {
+
+/* Таблицы для NTSC */
+struct NTSC_Tables {
+	/* Число тактов на каждом шаге */
+	static const int StepCycles[6];
+	/* Перекрываемые кнопки контроллера */
+	static const int ButtonsRemap[4];
+	/* Таблица счетчика */
+	static const int LengthCounterTable[32];
+	/* Таблица формы */
+	static const bool DutyTable[32];
+	/* Таблица пилообразной формы */
+	static const int SeqTable[32];
+	/* Таблица длин для канала шума */
+	static const int NoiseTable[16];
+	/* Таблица длин для ДМ-канала */
+	static const int DMTable[16];
+	/* Таблица выхода прямоугольных каналов */
+	static const double SquareTable[31];
+	/* Таблица выхода остальных каналов */
+	static const double TNDTable[203];
+};
+
 /* Число тактов для каждого шага */
-template <class _Bus>
-const int CAPU<_Bus>::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
+const int NTSC_Tables::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
 
 /* Перекрываемые кнопки контроллера */
-template <class _Bus>
-const int CAPU<_Bus>::ButtonsRemap[4] = {
+const int NTSC_Tables::ButtonsRemap[4] = {
 	VPNES_INPUT_DOWN, VPNES_INPUT_UP,
 	VPNES_INPUT_RIGHT, VPNES_INPUT_LEFT
 };
 
 /* Таблица счетчика */
-template <class _Bus>
-const int CAPU<_Bus>::LengthCounterTable[32] = {
+const int NTSC_Tables::LengthCounterTable[32] = {
 	0x0a, 0xfe, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06, 0xa0, 0x08, 0x3c, 0x0a,
 	0x0e, 0x0c, 0x1a, 0x0e, 0x0c, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
 	0xc0, 0x18, 0x48, 0x1a, 0x10, 0x1c, 0x20, 0x1e
 };
 
 /* Таблица формы */
-template <class _Bus>
-const bool CAPU<_Bus>::DutyTable[32] = {
+const bool NTSC_Tables::DutyTable[32] = {
 	false, true,  false, false, false, false, false, false, false, true,  true,  false,
 	false, false, false, false, false, true,  true,  true,  true,  false, false, false,
 	true,  false, false, true,  true,  true,  true,  true
 };
 
 /* Таблица пилообразной формы */
-template <class _Bus>
-const int CAPU<_Bus>::SeqTable[32] = {
+const int NTSC_Tables::SeqTable[32] = {
 	15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
 	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
 };
 
 /* Таблица длин для канала шума */
-template <class _Bus>
-const int CAPU<_Bus>::NoiseTable[16] = {
+const int NTSC_Tables::NoiseTable[16] = {
 	0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0060, 0x0080, 0x00a0,
 	0x00ca, 0x00fe, 0x017c, 0x01fc, 0x02fa, 0x03f8, 0x07f2, 0x0fe4
 };
 
 /* Таблица длин для ДМ-канала */
-template <class _Bus>
-const int CAPU<_Bus>::DMTable[16] = {
+const int NTSC_Tables::DMTable[16] = {
 	428, 380, 340, 320, 286, 254, 226, 214,
 	190, 160, 142, 128, 106,  84,  72,  54
 };
 
 /* Таблица выхода прямоугольных сигналов */
-template <class _Bus>
-const double CAPU<_Bus>::SquareTable[31] = {
+const double NTSC_Tables::SquareTable[31] = {
 	0.0000000, 0.0116091, 0.0229395, 0.0340009, 0.0448030, 0.0553547,
 	0.0656645, 0.0757408, 0.0855914, 0.0952237, 0.1046450, 0.1138620,
 	0.1228820, 0.1317100, 0.1403530, 0.1488160, 0.1571050, 0.1652260,
@@ -946,8 +911,7 @@ const double CAPU<_Bus>::SquareTable[31] = {
 };
 
 /* Таблица выхода остальных каналов */
-template <class _Bus>
-const double CAPU<_Bus>::TNDTable[203] = {
+const double NTSC_Tables::TNDTable[203] = {
 	0.00000000, 0.00669982, 0.01334500, 0.01993630, 0.02647420, 0.03295940,
 	0.03939270, 0.04577450, 0.05210550, 0.05838640, 0.06461760, 0.07079990,
 	0.07693370, 0.08301960, 0.08905830, 0.09505010, 0.10099600, 0.10689600,
@@ -982,6 +946,19 @@ const double CAPU<_Bus>::TNDTable[203] = {
 	0.70913900, 0.71129400, 0.71344000, 0.71557600, 0.71770200, 0.71981800,
 	0.72192400, 0.72402100, 0.72610800, 0.72818600, 0.73025400, 0.73231300,
 	0.73436200, 0.73640200, 0.73843300, 0.74045500, 0.74246800
+};
+
+}
+
+/* Стандартный АПУ */
+template <class _Tables>
+struct StdAPU {
+	template <class _Bus>
+	class APU: public CAPU<_Bus, _Tables> {
+	public:
+		inline explicit APU(_Bus *pBus): CAPU<_Bus, _Tables>(pBus) {}
+		inline ~APU() {}
+	};
 };
 
 }

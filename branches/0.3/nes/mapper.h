@@ -571,8 +571,8 @@ private:
 				else
 					IRQCounter--;
 				if ((IRQCounter == 0) && IRQEnable) {
-					pBus->GetCPU()->GetIRQExPin() = true;
-					pBus->GetCPU()->RaiseIRQ();
+//					pBus->GetCPU()->GetIRQExPin() = true;
+//					pBus->GetCPU()->RaiseIRQ();
 				}
 			} else
 				IgnoreAccess = false;
@@ -685,7 +685,7 @@ public:
 				IRQCircuit.IRQEnable = true;
 			} else { /* IRQ Disable */
 				IRQCircuit.IRQEnable = false;
-				Bus->GetCPU()->GetIRQExPin() = false;
+//				Bus->GetCPU()->GetIRQExPin() = false;
 			}
 		}
 	}

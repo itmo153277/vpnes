@@ -31,6 +31,10 @@ using namespace std;
 using namespace vpnes;
 
 /* Параметры стандартного NES */
+struct NTSC_Oscillator {
+	static inline const double GetFreq() { return 44.0 / 945000.0; }
+};
+
 template <template<template<class> class,
                    template<class> class,
                    template<class> class,
@@ -38,7 +42,8 @@ template <template<template<class> class,
                    template<class> class> class _Bus,
           template<class> class _ROM>
 struct NTSC_NES_Config {
-	typedef CNESConfigTemplate<CNES<_Bus<CClock, CCPU, CAPU, CPPU, _ROM> >,
+	typedef CNESConfigTemplate<CNES<_Bus<StdClock<NTSC_Oscillator>::CClock,
+		StdCPU<12>::CPU, StdAPU<apu::NTSC_Tables>::APU, StdPPU<4>::PPU, _ROM> >,
 		256, 224> Config;
 };
 
