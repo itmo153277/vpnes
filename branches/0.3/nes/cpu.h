@@ -98,15 +98,28 @@ private:
 
 	/* Данные о тактах */
 	struct SCycleData {
-		int NMICycle; /* Такт распознавания NMI */
-		int IRQCycle; /* Такт распознавания IRQ */
+		int NMI; /* Такт распознавания NMI */
+		int IRQ; /* Такт распознавания IRQ */
 		int Cycles; /* Всего тактов */
 	} CycleData;
 
 	/* Внутренние данные */
 	struct SInternalData {
 		bool Halt; /* Зависание */
+		enum {
+			IRQLow = 0,
+			IRQReady,
+			IRQExecute,
+			IRQHi
+		} IRQTrigger;
 	} InternalData;
+
+	/* Такты прерывания */
+	inline int GetInterruptCycles(int Cycles) {
+		Cycles += ClockDivider / 2;
+		return Cycles / ClockDivider + ((Cycles % ClockDivider) >
+			(ClockDivider / 2) ? 1 : 0);
+	}
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
@@ -438,6 +451,9 @@ public:
 		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<CPUID::CycleDataID>(\
 			&CycleData, sizeof(CycleData));
+		memset(&CycleData, 0, sizeof(CycleData));
+		CycleData.IRQ = -1;
+		CycleData.NMI = -1;
 		Bus->GetManager()->template SetPointer<CPUID::InternalDataID>(\
 			&InternalData, sizeof(InternalData));
 	}
@@ -467,6 +483,13 @@ public:
 
 	/* Получить число тактов */
 	inline int GetCycles() const { return CycleData.Cycles; }
+	/* Выполнить NMI */
+	inline void GenerateNMI(int Cycles) {
+		int Interrupt = GetInterruptCycles(Cycles);
+			
+		if ((CycleData.NMI < 0) || (Interrupt < CycleData.NMI))
+			CycleData.NMI = Interrupt;
+	}
 	/* RAM */
 	inline const uint8 *GetRAM() const { return RAM; }
 private:
@@ -686,6 +709,52 @@ void CCPU<_Bus, _Settings>::Execute() {
 
 	if (InternalData.Halt) /* Зависли */
 		return;
+	/* Прерывания */
+	if (CycleData.IRQ > 0) { /* NMI перекрывает IRQ */
+		CycleData.IRQ -= CycleData.Cycles;
+		if (CycleData.IRQ < 0)
+			CycleData.IRQ = 0;
+	}
+	/* Обрабатываем BRK/NMI */
+	if (InternalData.IRQTrigger == SInternalData::IRQExecute) {
+		InternalData.IRQTrigger = SInternalData::IRQLow;
+		if (CycleData.NMI >= 0) {
+			CycleData.NMI -= CycleData.Cycles;
+			if (CycleData.NMI <= 0) {
+				/* Вызываем NMI */
+				CycleData.Cycles = 3;
+				Registers.pc = ReadMemory(0xfffa) | (ReadMemory(0xfffb) << 8);
+				CycleData.NMI = -1;
+				return;
+			}
+		}
+		/* Вызываем IRQ */
+		CycleData.Cycles = 3;
+		Registers.pc = ReadMemory(0xfffe) | (ReadMemory(0xffff) << 8);
+		return;
+	}
+	if (CycleData.NMI >= 0) { /* Выполняем NMI */
+		CycleData.NMI -= CycleData.Cycles;
+		if (CycleData.NMI <= 0) {
+			CycleData.Cycles = 4;
+			CycleData.NMI = 0;
+			PushWord(Registers.pc); /* Следующая команда */
+			PushByte(State.State & 0xef); /* Сохраняем состояние */
+			InternalData.IRQTrigger = SInternalData::IRQExecute;
+			return;
+		}
+	}
+	if ((CycleData.IRQ == 0) && (InternalData.IRQTrigger ==
+		SInternalData::IRQReady)) {
+		InternalData.IRQTrigger = SInternalData::IRQLow;
+		CycleData.Cycles = 7;
+		PushWord(Registers.pc); /* Следующая команда */
+		PushByte(State.State & 0xef); /* Сохраняем состояние */
+		Registers.pc = ReadMemory(0xfffe) | (ReadMemory(0xffff) << 8);
+		return;
+	}
+	if (InternalData.IRQTrigger == SInternalData::IRQHi)
+		InternalData.IRQTrigger = SInternalData::IRQReady;
 	/* Текущий опкод */
 	opcode = ReadMemory(Registers.pc);
 	Registers.pc += Opcodes[opcode].Length;
@@ -1167,7 +1236,10 @@ template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpPLP() {
 	State.SetState(PopByte());
-	// IRQ
+	if (State.Interrupt())
+		InternalData.IRQTrigger = SInternalData::IRQHi;
+	else
+		InternalData.IRQTrigger = SInternalData::IRQLow;
 }
 
 /* Прыжки */
@@ -1200,7 +1272,8 @@ template <class _Addr>
 void CCPU<_Bus, _Settings>::OpRTI() {
 	State.SetState(PopByte());
 	Registers.pc = PopWord();
-	// IRQ
+	if (State.Interrupt())
+		InternalData.IRQTrigger = SInternalData::IRQReady;
 }
 
 /* Управление флагами */
@@ -1224,7 +1297,7 @@ template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpSEI() {
 	State.State |= 0x04;
-	// IRQ
+	InternalData.IRQTrigger = SInternalData::IRQLow;
 }
 
 /* Сбросить C */
@@ -1246,7 +1319,7 @@ template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpCLI() {
 	State.State &= 0xfb;
-	// IRQ
+	InternalData.IRQTrigger = SInternalData::IRQHi;
 }
 
 /* Сбросить V */
@@ -1272,7 +1345,7 @@ void CCPU<_Bus, _Settings>::OpBRK() {
 	PushWord(Registers.pc + 1);
 	PushByte(State.State | 0x10);
 	State.State |= 0x04;
-	// IRQ
+	InternalData.IRQTrigger = SInternalData::IRQExecute;
 }
 
 /* Таблица опкодов */

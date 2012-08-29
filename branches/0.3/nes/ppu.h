@@ -475,6 +475,10 @@ public:
 
 	/* Флаг окончания рендеринга фрейма */
 	inline const bool &IsFrameReady() const { return FrameReady; }
+	/* Текущий такт */
+	inline int GetCycles() {
+		return std::min(CycleData.CyclesLeft, CycleData.CurCycle) - CycleData.LastCycle;
+	}
 	/* Ушло татов на фрейм */
 	inline int GetFrameCycles() {
 		int Res = FrameCycles;
@@ -887,8 +891,8 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 			CycleData.CurCycle = 341 + 343;
 		}
 		WAIT_CYCLE(341 + 343) { /* Генерируем NMI */
-//			if (ControlRegisters.GenerateNMI)
-//				Bus->GetCPU()->GenerateNMI();
+			if (ControlRegisters.GenerateNMI)
+				Bus->GetCPU()->GenerateNMI(GetCycles() * ClockDivider);
 			/* Период VBlank — 20/70 сканлайнов */
 			CycleData.CyclesLeft -= (_Settings::VBlank + 1) * 341;
 			CycleData.LastCycle -= (_Settings::VBlank + 1) * 341;
