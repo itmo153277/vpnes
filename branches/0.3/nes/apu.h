@@ -48,11 +48,19 @@ class CAPU: public CDevice {
 public:
 	/* Таблицы */
 	typedef typename _Settings::Tables Tables;
+	/* Делитель частоты */
+	enum { ClockDivider = _Bus::CPUClass::ClockDivider };
 private:
 	/* Шина */
 	_Bus *Bus;
 	/* Предобработано тактов */
 	int PreprocessedCycles;
+
+	/* Прерывания */
+	enum {
+		FrameIRQ = 0x10,
+		DMCIRQ = 0x20
+	};
 
 	/* Внутренние данные */
 	struct SInternalData {
@@ -65,6 +73,7 @@ private:
 	struct SCycleData {
 		int Step;
 		int CurCycle;
+		int LastCycle;
 		int CyclesLeft;
 		int WaitPass;
 		int SupressCounter;
@@ -576,6 +585,7 @@ private:
 			if (CycleData.SupressCounter >= 0) {
 				CycleData.SupressCounter++;
 				if (CycleData.SupressCounter > 3) {
+					CycleData.LastCycle -= CycleData.CurCycle;
 					CycleData.CurCycle = 0;
 					CycleData.Step = 0;
 					CycleData.SupressCounter = -1;
@@ -593,7 +603,8 @@ private:
 							case 3:
 								if (!Channels.InterruptInhibit) {
 									Channels.FrameInterrupt = true;
-//									Bus->GetCPU()->GetIRQPin() = true;
+									Bus->GetCPU()->GenerateIRQ(GetCycles() *
+										ClockDivider, FrameIRQ);
 								}
 							case 1:
 								Channels.OddClock();
@@ -636,7 +647,7 @@ private:
 							Channels.DMChannel.LastCounter;
 					} else if (Channels.DMChannel.InterruptEnabled) {
 						Channels.DMChannel.InterruptFlag = true;
-//						Bus->GetCPU()->GetIRQPin() = true;
+						Bus->GetCPU()->GenerateIRQ(GetCycles() * ClockDivider, DMCIRQ);
 					}
 				}
 				Channels.DMChannel.NotEmpty = true;
@@ -672,6 +683,7 @@ public:
 		/* Обрабатываем необработанные такты */
 		Process(Cycles - PreprocessedCycles);
 		PreprocessedCycles = 0;
+		CycleData.LastCycle = CycleData.CurCycle;
 	}
 
 	/* Сброс */
@@ -681,7 +693,7 @@ public:
 		memcpy(&temp, &Channels.TriangleChannel,
 			sizeof(typename SChannels::STriangleChannel));
 		memset(&Channels, 0, sizeof(Channels));
-		Channels.Fixed = Bus->GetClock()->GetFix() * _Bus::CPUClass::ClockDivider;
+		Channels.Fixed = Bus->GetClock()->GetFix() * ClockDivider;
 		Channels.Write_4017(InternalData.bMode);
 		Channels.NoiseChannel.Random = 1;
 		Channels.NoiseChannel.Shift = 13;
@@ -708,7 +720,7 @@ public:
 				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
 					(Tables::StepCycles[SChannels::Mode_4step - 1] + 2))) {
 					Channels.FrameInterrupt = false;
-//					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
+					Bus->GetCPU()->ClearIRQ(FrameIRQ);
 				}
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
@@ -792,8 +804,8 @@ public:
 			/* ДМ-канал */
 			case 0x4010:
 				Channels.DMChannel.Write_1(Src);
-//				if (!Channels.DMChannel.InterruptFlag)
-//					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+				if (!Channels.DMChannel.InterruptFlag)
+					Bus->GetCPU()->ClearIRQ(DMCIRQ);
 				break;
 			case 0x4011:
 				Channels.DMChannel.Write_2(Src);
@@ -810,15 +822,15 @@ public:
 				return;
 			case 0x4015: /* Управление каналами */
 				Channels.Write_4015(Src);
-//				if (!Channels.DMChannel.InterruptFlag)
-//					Bus->GetCPU()->GetIRQPin() = Channels.FrameInterrupt;
+				if (!Channels.DMChannel.InterruptFlag)
+					Bus->GetCPU()->ClearIRQ(DMCIRQ);
 				break;
 			case 0x4017: /* Счетчик кадров */
 				InternalData.bMode = Src;
 				/* Запись в 4017 */
 				Channels.Write_4017(Src);
-//				if (!Channels.FrameInterrupt)
-//					Bus->GetCPU()->GetIRQPin() = Channels.DMChannel.InterruptFlag;
+				if (!Channels.FrameInterrupt)
+					Bus->GetCPU()->ClearIRQ(FrameIRQ);
 				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
 				else
@@ -835,6 +847,10 @@ public:
 	/* Дописать буфер */
 	inline void FlushBuffer() {
 		Channels.FlushBuffer(abuf);
+	}
+	/* Текущий такт */
+	inline int GetCycles() {
+		return CycleData.CurCycle - CycleData.LastCycle;
 	}
 };
 
