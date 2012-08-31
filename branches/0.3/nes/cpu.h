@@ -120,7 +120,7 @@ private:
 	/* Такты прерывания */
 	inline int GetInterruptCycles(int Cycles) {
 		Cycles += ClockDivider / 2;
-		return Cycles / ClockDivider + ((Cycles % ClockDivider) >
+		return Cycles / ClockDivider + ((Cycles % ClockDivider) >=
 			(ClockDivider / 2) ? 1 : 0);
 	}
 	/* Обновить триггер */
@@ -502,7 +502,7 @@ public:
 	}
 	/* Выполнить IRQ */
 	inline void GenerateIRQ(int Cycles, int IRQ = ExternalIRQ) {
-		int Interrupt = GetInterruptCycles(Cycles);
+		int Interrupt = GetInterruptCycles(Cycles) + 1;
 			
 		if (((CycleData.IRQ < 0) && !InternalData.IRQ) || (Interrupt < CycleData.IRQ))
 			CycleData.IRQ = Interrupt;
@@ -510,7 +510,7 @@ public:
 	}
 	/* Сбросить IRQ */
 	inline void ClearIRQ(int IRQ = ExternalIRQ) {
-		InternalData.IRQ &= IRQ;
+		InternalData.IRQ &= ~IRQ;
 		if (!InternalData.IRQ)
 			CycleData.IRQ = -1;
 	}
@@ -741,7 +741,7 @@ void CCPU<_Bus, _Settings>::Execute() {
 	}
 	if (CycleData.NMI > 0) {
 		CycleData.NMI -= CycleData.Cycles;
-		if (CycleData.NMI <= 0)
+		if (CycleData.NMI < 0)
 			CycleData.NMI = 0;
 	}
 	if (InternalData.IRQTrigger == SInternalData::IRQDelay) {
@@ -784,6 +784,7 @@ void CCPU<_Bus, _Settings>::Execute() {
 			CycleData.Cycles = 5;
 			PushWord(Registers.pc); /* Следующая команда */
 			PushByte(State.State & 0xef); /* Сохраняем состояние */
+			State.State |= 0x04;
 			return;
 		}
 	}
@@ -1373,7 +1374,8 @@ void CCPU<_Bus, _Settings>::OpCLI() {
 			InternalData.IRQTrigger = SInternalData::IRQDelay;
 			if (CycleData.IRQ < 0)
 				CycleData.IRQ = 0;
-		}
+		} else
+			InternalData.IRQTrigger = SInternalData::IRQReady;
 		State.State &= 0xfb;
 	}
 }
