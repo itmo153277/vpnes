@@ -850,7 +850,7 @@ public:
 	}
 	/* Текущий такт */
 	inline int GetCycles() {
-		return CycleData.CurCycle - CycleData.LastCycle;
+		return CycleData.CurCycle - CycleData.LastCycle + 1;
 	}
 };
 

@@ -477,7 +477,7 @@ public:
 	inline const bool &IsFrameReady() const { return FrameReady; }
 	/* Текущий такт */
 	inline int GetCycles() {
-		return std::min(CycleData.CyclesLeft, CycleData.CurCycle) - CycleData.LastCycle;
+		return std::min(CycleData.CyclesLeft, CycleData.CurCycle) - CycleData.LastCycle + 1;
 	}
 	/* Ушло татов на фрейм */
 	inline int GetFrameCycles() {

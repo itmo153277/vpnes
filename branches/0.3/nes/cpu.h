@@ -119,7 +119,6 @@ private:
 
 	/* Такты прерывания */
 	inline int GetInterruptCycles(int Cycles) {
-		Cycles += ClockDivider / 2;
 		return Cycles / ClockDivider + ((Cycles % ClockDivider) >=
 			(ClockDivider / 2) ? 1 : 0);
 	}
@@ -1342,7 +1341,7 @@ template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpSEI() {
 	if (!State.Interrupt()) {
-		if (CycleData.IRQ <= CycleData.Cycles) {
+		if (InternalData.IRQ && (CycleData.IRQ <= CycleData.Cycles)) {
 			InternalData.IRQTrigger = SInternalData::IRQReady;
 			CycleData.IRQ = 0;
 		} else
