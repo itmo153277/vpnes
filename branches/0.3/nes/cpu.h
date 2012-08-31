@@ -513,6 +513,11 @@ public:
 		if (!InternalData.IRQ)
 			CycleData.IRQ = -1;
 	}
+	/* Приостановить работу */
+	inline void Pause(int Cycles) {
+		CycleData.Cycles += Cycles;
+		Bus->GetClock()->Clock(Cycles);
+	}
 	/* RAM */
 	inline const uint8 *GetRAM() const { return RAM; }
 private:

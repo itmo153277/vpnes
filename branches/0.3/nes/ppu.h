@@ -472,6 +472,30 @@ public:
 		DMAData.Address = Page << 8;
 		DMAData.Left = 256;
 	}
+	
+	inline void DoDMA() {
+		if (DMAData.Address < 0x2000) {
+			DMAData.Address &= 0x07ff;
+			if (InternalData.OAM_addr > 0) {
+				memcpy(OAM + InternalData.OAM_addr, Bus->GetCPU()->GetRAM() +
+					DMAData.Address, (0x0100 - InternalData.OAM_addr) *
+					sizeof(uint8));
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address + (0x0100 -
+					InternalData.OAM_addr), InternalData.OAM_addr * sizeof(uint8));
+			} else {
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address,
+					0x0100 * sizeof(uint8));
+			}
+			DMAData.Left = 0;
+		} else
+			do {
+				OAM[InternalData.OAM_addr] =
+					Bus->ReadCPUMemory(DMAData.Address);
+				InternalData.OAM_addr++;
+				DMAData.Address++;
+				DMAData.Left--;
+			} while (DMAData.Left > 0);
+	}
 
 	/* Флаг окончания рендеринга фрейма */
 	inline const bool &IsFrameReady() const { return FrameReady; }

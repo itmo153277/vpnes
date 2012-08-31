@@ -67,6 +67,7 @@ private:
 		int StrobeCounter_A;
 		int StrobeCounter_B;
 		uint8 bMode; /* Начальный режим */
+		int DMA;
 	} InternalData;
 
 	/* Данные о тактах */
@@ -633,6 +634,10 @@ private:
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
 				CycleData.WaitPass = -1;
+				if (InternalData.DMA)
+					Bus->GetCPU()->Pause(6);
+				else
+					Bus->GetCPU()->Pause(4);
 				if (Channels.DMChannel.Address < 0x8000)
 					Channels.DMChannel.Address |= 0x8000;
 				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
@@ -819,6 +824,11 @@ public:
 			/* Другое */
 			case 0x4014: /* DMA */
 				/* DMA */
+				Bus->GetCPU()->Pause(512 + (GetCycles() & 1));
+				InternalData.DMA = 1;
+				Preprocess();
+				Bus->GetPPU()->EnableDMA(Src);
+				Bus->GetPPU()->DoDMA();
 				return;
 			case 0x4015: /* Управление каналами */
 				Channels.Write_4015(Src);
