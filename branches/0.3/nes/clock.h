@@ -58,9 +58,9 @@ public:
 		do {
 			PreCycles = 0;
 			Bus->GetCPU()->Execute();
-			Bus->GetAPU()->Clock(Bus->GetCPU()->GetCycles());
-			Bus->GetPPU()->Clock(Bus->GetCPU()->GetCycles() *
-				_Bus::CPUClass::ClockDivider);
+			PreCycles = Bus->GetCPU()->GetCycles();
+			Bus->GetAPU()->Clock(PreCycles);
+			Bus->GetPPU()->Clock(PreCycles * _Bus::CPUClass::ClockDivider);
 		} while (!Bus->GetPPU()->IsFrameReady());
 		return Bus->GetPPU()->GetFrameCycles() * GetFix();
 	}
@@ -68,6 +68,10 @@ public:
 	/* Точный сдвиг */
 	inline void Clock(int Cycles) {
 		PreCycles += Cycles;
+	}
+	/* Пауза */
+	inline void Pause(int Cycle) {
+		PreCycles = Cycle;
 	}
 
 	/* Получить точный сдвиг */

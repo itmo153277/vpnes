@@ -75,7 +75,6 @@ private:
 		int Step;
 		int CurCycle;
 		int LastCycle;
-		int CyclesLeft;
 		int WaitPass;
 		int SupressCounter;
 	} CycleData;
@@ -578,19 +577,20 @@ private:
 
 	/* Обработка */
 	inline void Process(int Cycles) {
+		int LastCycle;
 
-		CycleData.CyclesLeft += Cycles;
-		while (CycleData.CyclesLeft > 0) {
-			CycleData.CyclesLeft--;
+		while (Cycles > 0) {
+			Cycles--;
 			/* Сброс счетчика */
-			if (CycleData.SupressCounter >= 0) {
+			if (CycleData.SupressCounter >= 0)
 				CycleData.SupressCounter++;
-				if (CycleData.SupressCounter > 3) {
-					CycleData.LastCycle -= CycleData.CurCycle;
-					CycleData.CurCycle = 0;
-					CycleData.Step = 0;
+			if ((CycleData.SupressCounter > 3) ||
+				(CycleData.CurCycle == (Tables::StepCycles[Channels.Mode - 1] + 2))) {
+				CycleData.LastCycle -= CycleData.CurCycle;
+				CycleData.CurCycle = 0;
+				CycleData.Step = 0;
+				if (CycleData.SupressCounter > 3)
 					CycleData.SupressCounter = -1;
-				}
 			}
 			if (CycleData.CurCycle == Tables::StepCycles[CycleData.Step]) {
 				/* Секвенсер */
@@ -627,21 +627,25 @@ private:
 				}
 				Channels.Update(abuf);
 				CycleData.Step++;
-				if (CycleData.Step == Channels.Mode) /* Сбросить счетчик через 2 такта */
-					CycleData.SupressCounter = 2;
 			}
 			Channels.Do_Timer(1, abuf);
+			CycleData.CurCycle++;
 			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
 				(CycleData.WaitPass == 0)) {
 				CycleData.WaitPass = -1;
+				PreprocessedCycles = CycleData.CurCycle - CycleData.LastCycle;
+				LastCycle = Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles;
+				Bus->GetClock()->Pause(PreprocessedCycles);
 				if (InternalData.DMA)
 					Bus->GetCPU()->Pause(6);
 				else
 					Bus->GetCPU()->Pause(4);
+				Preprocess();
 				if (Channels.DMChannel.Address < 0x8000)
 					Channels.DMChannel.Address |= 0x8000;
 				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
 					Channels.DMChannel.Address);
+				Bus->GetClock()->Clock(LastCycle);
 				Channels.DMChannel.Address++;
 				Channels.DMChannel.LengthCounter--;
 				if (Channels.DMChannel.LengthCounter == 0) {
@@ -658,7 +662,6 @@ private:
 				Channels.DMChannel.NotEmpty = true;
 				CycleData.WaitPass = 0;
 			}
-			CycleData.CurCycle++;
 		}
 	}
 public:
@@ -708,7 +711,7 @@ public:
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.CurCycle = -1;
-		CycleData.SupressCounter = -1;
+		CycleData.SupressCounter = 1;
 		PreprocessedCycles = 0;
 	}
 
@@ -722,8 +725,8 @@ public:
 				Preprocess();
 				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
-				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle !=
-					(Tables::StepCycles[SChannels::Mode_4step - 1] + 2))) {
+				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle <
+					(Tables::StepCycles[SChannels::Mode_4step - 1] + 1))) {
 					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->ClearIRQ(FrameIRQ);
 				}
@@ -827,6 +830,7 @@ public:
 				Bus->GetCPU()->Pause(512 + (GetCycles() & 1));
 				InternalData.DMA = 1;
 				Preprocess();
+				InternalData.DMA = 0;
 				Bus->GetPPU()->EnableDMA(Src);
 				Bus->GetPPU()->DoDMA();
 				return;
@@ -845,7 +849,7 @@ public:
 					Channels.OddClock();
 				else
 					Channels.EvenClock();
-				CycleData.SupressCounter = CycleData.CurCycle & 1;
+				CycleData.SupressCounter = ~CycleData.CurCycle & 1;
 				break;
 		}
 		Channels.Update(abuf);
