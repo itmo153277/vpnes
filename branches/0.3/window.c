@@ -63,6 +63,8 @@ int PCMindex = 1;
 int PCMready = 0;
 int PCMplay = 0;
 int lastpcm = 0;
+int UseJoy = 0;
+SDL_Joystick *joy = NULL;
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	if (!PCMready) {
@@ -83,8 +85,10 @@ void AudioCallback(int Task, void *Data) {
 			break;
 		case VPNES_PCM_UPDATE:
 			if (PCMready) {
-				if (ftell(stderr) >= 0)
+				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
+					fflush(stderr);
+				}
 			}
 			((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
 			PCMready = -1;
@@ -102,7 +106,7 @@ void AudioCallback(int Task, void *Data) {
 }
 
 /* Инициализация SDL */
-int InitMainWindow(int Width, int Height) {
+int InitMainWindow(int Width, int Height, int JoyPad) {
 	int i;
 
 	/* Инициализация библиотеки */
@@ -147,11 +151,25 @@ int InitMainWindow(int Width, int Height) {
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
 	SaveState = 0;
+	if (JoyPad && (SDL_NumJoysticks() > 0)) {
+		joy = SDL_JoystickOpen(0);
+		if (joy) {
+			fprintf(stderr, "Joystick: %s\n", SDL_JoystickName(0));
+			UseJoy = -1;
+			SDL_JoystickEventState(SDL_ENABLE);
+		} else
+			fputs("Couldn't open joystick\n", stderr);
+		fflush(stderr);
+	}
+	if (!UseJoy)
+		SDL_JoystickEventState(SDL_IGNORE);
 	return 0;
 }
 
 /* Выход */
 void AppQuit(void) {
+	if (UseJoy)
+		SDL_JoystickClose(joy);
 	free(obtained);
 	free(PCMBuf[0]);
 	free(PCMBuf[1]);
@@ -217,65 +235,146 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						WindowState = VPNES_QUIT;
 						break;
 					case SDL_KEYDOWN:
-						switch (event.key.keysym.sym) {
-							case SDLK_c:
-								ibuf[VPNES_INPUT_A] = 1;
-								break;
-							case SDLK_x:
-								ibuf[VPNES_INPUT_B] = 1;
-								break;
-							case SDLK_a:
-								ibuf[VPNES_INPUT_SELECT] = 1;
-								break;
-							case SDLK_s:
-								ibuf[VPNES_INPUT_START] = 1;
-								break;
-							case SDLK_DOWN:
-								ibuf[VPNES_INPUT_DOWN] = 1;
-								break;
-							case SDLK_UP:
-								ibuf[VPNES_INPUT_UP] = 1;
-								break;
-							case SDLK_LEFT:
-								ibuf[VPNES_INPUT_LEFT] = 1;
-								break;
-							case SDLK_RIGHT:
-								ibuf[VPNES_INPUT_RIGHT] = 1;
-							default:
-								break;
-						}
+//						if (!UseJoy)
+							switch (event.key.keysym.sym) {
+								case SDLK_c:
+									ibuf[VPNES_INPUT_A] = 1;
+									break;
+								case SDLK_x:
+									ibuf[VPNES_INPUT_B] = 1;
+									break;
+								case SDLK_a:
+									ibuf[VPNES_INPUT_SELECT] = 1;
+									break;
+								case SDLK_s:
+									ibuf[VPNES_INPUT_START] = 1;
+									break;
+								case SDLK_DOWN:
+									ibuf[VPNES_INPUT_DOWN] = 1;
+									break;
+								case SDLK_UP:
+									ibuf[VPNES_INPUT_UP] = 1;
+									break;
+								case SDLK_LEFT:
+									ibuf[VPNES_INPUT_LEFT] = 1;
+									break;
+								case SDLK_RIGHT:
+									ibuf[VPNES_INPUT_RIGHT] = 1;
+								default:
+									break;
+							}
 						break;
 					case SDL_KEYUP:
-						switch (event.key.keysym.sym) {
-							case SDLK_c:
-								ibuf[VPNES_INPUT_A] = 0;
-								break;
-							case SDLK_x:
-								ibuf[VPNES_INPUT_B] = 0;
-								break;
-							case SDLK_a:
-								ibuf[VPNES_INPUT_SELECT] = 0;
-								break;
-							case SDLK_s:
-								ibuf[VPNES_INPUT_START] = 0;
-								break;
-							case SDLK_DOWN:
-								ibuf[VPNES_INPUT_DOWN] = 0;
-								break;
-							case SDLK_UP:
+//						if (!UseJoy)
+							switch (event.key.keysym.sym) {
+								case SDLK_c:
+									ibuf[VPNES_INPUT_A] = 0;
+									break;
+								case SDLK_x:
+									ibuf[VPNES_INPUT_B] = 0;
+									break;
+								case SDLK_a:
+									ibuf[VPNES_INPUT_SELECT] = 0;
+									break;
+								case SDLK_s:
+									ibuf[VPNES_INPUT_START] = 0;
+									break;
+								case SDLK_DOWN:
+									ibuf[VPNES_INPUT_DOWN] = 0;
+									break;
+								case SDLK_UP:
+									ibuf[VPNES_INPUT_UP] = 0;
+									break;
+								case SDLK_LEFT:
+									ibuf[VPNES_INPUT_LEFT] = 0;
+									break;
+								case SDLK_RIGHT:
+									ibuf[VPNES_INPUT_RIGHT] = 0;
+									break;
+								case SDLK_F1:
+									quit = -1;
+									WindowState = VPNES_RESET;
+								default:
+									break;
+							}
+						break;
+					case SDL_JOYAXISMOTION:
+						if (event.jaxis.which == 0)
+							switch (event.jaxis.axis) {
+								case 0:
+									if (event.jaxis.value < -8192)
+										ibuf[VPNES_INPUT_LEFT] = 1;
+									else
+										ibuf[VPNES_INPUT_LEFT] = 0;
+									if (event.jaxis.value > 8192)
+										ibuf[VPNES_INPUT_RIGHT] = 1;
+									else
+										ibuf[VPNES_INPUT_RIGHT] = 0;
+									break;
+								case 1:
+									if (event.jaxis.value < -8192)
+										ibuf[VPNES_INPUT_UP] = 1;
+									else
+										ibuf[VPNES_INPUT_UP] = 0;
+									if (event.jaxis.value > 8192)
+										ibuf[VPNES_INPUT_DOWN] = 1;
+									else
+										ibuf[VPNES_INPUT_DOWN] = 0;
+									break;
+							}
+						break;
+					case SDL_JOYBUTTONDOWN:
+						if (event.jbutton.which == 0)
+							switch (event.jbutton.button) {
+								case 0:
+									ibuf[VPNES_INPUT_A] = 1;
+									break;
+								case 1:
+									ibuf[VPNES_INPUT_B] = 1;
+									break;
+								case 6:
+									ibuf[VPNES_INPUT_SELECT] = 1;
+									break;
+								case 7:
+									ibuf[VPNES_INPUT_START] = 1;
+									break;
+							}
+						break;
+					case SDL_JOYBUTTONUP:
+						if (event.jbutton.which == 0)
+							switch (event.jbutton.button) {
+								case 0:
+									ibuf[VPNES_INPUT_A] = 0;
+									break;
+								case 1:
+									ibuf[VPNES_INPUT_B] = 0;
+									break;
+								case 6:
+									ibuf[VPNES_INPUT_SELECT] = 0;
+									break;
+								case 7:
+									ibuf[VPNES_INPUT_START] = 0;
+									break;
+							}
+						break;
+					case SDL_JOYHATMOTION:
+						if (event.jhat.which == 0) {
+							if (event.jhat.value & SDL_HAT_UP)
+								ibuf[VPNES_INPUT_UP] = 1;
+							else
 								ibuf[VPNES_INPUT_UP] = 0;
-								break;
-							case SDLK_LEFT:
+							if (event.jhat.value & SDL_HAT_DOWN)
+								ibuf[VPNES_INPUT_DOWN] = 1;
+							else
+								ibuf[VPNES_INPUT_DOWN] = 0;
+							if (event.jhat.value & SDL_HAT_LEFT)
+								ibuf[VPNES_INPUT_LEFT] = 1;
+							else
 								ibuf[VPNES_INPUT_LEFT] = 0;
-								break;
-							case SDLK_RIGHT:
+							if (event.jhat.value & SDL_HAT_RIGHT)
+								ibuf[VPNES_INPUT_RIGHT] = 1;
+							else
 								ibuf[VPNES_INPUT_RIGHT] = 0;
-								break;
-							case SDLK_F1:
-								quit = -1;
-								WindowState = VPNES_RESET;
-							default:
-								break;
 						}
 						break;
 				}
@@ -315,6 +414,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 					HaltData->PC, HaltData->A, HaltData->X, HaltData->Y, HaltData->S,
 					HaltData->State);
 				}
+				fflush(stderr);
 			return 0;
 		case VPNES_CALLBACK_INPUT:
 			*((VPNES_INPUT *) Data) = ibuf;

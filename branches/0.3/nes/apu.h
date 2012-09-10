@@ -91,7 +91,6 @@ private:
 			int UpdCycle; /* Число тактов с данным выходом */
 			double LastOutput; /* Текущий выход */
 			double Avr; /* Среднее */
-			double Fixed; /* Коэф */
 			double TimeDiff; /* Различие времени */
 			double Time; /* Время */
 			double Sum; /* Сумма */
@@ -113,7 +112,8 @@ private:
 		inline void FlushBuffer(VPNES_ABUF *Buf) {
 			int i, num;
 
-			ChannelData.Time += ChannelData.UpdCycle * ChannelData.Fixed * Buf->Freq;
+			ChannelData.Time += ChannelData.UpdCycle * _Bus::ClockClass::GetFix() *
+				ClockDivider * Buf->Freq;
 			num = (int) ChannelData.Time;
 			if (num > 0) {
 				ChannelData.Time -= num;
@@ -673,7 +673,6 @@ public:
 			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
-		Channels.ChannelData.Fixed = Bus->GetClock()->GetFix() * ClockDivider;
 		Channels.TriangleChannel.Output = Tables::SeqTable[0];
 		Channels.TriangleChannel.ControlFlag = false;
 	}
@@ -855,7 +854,7 @@ public:
 				else
 					Channels.EvenClock();
 				Cycle = CycleData.CyclesLeft + 2;
-				if (Cycle & 1)
+				if (~Cycle & 1)
 					Cycle++;
 				CycleData.CyclesLeft -= Cycle;
 				CycleData.LastCycle -= Cycle;

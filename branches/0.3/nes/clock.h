@@ -79,7 +79,7 @@ public:
 		_Bus::CPUClass::ClockDivider; }
 	inline int GetPreCPUCycles() const { return PreCycles; }
 	/* Получить точный коэф */
-	inline double GetFix() const { return _Oscillator::GetFreq(); }
+	static inline const double GetFix() { return _Oscillator::GetFreq(); }
 };
 
 /* Стандартный генератор */

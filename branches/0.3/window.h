@@ -49,7 +49,7 @@ extern int WindowState;
 extern int SaveState;
 
 /* Инициализация SDL */
-int InitMainWindow(int Width, int Height);
+int InitMainWindow(int Width, int Height, int JoyPad);
 /* Выход */
 void AppQuit(void);
 /* Callback-функция */
