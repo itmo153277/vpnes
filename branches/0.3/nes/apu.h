@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <algorithm>
 #include <cstring>
 #include "manager.h"
 #include "bus.h"
@@ -74,8 +75,9 @@ private:
 	struct SCycleData {
 		int Step;
 		int CurCycle;
+		int NextCycle;
 		int LastCycle;
-		int WaitPass;
+		int CyclesLeft;
 		int SupressCounter;
 	} CycleData;
 
@@ -83,20 +85,23 @@ private:
 	VPNES_ABUF *abuf;
 
 	struct SChannels {
-		int CurCycle;
-		int UpdCycle; /* Число тактов с данным выходом */
-		double LastOutput; /* Текущий выход */
-		double Avr; /* Среднее */
-		double Fixed; /* Коэф */
-		double TimeDiff; /* Различие времени */
-		double Time; /* Время */
-		double Sum; /* Сумма */
+		int NextCycle; /* Следующее действие */
+		int CurCycle; /* Текущий такт */
+		struct SChannelData {
+			int UpdCycle; /* Число тактов с данным выходом */
+			double LastOutput; /* Текущий выход */
+			double Avr; /* Среднее */
+			double Fixed; /* Коэф */
+			double TimeDiff; /* Различие времени */
+			double Time; /* Время */
+			double Sum; /* Сумма */
+		} ChannelData;
 
 		/* Вывод семпла */
 		inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
-			double Res = Avr + Sample;
+			double Res = ChannelData.Avr + Sample;
 
-			Avr -= Res / 128 / Buf->Freq;
+			ChannelData.Avr -= Res / 128 / Buf->Freq;
 			Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
 			Buf->Pos++;
 			if (Buf->Pos == Buf->Size) {
@@ -108,19 +113,20 @@ private:
 		inline void FlushBuffer(VPNES_ABUF *Buf) {
 			int i, num;
 
-			Time += UpdCycle * Fixed * Buf->Freq;
-			num = (int) Time;
+			ChannelData.Time += ChannelData.UpdCycle * ChannelData.Fixed * Buf->Freq;
+			num = (int) ChannelData.Time;
 			if (num > 0) {
-				Time -= num;
-				Sum += LastOutput * (1.0 - TimeDiff);
-				OutputSample(Sum, Buf);
+				ChannelData.Time -= num;
+				ChannelData.Sum += ChannelData.LastOutput * (1.0 - ChannelData.TimeDiff);
+				OutputSample(ChannelData.Sum, Buf);
 				for (i = 1; i < num; i++)
-					OutputSample(LastOutput, Buf);
-				Sum = LastOutput * Time;
+					OutputSample(ChannelData.LastOutput, Buf);
+				ChannelData.Sum = ChannelData.LastOutput * ChannelData.Time;
 			} else
-				Sum += LastOutput * (Time - TimeDiff);
-			TimeDiff = Time;
-			UpdCycle = 0;
+				ChannelData.Sum += ChannelData.LastOutput * (ChannelData.Time -
+					ChannelData.TimeDiff);
+			ChannelData.TimeDiff = ChannelData.Time;
+			ChannelData.UpdCycle = 0;
 		}
 
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
@@ -219,7 +225,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if ((TimerCounter >= Timer * 2) && !(TimerCounter & 1)) {
+				if ((Timer > 0) && (TimerCounter >= (Timer << 1))) {
 					TimerCounter = 0;
 					DutyCycle++;
 					if (DutyCycle == 8)
@@ -228,9 +234,22 @@ private:
 				}
 				return false;
 			}
+			/* Возможность вывода */
 			inline bool CanOutput() {
 				return (LengthCounter > 0) && Valid &&
 					Tables::DutyTable[(DutyMode << 3) + DutyCycle];
+			}
+			/* Обновить такты */
+			inline void UpdateCycles(int &Cycle) {
+				int RestCycles;
+
+				if (Timer > 0) {
+					RestCycles = (Timer << 1) - TimerCounter;
+					if (RestCycles < 0)
+						RestCycles = 0;
+					if (RestCycles < Cycle)
+						Cycle = RestCycles;
+				}
 			}
 		};
 
@@ -241,9 +260,10 @@ private:
 			using SSquareChannel::Timer;
 			using SSquareChannel::TimerTarget;
 			using SSquareChannel::Valid;
+			using SSquareChannel::UpdateCycles;
 
 			/* Вычислить свип */
-			inline void CalculateSweep() {
+			inline void CalculateSweep(int &Cycle) {
 				uint16 Res;
 
 				Res = Timer >> SweepShiftCount;
@@ -251,6 +271,7 @@ private:
 					Res = ~Res;
 				TimerTarget = Timer + Res;
 				Valid = (Timer > 7) && (SweepNegative || (TimerTarget < 0x0800));
+				UpdateCycles(Cycle);
 			}
 		} SquareChannel1;
 
@@ -261,9 +282,10 @@ private:
 			using SSquareChannel::Timer;
 			using SSquareChannel::TimerTarget;
 			using SSquareChannel::Valid;
+			using SSquareChannel::UpdateCycles;
 
 			/* Вычислить свип */
-			inline void CalculateSweep() {
+			inline void CalculateSweep(int &Cycle) {
 				uint16 Res;
 
 				Res = Timer >> SweepShiftCount;
@@ -271,6 +293,7 @@ private:
 					Res = -Res;
 				TimerTarget = Timer + Res;
 				Valid = (Timer > 7) && (SweepNegative || (TimerTarget < 0x0800));
+				UpdateCycles(Cycle);
 			}
 		} SquareChannel2;
 
@@ -289,14 +312,16 @@ private:
 			inline void Write_1(uint8 Src) {
 				ControlFlag = Src & 0x80; LinearCounterReload = Src & 0x7f;
 			}
-			inline void Write_2(uint8 Src) {
+			inline void Write_2(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x0700) | Src;
+				UpdateCycles(Cycle);
 			}
-			inline void Write_3(uint8 Src) {
+			inline void Write_3(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 				HaltFlag = true;
+				UpdateCycles(Cycle);
 			}
 			/* Счетчик длины */
 			inline void Do_LinearCounter() {
@@ -317,7 +342,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter >= Timer) {
+				if ((Timer > 0) && (TimerCounter >= Timer)) {
 					TimerCounter = 0;
 					if ((LinearCounter > 0) && (LengthCounter > 0)) {
 						Output = Tables::SeqTable[Sequencer++];
@@ -327,6 +352,18 @@ private:
 					}
 				}
 				return false;
+			}
+			/* Обновить такты */
+			inline void UpdateCycles(int &Cycle) {
+				int RestCycles;
+
+				if (Timer > 0) {
+					RestCycles = Timer - TimerCounter;
+					if (RestCycles < 0)
+						RestCycles = 0;
+					if (RestCycles < Cycle)
+						Cycle = RestCycles;
+				}
 			}
 		} TriangleChannel;
 
@@ -346,16 +383,18 @@ private:
 			int EnvelopeDivider; /* Делитель огибающей */
 			uint16 Random; /* Биты рандома */
 			inline void Write_1(uint8 Src) {
-				LengthCounterDisable = (Src & 0x20); EnvelopeConstant = (Src & 0x10);
+				LengthCounterDisable = (Src & 0x20);
+				EnvelopeConstant = (Src & 0x10);
 				EnvelopePeriod = (Src & 0x0f);
 				if (EnvelopeConstant)
 					Output = EnvelopePeriod;
 				else
 					Output = EnvelopeCounter;
 			}
-			inline void Write_2(uint8 Src) {
+			inline void Write_2(uint8 Src, int &Cycle) {
 				Timer = Tables::NoiseTable[Src & 0x0f];
 				Shift = ((Src & 0x80) ? 8 : 13);
+				UpdateCycles(Cycle);
 			}
 			inline void Write_3(uint8 Src) {
 				Start = true;
@@ -393,7 +432,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter >= Timer) {
+				if (((Timer > 0) && TimerCounter >= Timer)) {
 					TimerCounter = 0;
 					Random = (((Random >> 14) ^ (Random >> Shift)) & 0x01) |
 						(Random << 1);
@@ -401,8 +440,21 @@ private:
 				}
 				return false;
 			}
+			/* Возможность вывода */
 			inline bool CanOutput() {
 				return (LengthCounter > 0) && !(Random & 0x4000);
+			}
+			/* Обновить такты */
+			inline void UpdateCycles(int &Cycle) {
+				int RestCycles;
+
+				if (Timer > 0) {
+					RestCycles = Timer - TimerCounter;
+					if (RestCycles < 0)
+						RestCycles = 0;
+					if (RestCycles < Cycle)
+						Cycle = RestCycles;
+				}
 			}
 		} NoiseChannel;
 
@@ -423,12 +475,13 @@ private:
 			int ShiftCounter; /* Счетчик сдвигов */
 			bool SilenceFlag; /* Флаг тишины */
 			int TimerCounter; /* Счетчик таймера */
-			inline void Write_1(uint8 Src) {
+			inline void Write_1(uint8 Src, int &Cycle) {
 				InterruptEnabled = Src & 0x80;
 				if (!InterruptEnabled)
 					InterruptFlag = false;
 				LoopFlag = Src & 0x40;
 				Timer = Tables::DMTable[Src & 0x0f];
+				UpdateCycles(Cycle);
 			}
 			inline void Write_2(uint8 Src) {
 				Output = Src & 0x7f;
@@ -445,7 +498,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter >= Timer) {
+				if ((Timer > 0) && (TimerCounter >= Timer)) {
 					TimerCounter = 0;
 					if (ShiftCounter == 0) {
 						ShiftCounter = 8;
@@ -471,6 +524,18 @@ private:
 				}
 				return false;
 			}
+			/* Обновить такты */
+			inline void UpdateCycles(int &Cycle) {
+				int RestCycles;
+
+				if (Timer > 0) {
+					RestCycles = Timer - TimerCounter;
+					if (RestCycles < 0)
+						RestCycles = 0;
+					if (RestCycles < Cycle)
+						Cycle = RestCycles;
+				}
+			}
 		} DMChannel;
 
 		/* Обновить выход */
@@ -487,9 +552,9 @@ private:
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
 			NewOutput = Tables::SquareTable[SqOut] + Tables::TNDTable[TNDOut];
-			if (LastOutput != NewOutput) {
+			if (ChannelData.LastOutput != NewOutput) {
 				FlushBuffer(Buf);
-				LastOutput = NewOutput;
+				ChannelData.LastOutput = NewOutput;
 			}
 		}
 
@@ -509,9 +574,9 @@ private:
 		/* Свип */
 		inline void Sweep() {
 			SquareChannel1.Sweep();
-			SquareChannel1.CalculateSweep();
+			SquareChannel1.CalculateSweep(NextCycle);
 			SquareChannel2.Sweep();
-			SquareChannel2.CalculateSweep();
+			SquareChannel2.CalculateSweep(NextCycle);
 		}
 		/* Четный такт */
 		inline void EvenClock() {
@@ -526,7 +591,7 @@ private:
 		}
 		/* Таймер */
 		inline void Do_Timer(int Cycles, VPNES_ABUF *Buf) {
-			UpdCycle += Cycles;
+			ChannelData.UpdCycle += Cycles;
 			if (SquareChannel1.Do_Timer(Cycles) |
 				SquareChannel2.Do_Timer(Cycles) |
 				TriangleChannel.Do_Timer(Cycles) |
@@ -534,6 +599,24 @@ private:
 				DMChannel.Do_Timer(Cycles)) {
 				Update(Buf);
 			}
+			NextCycle -= Cycles;
+			if (NextCycle <= 0) {
+				NextCycle = 0x0800;
+				SquareChannel1.UpdateCycles(NextCycle);
+				SquareChannel2.UpdateCycles(NextCycle);
+				TriangleChannel.UpdateCycles(NextCycle);
+				NoiseChannel.UpdateCycles(NextCycle);
+				DMChannel.UpdateCycles(NextCycle);
+				if (NextCycle == 0)
+					NextCycle = 1;
+				else if (NextCycle == 0x0800)
+					NextCycle = 0;
+			}
+		}
+		/* Выполнить таймиер */
+		inline void Timer(int Cycles, VPNES_ABUF *Buf) {
+			Do_Timer(Cycles - CurCycle, Buf);
+			CurCycle = Cycles;
 		}
 
 		inline void Write_4015(uint8 Src) {
@@ -557,7 +640,7 @@ private:
 		}
 		inline uint8 Read_4015() {
 			uint8 Res = 0;
-			
+
 			if (DMChannel.InterruptFlag) Res |= 0x80;
 			if (FrameInterrupt) Res |= 0x40;
 			if (DMChannel.LengthCounter > 0) Res |= 0x10;
@@ -567,8 +650,11 @@ private:
 			if (SquareChannel1.LengthCounter > 0) Res |= 0x01;
 			return Res;
 		}
-		inline void Write_4017(uint8 Src) { Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
-			InterruptInhibit = (Src & 0x40); if (InterruptInhibit) FrameInterrupt = false;
+		inline void Write_4017(uint8 Src) {
+			Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
+			InterruptInhibit = (Src & 0x40);
+			if (InterruptInhibit)
+				FrameInterrupt = false;
 		}
 	} Channels;
 
@@ -576,94 +662,7 @@ private:
 	VPNES_IBUF ibuf;
 
 	/* Обработка */
-	inline void Process(int Cycles) {
-		int LastCycle;
-
-		while (Cycles > 0) {
-			Cycles--;
-			/* Сброс счетчика */
-			if (CycleData.SupressCounter >= 0)
-				CycleData.SupressCounter++;
-			if ((CycleData.SupressCounter > 3) ||
-				(CycleData.CurCycle == (Tables::StepCycles[Channels.Mode - 1] + 2))) {
-				CycleData.LastCycle -= CycleData.CurCycle;
-				CycleData.CurCycle = 0;
-				CycleData.Step = 0;
-				if (CycleData.SupressCounter > 3)
-					CycleData.SupressCounter = -1;
-			}
-			if (CycleData.CurCycle == Tables::StepCycles[CycleData.Step]) {
-				/* Секвенсер */
-				switch (Channels.Mode) {
-					case SChannels::Mode_4step:
-						switch (CycleData.Step) {
-							case 0:
-							case 2:
-								Channels.EvenClock();
-								break;
-							case 3:
-								if (!Channels.InterruptInhibit) {
-									Channels.FrameInterrupt = true;
-									Bus->GetCPU()->GenerateIRQ(GetCycles() *
-										ClockDivider, FrameIRQ);
-								}
-							case 1:
-								Channels.OddClock();
-								break;
-						}
-						break;
-					case SChannels::Mode_5step:
-						switch (CycleData.Step) {
-							case 0:
-							case 2:
-								Channels.EvenClock();
-								break;
-							case 1:
-							case 4:
-								Channels.OddClock();
-								break;
-						}
-						break;
-				}
-				Channels.Update(abuf);
-				CycleData.Step++;
-			}
-			Channels.Do_Timer(1, abuf);
-			CycleData.CurCycle++;
-			if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0) &&
-				(CycleData.WaitPass == 0)) {
-				CycleData.WaitPass = -1;
-				PreprocessedCycles = CycleData.CurCycle - CycleData.LastCycle;
-				LastCycle = Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles;
-				Bus->GetClock()->Pause(PreprocessedCycles);
-				if (InternalData.DMA)
-					Bus->GetCPU()->Pause(6);
-				else
-					Bus->GetCPU()->Pause(4);
-				Preprocess();
-				if (Channels.DMChannel.Address < 0x8000)
-					Channels.DMChannel.Address |= 0x8000;
-				Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
-					Channels.DMChannel.Address);
-				Bus->GetClock()->Clock(LastCycle);
-				Channels.DMChannel.Address++;
-				Channels.DMChannel.LengthCounter--;
-				if (Channels.DMChannel.LengthCounter == 0) {
-					if (Channels.DMChannel.LoopFlag) {
-						Channels.DMChannel.Address =
-							Channels.DMChannel.LastAddress;
-						Channels.DMChannel.LengthCounter =
-							Channels.DMChannel.LastCounter;
-					} else if (Channels.DMChannel.InterruptEnabled) {
-						Channels.DMChannel.InterruptFlag = true;
-						Bus->GetCPU()->GenerateIRQ(GetCycles() * ClockDivider, DMCIRQ);
-					}
-				}
-				Channels.DMChannel.NotEmpty = true;
-				CycleData.WaitPass = 0;
-			}
-		}
-	}
+	inline void Process(int Cycles);
 public:
 	inline explicit CAPU(_Bus *pBus) {
 		Bus = pBus;
@@ -674,8 +673,9 @@ public:
 			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
-		memset(&Channels.TriangleChannel, 0, sizeof(Channels.TriangleChannel));
+		Channels.ChannelData.Fixed = Bus->GetClock()->GetFix() * ClockDivider;
 		Channels.TriangleChannel.Output = Tables::SeqTable[0];
+		Channels.TriangleChannel.ControlFlag = false;
 	}
 	inline ~CAPU() {}
 
@@ -691,27 +691,30 @@ public:
 		/* Обрабатываем необработанные такты */
 		Process(Cycles - PreprocessedCycles);
 		PreprocessedCycles = 0;
-		CycleData.LastCycle = CycleData.CurCycle;
+		CycleData.LastCycle = CycleData.CyclesLeft;
 	}
 
 	/* Сброс */
 	inline void Reset() {
-		typename SChannels::STriangleChannel temp;
+		typename SChannels::SChannelData oldchn;
+		uint8 oldout;
+		bool oldcontr;
 
-		memcpy(&temp, &Channels.TriangleChannel,
-			sizeof(typename SChannels::STriangleChannel));
+		memcpy(&oldchn, &Channels.ChannelData, sizeof(typename SChannels::SChannelData));
+		oldout = Channels.TriangleChannel.Output;
+		oldcontr = Channels.TriangleChannel.ControlFlag;
 		memset(&Channels, 0, sizeof(Channels));
-		Channels.Fixed = Bus->GetClock()->GetFix() * ClockDivider;
-		Channels.Write_4017(InternalData.bMode);
+		memcpy(&Channels.ChannelData, &oldchn, sizeof(typename SChannels::SChannelData));
+		Channels.TriangleChannel.Output = oldout;
+		Channels.TriangleChannel.ControlFlag = oldcontr;
 		Channels.NoiseChannel.Random = 1;
 		Channels.NoiseChannel.Shift = 13;
-		memcpy(&Channels.TriangleChannel, &temp,
-			sizeof(typename SChannels::STriangleChannel));
+		Channels.DMChannel.Timer = Tables::DMTable[0];
+		Channels.Write_4017(InternalData.bMode);
 		Channels.Update(abuf);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
-		CycleData.CurCycle = -1;
-		CycleData.SupressCounter = 1;
+		CycleData.NextCycle = Tables::StepCycles[0];
 		PreprocessedCycles = 0;
 	}
 
@@ -725,8 +728,8 @@ public:
 				Preprocess();
 				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
-				if ((Channels.Mode != SChannels::Mode_4step) || (CycleData.CurCycle <
-					(Tables::StepCycles[SChannels::Mode_4step - 1] + 1))) {
+				if ((Channels.Mode != SChannels::Mode_4step) ||
+					(CycleData.CyclesLeft <= Tables::StepCycles[Channels.Mode - 1])) {
 					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->ClearIRQ(FrameIRQ);
 				}
@@ -750,6 +753,8 @@ public:
 
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
+		int Cycle;
+
 		if (Address == 0x4016) { /* Стробирование контроллеров */
 			InternalData.StrobeCounter_A = 0;
 			InternalData.StrobeCounter_B = 0;
@@ -763,15 +768,15 @@ public:
 				break;
 			case 0x4001: /* Свип */
 				Channels.SquareChannel1.Write_2(Src);
-				Channels.SquareChannel1.CalculateSweep();
+				Channels.SquareChannel1.CalculateSweep(Channels.NextCycle);
 				break;
 			case 0x4002: /* Период */
 				Channels.SquareChannel1.Write_3(Src);
-				Channels.SquareChannel1.CalculateSweep();
+				Channels.SquareChannel1.CalculateSweep(Channels.NextCycle);
 				break;
 			case 0x4003: /* Счетчик, период */
 				Channels.SquareChannel1.Write_4(Src);
-				Channels.SquareChannel1.CalculateSweep();
+				Channels.SquareChannel1.CalculateSweep(Channels.NextCycle);
 				break;
 			/* Прямоугольный канал 2 */
 			case 0x4004:
@@ -779,39 +784,39 @@ public:
 				break;
 			case 0x4005:
 				Channels.SquareChannel2.Write_2(Src);
-				Channels.SquareChannel2.CalculateSweep();
+				Channels.SquareChannel2.CalculateSweep(Channels.NextCycle);
 				break;
 			case 0x4006:
 				Channels.SquareChannel2.Write_3(Src);
-				Channels.SquareChannel2.CalculateSweep();
+				Channels.SquareChannel2.CalculateSweep(Channels.NextCycle);
 				break;
 			case 0x4007:
 				Channels.SquareChannel2.Write_4(Src);
-				Channels.SquareChannel2.CalculateSweep();
+				Channels.SquareChannel2.CalculateSweep(Channels.NextCycle);
 				break;
 			/* Пилообразный канал */
 			case 0x4008:
 				Channels.TriangleChannel.Write_1(Src);
 				break;
 			case 0x400a:
-				Channels.TriangleChannel.Write_2(Src);
+				Channels.TriangleChannel.Write_2(Src, Channels.NextCycle);
 				break;
 			case 0x400b:
-				Channels.TriangleChannel.Write_3(Src);
+				Channels.TriangleChannel.Write_3(Src, Channels.NextCycle);
 				break;
 			/* Шум */
 			case 0x400c:
 				Channels.NoiseChannel.Write_1(Src);
 				break;
 			case 0x400e:
-				Channels.NoiseChannel.Write_2(Src);
+				Channels.NoiseChannel.Write_2(Src, Channels.NextCycle);
 				break;
 			case 0x400f:
 				Channels.NoiseChannel.Write_3(Src);
 				break;
 			/* ДМ-канал */
 			case 0x4010:
-				Channels.DMChannel.Write_1(Src);
+				Channels.DMChannel.Write_1(Src, Channels.NextCycle);
 				if (!Channels.DMChannel.InterruptFlag)
 					Bus->GetCPU()->ClearIRQ(DMCIRQ);
 				break;
@@ -849,7 +854,19 @@ public:
 					Channels.OddClock();
 				else
 					Channels.EvenClock();
-				CycleData.SupressCounter = ~CycleData.CurCycle & 1;
+				Cycle = CycleData.CyclesLeft + 2;
+				if (Cycle & 1)
+					Cycle++;
+				CycleData.CyclesLeft -= Cycle;
+				CycleData.LastCycle -= Cycle;
+				Channels.CurCycle -= Cycle;
+				CycleData.Step = 0;
+				CycleData.NextCycle = Tables::StepCycles[0];
+				if ((Channels.NextCycle > 0) &&
+					(Channels.CurCycle + Channels.NextCycle < CycleData.NextCycle))
+					CycleData.CurCycle = Channels.CurCycle + Channels.NextCycle;
+				else
+					CycleData.CurCycle = CycleData.NextCycle;
 				break;
 		}
 		Channels.Update(abuf);
@@ -864,9 +881,92 @@ public:
 	}
 	/* Текущий такт */
 	inline int GetCycles() {
-		return CycleData.CurCycle - CycleData.LastCycle + 1;
+		return std::min(CycleData.CyclesLeft, CycleData.CurCycle + 1) -
+			CycleData.LastCycle;
 	}
 };
+
+/* Обработка */
+template <class _Bus, class _Settings>
+void CAPU<_Bus, _Settings>::Process(int Cycles) {
+
+	CycleData.CyclesLeft += Cycles;
+	while (CycleData.CyclesLeft > CycleData.CurCycle) {
+		Channels.Timer(CycleData.CurCycle, abuf);
+		if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0)) {
+			if (Channels.DMChannel.Address < 0x8000)
+				Channels.DMChannel.Address |= 0x8000;
+			Channels.DMChannel.SampleBuffer = Bus->ReadCPUMemory(\
+				Channels.DMChannel.Address);
+			Channels.DMChannel.Address++;
+			Channels.DMChannel.LengthCounter--;
+			if (Channels.DMChannel.LengthCounter == 0) {
+				if (Channels.DMChannel.LoopFlag) {
+					Channels.DMChannel.Address =
+						Channels.DMChannel.LastAddress;
+					Channels.DMChannel.LengthCounter =
+						Channels.DMChannel.LastCounter;
+				} else if (Channels.DMChannel.InterruptEnabled) {
+					Channels.DMChannel.InterruptFlag = true;
+					Bus->GetCPU()->GenerateIRQ(GetCycles() * ClockDivider, DMCIRQ);
+				}
+			}
+			Channels.DMChannel.NotEmpty = true;
+		}
+		if (CycleData.CurCycle == Tables::StepCycles[CycleData.Step]) {
+			/* Секвенсер */
+			switch (Channels.Mode) {
+				case SChannels::Mode_4step:
+					switch (CycleData.Step) {
+						case 0:
+						case 2:
+							Channels.EvenClock();
+							break;
+						case 3:
+							if (!Channels.InterruptInhibit) {
+								Channels.FrameInterrupt = true;
+								Bus->GetCPU()->GenerateIRQ(GetCycles() *
+									ClockDivider, FrameIRQ);
+							}
+						case 1:
+							Channels.OddClock();
+							break;
+					}
+					break;
+				case SChannels::Mode_5step:
+					switch (CycleData.Step) {
+						case 0:
+						case 2:
+							Channels.EvenClock();
+							break;
+						case 1:
+						case 4:
+							Channels.OddClock();
+							break;
+					}
+					break;
+			}
+			Channels.Update(abuf);
+			CycleData.Step++;
+			if (CycleData.Step == Channels.Mode)
+				CycleData.NextCycle = Tables::StepCycles[Channels.Mode - 1] + 2;
+			else
+				CycleData.NextCycle = Tables::StepCycles[CycleData.Step];
+		} else if (CycleData.CurCycle == Tables::StepCycles[Channels.Mode - 1] + 2) {
+			CycleData.CyclesLeft -= CycleData.CurCycle;
+			CycleData.LastCycle -= CycleData.CurCycle;
+			Channels.CurCycle -= CycleData.CurCycle;
+			CycleData.Step = 0;
+			CycleData.NextCycle = Tables::StepCycles[0];
+		}
+		if ((Channels.NextCycle > 0) &&
+			(Channels.CurCycle + Channels.NextCycle < CycleData.NextCycle))
+			CycleData.CurCycle = Channels.CurCycle + Channels.NextCycle;
+		else
+			CycleData.CurCycle = CycleData.NextCycle;
+	}
+
+}
 
 namespace apu {
 

@@ -71,19 +71,22 @@ private:
 
 	/* Регистр состояния */
 	struct SState {
-		uint8 State;
-		inline bool Negative() { return State & 0x80; }
-		inline bool Overflow() { return State & 0x40; }
-		inline bool Break() { return State & 0x10; }
-		inline bool Decimal() { return State & 0x08; }
-		inline bool Interrupt() { return State & 0x04; }
-		inline bool Zero() { return State & 0x02; }
-		inline bool Carry() { return State & 0x01; }
-		inline void SetState(uint8 NewState) { State = NewState | 0x20; }
-		inline void NFlag(uint8 Src) { State = (State & 0x7f) | (Src & 0x80); }
-		inline void VFlag(bool Flag) { if (Flag) State |= 0x40; else State &= 0xbf; }
-		inline void ZFlag(uint8 Src) { if (Src == 0) State |= 0x02; else State &= 0xfd; }
-		inline void CFlag(bool Flag) { if (Flag) State |= 0x01; else State &= 0xfe; }
+		int Negative;
+		int Overflow;
+		int Decimal;
+		int Interrupt;
+		int Zero;
+		int Carry;
+		inline void SetState(uint8 State) { Negative = State & 0x80;
+			Overflow = State & 0x40; Decimal = State & 0x08;
+			Interrupt = State & 0x04; Zero = State & 0x02; Carry = State & 0x01; }
+		inline uint8 GetState() { uint8 State = 0x20; State |= Negative & 0x80;
+			State |= Overflow; State |= Decimal; State |= Interrupt;
+			State |= Zero; State |= Carry; return State; }
+		inline void NFlag(uint16 Src) { Negative = Src; }
+		inline void VFlag(bool Flag) { if (Flag) Overflow = 0x40; else Overflow = 0; }
+		inline void ZFlag(uint8 Src) { if (Src) Zero = 0; else Zero = 0x02; }
+		inline void CFlag(bool Flag) { if (Flag) Carry = 0x01; else Carry = 0; }
 	} State;
 
 	/* Регистры */
@@ -125,7 +128,7 @@ private:
 	}
 	/* Обновить триггер */
 	inline void UpdateTrigger() {
-		if (State.Interrupt())
+		if (State.Interrupt)
 			InternalData.IRQTrigger = SInternalData::IRQLow;
 		else
 			InternalData.IRQTrigger = SInternalData::IRQReady;
@@ -134,7 +137,7 @@ private:
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
 		Bus->GetClock()->Clock(1);
-		return Bus->ReadCPUMemory(Address);
+		return  Bus->ReadCPUMemory(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
 		Bus->GetClock()->Clock(1);
@@ -454,7 +457,7 @@ public:
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<CPUID::StateID>(\
 			&State, sizeof(State));
-		State.State = 0x20; /* Бит 5 всегда 1 */
+		memset(&State, 0, sizeof(State));
 		Bus->GetManager()->template SetPointer<CPUID::RegistersID>(\
 			&Registers, sizeof(Registers));
 		memset(&Registers, 0, sizeof(Registers));
@@ -478,7 +481,7 @@ public:
 	inline void Reset() {
 		CycleData.Cycles = 7;
 		Registers.s -= 3;
-		State.State |= 0x04; /* Interrupt */
+		State.Interrupt = 0x04; /* Interrupt */
 		memset(&InternalData, 0, sizeof(InternalData));
 		Bus->GetClock()->Clock(5);
 		Registers.pc = ReadMemory(0xfffc) | (ReadMemory(0xfffd) << 8);
@@ -751,8 +754,12 @@ void CCPU<_Bus, _Settings>::Execute() {
 		if (CycleData.NMI < 0)
 			CycleData.NMI = 0;
 	}
-	CycleData.Cycles = CycleData.AddCycles;
-	CycleData.AddCycles = 0;
+	if (CycleData.AddCycles > 0) {
+		CycleData.Cycles = CycleData.AddCycles;
+		CycleData.AddCycles = 0;
+		Bus->GetClock()->Clock(CycleData.Cycles);
+	} else
+		CycleData.Cycles = 0;
 	if (InternalData.IRQTrigger == SInternalData::IRQDelay) {
 		UpdateTrigger();
 		if (CycleData.IRQ == 0)
@@ -782,7 +789,7 @@ void CCPU<_Bus, _Settings>::Execute() {
 	if (CycleData.NMI == 0) {
 		CycleData.Cycles += 5;
 		PushWord(Registers.pc); /* Следующая команда */
-		PushByte(State.State & 0xef); /* Сохраняем состояние */
+		PushByte(State.GetState()); /* Сохраняем состояние */
 		InternalData.IRQTrigger = SInternalData::IRQExecute;
 		return;
 	}
@@ -792,8 +799,8 @@ void CCPU<_Bus, _Settings>::Execute() {
 			InternalData.IRQTrigger = SInternalData::IRQExecute;
 			CycleData.Cycles += 5;
 			PushWord(Registers.pc); /* Следующая команда */
-			PushByte(State.State & 0xef); /* Сохраняем состояние */
-			State.State |= 0x04;
+			PushByte(State.GetState()); /* Сохраняем состояние */
+			State.Interrupt = 0x04;
 			return;
 		}
 	}
@@ -819,7 +826,7 @@ void CCPU<_Bus, _Settings>::OpIllegal() {
 	HaltData.X = Registers.x;
 	HaltData.Y = Registers.y;
 	HaltData.S = Registers.s;
-	HaltData.State = State.State;
+	HaltData.State = State.GetState();
 	Bus->GetCallback()(VPNES_CALLBACK_CPUHALT, (void *) &HaltData);
 }
 
@@ -882,7 +889,7 @@ void CCPU<_Bus, _Settings>::OpADC() {
 	uint16 temp, src;
 
 	src = _Addr::ReadByte(*this);
-	temp = src + Registers.a + (State.State & 0x01);
+	temp = src + Registers.a + State.Carry;
 	State.VFlag(((temp ^ Registers.a) & ~(Registers.a ^ src)) & 0x80);
 	State.CFlag(temp >= 0x0100);
 	Registers.a = (uint8) temp;
@@ -897,7 +904,7 @@ void CCPU<_Bus, _Settings>::OpSBC() {
 	uint16 temp, src;
 
 	src = _Addr::ReadByte(*this);
-	temp = Registers.a - src - (~State.State & 0x01);
+	temp = Registers.a - src - (State.Carry ^ 0x01);
 	State.VFlag(((temp ^ Registers.a) & (Registers.a ^ src)) & 0x80);
 	State.CFlag(temp < 0x0100);
 	Registers.a = (uint8) temp;
@@ -1011,7 +1018,7 @@ void CCPU<_Bus, _Settings>::OpROL() {
 	uint16 Address;
 
 	src = _Addr::ReadByte_RW(*this, Address);
-	temp = (src << 1) | (State.State & 0x01);
+	temp = (src << 1) | State.Carry;
 	State.CFlag(src & 0x80);
 	_Addr::WriteByte_RW(*this, Address, temp);
 	State.NFlag(temp);
@@ -1026,7 +1033,7 @@ void CCPU<_Bus, _Settings>::OpROR() {
 	uint16 Address;
 
 	src = _Addr::ReadByte_RW(*this, Address);
-	temp = (src >> 1) | ((State.State & 0x01) << 7);
+	temp = (src >> 1) | (State.Carry << 7);
 	State.CFlag(src & 0x01);
 	_Addr::WriteByte_RW(*this, Address, temp);
 	State.NFlag(temp);
@@ -1118,7 +1125,7 @@ void CCPU<_Bus, _Settings>::OpBIT() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBCC() {
-	if (!State.Carry()) {
+	if (!State.Carry) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1127,7 +1134,7 @@ void CCPU<_Bus, _Settings>::OpBCC() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBCS() {
-	if (State.Carry()) {
+	if (State.Carry) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1136,7 +1143,7 @@ void CCPU<_Bus, _Settings>::OpBCS() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBNE() {
-	if (!State.Zero()) {
+	if (!State.Zero) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1145,7 +1152,7 @@ void CCPU<_Bus, _Settings>::OpBNE() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBEQ() {
-	if (State.Zero()) {
+	if (State.Zero) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1154,7 +1161,7 @@ void CCPU<_Bus, _Settings>::OpBEQ() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBPL() {
-	if (!State.Negative()) {
+	if (~State.Negative & 0x80) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1163,7 +1170,7 @@ void CCPU<_Bus, _Settings>::OpBPL() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBMI() {
-	if (State.Negative()) {
+	if (State.Negative & 0x80) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1172,7 +1179,7 @@ void CCPU<_Bus, _Settings>::OpBMI() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBVC() {
-	if (!State.Overflow()) {
+	if (!State.Overflow) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1181,7 +1188,7 @@ void CCPU<_Bus, _Settings>::OpBVC() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBVS() {
-	if (State.Overflow()) {
+	if (State.Overflow) {
 		Registers.pc = _Addr::GetAddr(*this);
 	}
 }
@@ -1262,21 +1269,22 @@ void CCPU<_Bus, _Settings>::OpPLA() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpPHP() {
-	PushByte(State.State | 0x10); /* Флаг B не используется */
+	PushByte(State.GetState() | 0x10); /* Флаг B не используется */
 }
 
 /* Достать из стека P */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpPLP() {
-	bool Interrupt = State.Interrupt();
+	int Interrupt = State.Interrupt;
+
 	State.SetState(PopByte());
 	if (InternalData.IRQ) {
-		if (Interrupt && !State.Interrupt()) {
+		if (Interrupt && !State.Interrupt) {
 			InternalData.IRQTrigger = SInternalData::IRQDelay;
 			if (CycleData.IRQ < 0)
 				CycleData.IRQ = 0;
-		} else if (!Interrupt && State.Interrupt()) {
+		} else if (!Interrupt && State.Interrupt) {
 			if (CycleData.IRQ <= CycleData.Cycles) {
 				InternalData.IRQTrigger = SInternalData::IRQReady;
 				CycleData.IRQ = 0;
@@ -1328,27 +1336,27 @@ void CCPU<_Bus, _Settings>::OpRTI() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpSEC() {
-	State.State |= 0x01;
+	State.Carry = 0x01;
 }
 
 /* Установить D */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpSED() {
-	State.State |= 0x08;
+	State.Decimal = 0x08;
 }
 
 /* Установить I */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpSEI() {
-	if (!State.Interrupt()) {
+	if (!State.Interrupt) {
 		if (InternalData.IRQ && (CycleData.IRQ <= CycleData.Cycles)) {
 			InternalData.IRQTrigger = SInternalData::IRQReady;
 			CycleData.IRQ = 0;
 		} else
 			InternalData.IRQTrigger = SInternalData::IRQLow;
-		State.State |= 0x04;
+		State.Interrupt = 0x04;
 	}
 }
 
@@ -1356,28 +1364,28 @@ void CCPU<_Bus, _Settings>::OpSEI() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpCLC() {
-	State.State &= 0xfe;
+	State.Carry = 0;
 }
 
 /* Сбросить D */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpCLD() {
-	State.State &= 0xf7;
+	State.Decimal = 0;
 }
 
 /* Сбросить I */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpCLI() {
-	if (State.Interrupt()) {
+	if (State.Interrupt) {
 		if (InternalData.IRQ) {
 			InternalData.IRQTrigger = SInternalData::IRQDelay;
 			if (CycleData.IRQ < 0)
 				CycleData.IRQ = 0;
 		} else
 			InternalData.IRQTrigger = SInternalData::IRQReady;
-		State.State &= 0xfb;
+		State.Interrupt = 0;
 	}
 }
 
@@ -1385,7 +1393,7 @@ void CCPU<_Bus, _Settings>::OpCLI() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpCLV() {
-	State.State &= 0xbf;
+	State.Overflow = 0;
 }
 
 /* Другое */
@@ -1402,8 +1410,8 @@ template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBRK() {
 	/* BRK использует только 5 тактов. Все остальное в главном цикле */
 	PushWord(Registers.pc + 1);
-	PushByte(State.State | 0x10);
-	State.State |= 0x04;
+	PushByte(State.GetState() | 0x10);
+	State.Interrupt = 0x04;
 	InternalData.IRQTrigger = SInternalData::IRQExecute;
 }
 

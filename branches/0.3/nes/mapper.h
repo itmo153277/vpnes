@@ -33,6 +33,8 @@
 #include "bus.h"
 #include "ines.h"
 
+#define bool int
+
 namespace vpnes {
 
 namespace mapper {
@@ -704,7 +706,8 @@ public:
 
 	/* Обновление адреса PPU */
 	inline void UpdatePPUAddress(uint16 Address) {
-		IRQCircuit.Process(Address, Bus);
+		if (Address < 0x2000)
+			IRQCircuit.Process(Address, Bus);
 	}
 };
 
@@ -739,5 +742,7 @@ public:
 };
 
 }
+
+#undef bool
 
 #endif
