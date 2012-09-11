@@ -61,7 +61,8 @@ int main(int argc, char *argv[]) {
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
 		", no trainer" : ", have trainer 512") << std::endl;
 	/* Инициализация окна */
-	if (InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight(), 1) == 0) {
+	if (InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight(), 1,
+		NESConfig->GetFrameLength()) == 0) {
 		/* Включаем приставку */
 		NES = NESConfig->GetNES(&WindowCallback);
 		NES->UpdateBuf();

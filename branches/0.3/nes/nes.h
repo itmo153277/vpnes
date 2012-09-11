@@ -82,6 +82,8 @@ protected:
 	int Width;
 	/* Высота */
 	int Height;
+	/* Время одного фрейма */
+	double Frame;
 public:
 	inline explicit CNESConfig() {}
 	inline virtual ~CNESConfig() {}
@@ -90,19 +92,24 @@ public:
 	inline const int &GetWidth() const { return Width; }
 	/* Высота экрана */
 	inline const int &GetHeight() const { return Height; }
+	/* Время фрейма */
+	inline const double &GetFrameLength() const { return Frame; }
 	/* Получить приставку по нашим параметрам */
 	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback) = 0;
 };
 
 /* Стандартный шаблон для параметров NES */
-template <class _Nes, class _ScreenSettings>
+template <class _Nes, class _Settings>
 class CNESConfigTemplate: public CNESConfig {
 private:
 	const ines::NES_ROM_Data *Data;
 public:
 	inline explicit CNESConfigTemplate(const ines::NES_ROM_Data *ROM) {
-		Width = _ScreenSettings::Right - _ScreenSettings::Left;
-		Height = _ScreenSettings::Bottom - _ScreenSettings::Top;
+		Width = _Settings::Right - _Settings::Left;
+		Height = _Settings::Bottom - _Settings::Top;
+		Frame = _Settings::GetFreq() * _Settings::PPU_Divider *
+			(_Settings::ActiveScanlines + _Settings::PostRender +
+			_Settings::VBlank + 1) * 342;
 		Data = ROM;
 	}
 	inline ~CNESConfigTemplate() {}

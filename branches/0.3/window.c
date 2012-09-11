@@ -67,9 +67,9 @@ int UseJoy = 0;
 SDL_Joystick *joy = NULL;
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
-	if (!PCMready) {
+	if (!PCMready) { /* И всем пофигу на гонки */
 		WindowState = VPNES_UPDATEBUF;
-//		abuf.Freq *= 1.06;
+		return;
 	}
 	memcpy(Stream, PCMBuf[PCMindex], Len);
 	PCMready = 0;
@@ -85,6 +85,7 @@ void AudioCallback(int Task, void *Data) {
 			break;
 		case VPNES_PCM_UPDATE:
 			if (PCMready) {
+				WindowState = VPNES_UPDATEBUF;
 				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
@@ -106,7 +107,7 @@ void AudioCallback(int Task, void *Data) {
 }
 
 /* Инициализация SDL */
-int InitMainWindow(int Width, int Height, int JoyPad) {
+int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	int i;
 
 	/* Инициализация библиотеки */
@@ -135,7 +136,7 @@ int InitMainWindow(int Width, int Height, int JoyPad) {
 	desired->freq = 44100;
 	desired->format = AUDIO_S16SYS;
 	desired->channels = 1;
-	desired->samples = 0x0800;
+	desired->samples = (int) (FrameLength * 44.1 * 4); /* 4 кадра */
 	desired->callback = AudioCallbackSDL;
 	desired->userdata = NULL;
 	if ( SDL_OpenAudio(desired, obtained) < 0 ) {
@@ -163,6 +164,7 @@ int InitMainWindow(int Width, int Height, int JoyPad) {
 	}
 	if (!UseJoy)
 		SDL_JoystickEventState(SDL_IGNORE);
+	framecheck = framestarttime = SDL_GetTicks();
 	return 0;
 }
 
@@ -390,7 +392,8 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			if (delaytime > 0)
 				SDL_Delay((Uint32) (delaytime - framejit));
 			framestarttime = SDL_GetTicks();
-			framejit += (framestarttime - framecheck) - *Tim;
+			if (delaytime > 0)
+				framejit += (framestarttime - framecheck) - *Tim;
 			framecheck = framestarttime;
 #endif
 			if (WindowState == VPNES_UPDATEBUF) {
