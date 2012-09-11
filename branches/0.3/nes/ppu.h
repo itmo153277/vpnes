@@ -161,7 +161,7 @@ private:
 		inline void ReadAT(uint8 Src) { TempAR = ((Src >> (((RealReg1 >> 4) & 0x004) |
 			(RealReg1 & 0x0002))) & 0x03) << 2; }
 		/* Инкременты */
-		inline void Increment2007(bool VerticalIncrement) { if (VerticalIncrement)
+		inline void Increment2007(int VerticalIncrement) { if (VerticalIncrement)
 			RealReg1 += 0x0020; else RealReg1++; }
 		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++; RealReg1 = (RealReg1 & 0xffe0)
 			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
@@ -181,14 +181,14 @@ private:
 
 	/* Управляющие регистры */
 	struct SControlRegisters {
-		bool VerticalIncrement; /* Инкремент по Y */
+		int VerticalIncrement; /* Инкремент по Y */
 		SpriteSize Size; /* Размер спрайтов */
-		bool GenerateNMI; /* Генерировать NMI */
-		bool Grayscale; /* Черно-белый */
-		bool BackgroundClip; /* Не показывать 8 пикселей слева */
-		bool SpriteClip; /* Не показывать 8 пикселей слева */
-		bool ShowBackground; /* Рендерить фон */
-		bool ShowSprites; /* Рендерить спрайты */
+		int GenerateNMI; /* Генерировать NMI */
+		int Grayscale; /* Черно-белый */
+		int BackgroundClip; /* Не показывать 8 пикселей слева */
+		int SpriteClip; /* Не показывать 8 пикселей слева */
+		int ShowBackground; /* Рендерить фон */
+		int ShowSprites; /* Рендерить спрайты */
 		int IntensifyRed; /* Только красный */
 		int IntensifyGreen; /* Только зеленый */
 		int IntensifyBlue; /* Только синий */
@@ -232,9 +232,9 @@ private:
 		uint16 ShiftReg; /* Регистр сдвига */
 		uint8 Attrib; /* Аттрибуты */
 		uint8 Tile; /* Чар */
-		bool HFlip; /* Горизонтальное отражение */
-		bool VFlip; /* Вертикальное отражение */
-		bool Top; /* Поверх фона */
+		int HFlip; /* Горизонтальное отражение */
+		int VFlip; /* Вертикальное отражение */
+		int Top; /* Поверх фона */
 	} Sprites[8];
 
 	/* Палитра */
@@ -504,7 +504,8 @@ public:
 	inline const bool &IsFrameReady() const { return FrameReady; }
 	/* Текущий такт */
 	inline int GetCycles() {
-		return std::min(CycleData.CyclesLeft, CycleData.CurCycle + 1) - CycleData.LastCycle;
+		return std::min(CycleData.CyclesLeft, CycleData.CurCycle) -
+			CycleData.LastCycle + 1;
 	}
 	/* Ушло татов на фрейм */
 	inline int GetFrameCycles() {

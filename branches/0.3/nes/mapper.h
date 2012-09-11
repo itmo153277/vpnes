@@ -33,8 +33,6 @@
 #include "bus.h"
 #include "ines.h"
 
-#define bool int
-
 namespace vpnes {
 
 namespace mapper {
@@ -244,9 +242,9 @@ private:
 		/* Счетчик сдвига */
 		int ShiftCounter;
 		/* RAM Enabled */
-		bool EnableRAM;
+		int EnableRAM;
 		/* RAM Write */
-		bool EnableWrite;
+		int EnableWrite;
 		/* Режим переключения CHR */
 		enum {
 			CHRSwitch_4k = 0,
@@ -549,9 +547,9 @@ private:
 		/* Выбор банка */
 		uint8 MuxAddr;
 		/* RAM Enabled */
-		bool EnableRAM;
+		int EnableRAM;
 		/* RAM Write */
-		bool EnableWrite;
+		int EnableWrite;
 	} InternalData;
 
 	struct SIRQCircuit {
@@ -742,7 +740,5 @@ public:
 };
 
 }
-
-#undef bool
 
 #endif

@@ -84,9 +84,9 @@ private:
 			State |= Overflow; State |= Decimal; State |= Interrupt;
 			State |= Zero; State |= Carry; return State; }
 		inline void NFlag(uint16 Src) { Negative = Src; }
-		inline void VFlag(bool Flag) { if (Flag) Overflow = 0x40; else Overflow = 0; }
+		inline void VFlag(int Flag) { if (Flag) Overflow = 0x40; else Overflow = 0; }
 		inline void ZFlag(uint8 Src) { if (Src) Zero = 0; else Zero = 0x02; }
-		inline void CFlag(bool Flag) { if (Flag) Carry = 0x01; else Carry = 0; }
+		inline void CFlag(int Flag) { if (Flag) Carry = 0x01; else Carry = 0; }
 	} State;
 
 	/* Регистры */
