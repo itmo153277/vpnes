@@ -62,6 +62,7 @@ typedef struct VPNES_VBUF {
 	uint32 GMask;
 	uint32 BMask;
 	uint32 AMask;
+	int Skip;
 } VPNES_VBUF;
 
 typedef VPNES_VBUF * VPNES_VIDEO;

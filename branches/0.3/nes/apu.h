@@ -903,6 +903,7 @@ public:
 	inline VPNES_IBUF &GetIBuf() { return ibuf; }
 	/* Дописать буфер */
 	inline void FlushBuffer() {
+		Channels.Timer(CycleData.CyclesLeft, abuf);
 		Channels.FlushBuffer(abuf);
 	}
 	/* Текущий такт */

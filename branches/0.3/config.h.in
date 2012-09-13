@@ -24,6 +24,9 @@
 /* Version number of package */
 #undef VERSION
 
+/* Disable frame skip */
+#undef VPNES_DISABLE_FSKIP
+
 /* Disable frame synchronization */
 #undef VPNES_DISABLE_SYNC
 

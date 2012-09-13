@@ -141,8 +141,9 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	vbuf.GMask = bufs->format->Gmask;
 	vbuf.BMask = bufs->format->Bmask;
 	vbuf.AMask = bufs->format->Amask;
-	/* Максимальное время отклика программы — 100 мс */
-	maxskip = (int) (100.0 / FrameLength);
+	vbuf.Skip = 0;
+	/* Максимальное время отклика программы — 50 мс */
+	maxskip = (int) (50.0 / FrameLength);
 	ibuf = calloc(8, sizeof(int));
 	desired = malloc(sizeof(SDL_AudioSpec));
 	obtained = malloc(sizeof(SDL_AudioSpec));
@@ -218,14 +219,16 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	switch (VPNES_CALLBACK_EVENT) {
 		case VPNES_CALLBACK_FRAME:
 			Tim = (VPNES_FRAME *) Data;
-#if !defined(VPNES_DISABLE_SYNC)
-			if ((framejit > *Tim)) {
+#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
+			if (vbuf.Skip) {
 				framestarttime = SDL_GetTicks();
 				framejit += (framestarttime - framecheck) - *Tim;
 				framecheck = framestarttime;
 				skip++;
-				if (skip == maxskip) {
+				if (skip >= maxskip)
 					framejit = 0;
+				if (framejit < *Tim) {
+					vbuf.Skip = 0;
 					skip = 0;
 				}
 				delta += *Tim;
@@ -426,6 +429,10 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				SDL_Delay((Uint32) (delaytime - framejit));
 			framestarttime = SDL_GetTicks();
 			framejit += (framestarttime - framecheck) - *Tim;
+#if !defined(VPNES_DISABLE_FSKIP)
+			if (framejit > *Tim)
+				vbuf.Skip = -1;
+#endif
 			framecheck = framestarttime;
 #endif
 			return quit;

@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev2])
+AC_REVISION([rev3])
 
 #Programs
 
@@ -32,6 +32,8 @@ AC_ARG_ENABLE(showfps, [  --enable-showfps        show fps in window title],
               [AC_DEFINE([VPNES_SHOW_FPS], 1, [Show fps in window title])])
 AC_ARG_ENABLE(sync, [  --disable-sync          disable frame synchronization],
               [AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Disable frame synchronization])])
+AC_ARG_ENABLE(sync, [  --disable-fskip         disable frame skipping],
+              [AC_DEFINE([VPNES_DISABLE_FSKIP], 1, [Disable frame skip])])
 
 AC_CONFIG_FILES([Makefile
                  nes/Makefile])

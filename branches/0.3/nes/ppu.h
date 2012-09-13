@@ -699,7 +699,8 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 		col &= 0x30;
 	else
 		col &= 0x3f;
-	OutputPixel(InternalData.x, InternalData.y, col);
+	if (!vbuf->Skip)
+		OutputPixel(InternalData.x, InternalData.y, col);
 	InternalData.ShiftReg <<= 2;
 	if ((InternalData.x & 0x07) == Registers.FHUpd)
 		Registers.AR >>= 2;
