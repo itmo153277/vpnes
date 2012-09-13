@@ -33,7 +33,8 @@ Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
 double framejit = 0.0;
-double framerate = 1.0;
+int skip = 0;
+int maxskip = 10;
 int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
@@ -62,15 +63,14 @@ sint16 *PCMBuf[2];
 int PCMindex = 1;
 int PCMready = 0;
 int PCMplay = 0;
+SDL_mutex *PCMmut = NULL;
 int lastpcm = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
-	if (!PCMready) { /* И всем пофигу на гонки */
-		WindowState = VPNES_UPDATEBUF;
-		return;
-	}
+	/* Ожидание заполнения буфера */
+	SDL_mutexP(PCMmut);
 	memcpy(Stream, PCMBuf[PCMindex], Len);
 	PCMready = 0;
 }
@@ -84,8 +84,16 @@ void AudioCallback(int Task, void *Data) {
 			}
 			break;
 		case VPNES_PCM_UPDATE:
+			/* Буфер заполнен */
+			SDL_mutexV(PCMmut);
+			/* Не должны попать на AudioCallbackSDL */
+			SDL_LockAudio();
 			if (PCMready) {
-				WindowState = VPNES_UPDATEBUF;
+				PCMindex ^= 1;
+				/* Противофаза */
+				((VPNES_ABUF *) Data)->Pos = ((VPNES_ABUF *) Data)->Size / 2;
+				memcpy(PCMBuf[PCMindex], PCMBuf[PCMindex] + ((VPNES_ABUF *) Data)->Pos,
+					((VPNES_ABUF *) Data)->Pos * sizeof(sint16));
 				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
@@ -93,7 +101,10 @@ void AudioCallback(int Task, void *Data) {
 			}
 			((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
 			PCMready = -1;
+			/* Меняем местами буферы */
 			PCMindex ^= 1;
+			SDL_UnlockAudio();
+			/* Запускаем аудио */
 			if (!PCMplay) {
 				SDL_PauseAudio(0);
 				PCMplay = -1;
@@ -130,6 +141,8 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	vbuf.GMask = bufs->format->Gmask;
 	vbuf.BMask = bufs->format->Bmask;
 	vbuf.AMask = bufs->format->Amask;
+	/* Максимальное время отклика программы — 100 мс */
+	maxskip = (int) (100.0 / FrameLength);
 	ibuf = calloc(8, sizeof(int));
 	desired = malloc(sizeof(SDL_AudioSpec));
 	obtained = malloc(sizeof(SDL_AudioSpec));
@@ -151,6 +164,7 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
+	PCMmut = SDL_CreateMutex();
 	SaveState = 0;
 	if (JoyPad && (SDL_NumJoysticks() > 0)) {
 		joy = SDL_JoystickOpen(0);
@@ -172,6 +186,9 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 void AppQuit(void) {
 	if (UseJoy)
 		SDL_JoystickClose(joy);
+	if (PCMmut != NULL)
+		SDL_DestroyMutex(PCMmut);
+	SDL_CloseAudio();
 	free(obtained);
 	free(PCMBuf[0]);
 	free(PCMBuf[1]);
@@ -201,6 +218,24 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	switch (VPNES_CALLBACK_EVENT) {
 		case VPNES_CALLBACK_FRAME:
 			Tim = (VPNES_FRAME *) Data;
+#if !defined(VPNES_DISABLE_SYNC)
+			if ((framejit > *Tim)) {
+				framestarttime = SDL_GetTicks();
+				framejit += (framestarttime - framecheck) - *Tim;
+				framecheck = framestarttime;
+				skip++;
+				if (skip == maxskip) {
+					framejit = 0;
+					skip = 0;
+				}
+				delta += *Tim;
+				delta -= (Uint32) delta;
+#if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
+				cur_frame++;
+#endif
+				return 0;
+			}
+#endif
 			/* Обновляем экран */
 			if (SDL_MUSTLOCK(screen))
 				SDL_LockSurface(screen);
@@ -385,21 +420,14 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			delta += *Tim;
 			delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
 			delta -= (Uint32) delta;
-			if (framejit > delaytime) {
-				framejit -= delaytime;
+			if (framejit > delaytime)
 				delaytime = 0;
-			}
 			if (delaytime > 0)
 				SDL_Delay((Uint32) (delaytime - framejit));
 			framestarttime = SDL_GetTicks();
-			if (delaytime > 0)
-				framejit += (framestarttime - framecheck) - *Tim;
+			framejit += (framestarttime - framecheck) - *Tim;
 			framecheck = framestarttime;
 #endif
-			if (WindowState == VPNES_UPDATEBUF) {
-				abuf.Pos = 0;
-				return -1;
-			}
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
 			CPUHalt = 1;

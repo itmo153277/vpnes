@@ -80,8 +80,8 @@ private:
 		int LastCycle;
 		int CyclesLeft;
 		int ResetCycle;
-//		int DebugTimer;
-//		int LastCur;
+		int DebugTimer;
+		int LastCur;
 	} CycleData;
 
 	/* Аудио буфер */
@@ -177,9 +177,13 @@ private:
 			}
 			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x0700) | Src;
+				if (Timer == 0)
+					TimerCounter = 0;
 			}
 			inline void Write_4(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				if (Timer == 0)
+					TimerCounter = 0;
 				Start = true;
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
@@ -228,12 +232,16 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if ((Timer > 0) && (TimerCounter >= (Timer << 1))) {
+				if (Timer > 0) {
+					if ((TimerCounter >= (Timer << 1))) {
+						TimerCounter = 0;
+						DutyCycle++;
+						DutyCycle &= 7;
+						return true;
+					}
+				} else {
+					DutyCycle = (DutyCycle + TimerCounter) & 7;
 					TimerCounter = 0;
-					DutyCycle++;
-					if (DutyCycle == 8)
-						DutyCycle = 0;
-					return true;
 				}
 				return false;
 			}
@@ -248,8 +256,8 @@ private:
 
 				if (Timer > 0) {
 					RestCycles = (Timer << 1) - TimerCounter;
-					if (RestCycles < 0)
-						RestCycles = 0;
+					if (RestCycles <= 0)
+						RestCycles = 1;
 					if (RestCycles < Cycle)
 						Cycle = RestCycles;
 				}
@@ -317,10 +325,14 @@ private:
 			}
 			inline void Write_2(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x0700) | Src;
+				if (Timer == 0)
+					TimerCounter = 0;
 				UpdateCycles(Cycle);
 			}
 			inline void Write_3(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
+				if (Timer == 0)
+					TimerCounter = 0;
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 				HaltFlag = true;
@@ -345,16 +357,26 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if ((Timer > 0) && (TimerCounter >= Timer)) {
-					TimerCounter = 0;
-					if ((LinearCounter > 0) && (LengthCounter > 0)) {
-						Output = Tables::SeqTable[Sequencer++];
-						if (Sequencer > 31)
-							Sequencer = 0;
-						return true;
+				if (Timer > 0) {
+					if (TimerCounter >= Timer) {
+						TimerCounter = 0;
+						if ((LinearCounter > 0) && (LengthCounter > 0)) {
+							Output = Tables::SeqTable[Sequencer++];
+							Sequencer &= 31;
+							return true;
+						}
 					}
+				} else {
+					if ((LinearCounter > 0) && (LengthCounter > 0))
+						Sequencer = (Sequencer + TimerCounter) & 31;
+					TimerCounter = 0;
+					/* Не обновляем выход */
 				}
 				return false;
+			}
+			/* На высокой частоте используем приближенное значение */
+			inline bool HighFreq() {
+				return (Timer == 0) && (LinearCounter > 0) && (LengthCounter > 0);
 			}
 			/* Обновить такты */
 			inline void UpdateCycles(int &Cycle) {
@@ -362,8 +384,8 @@ private:
 
 				if (Timer > 0) {
 					RestCycles = Timer - TimerCounter;
-					if (RestCycles < 0)
-						RestCycles = 0;
+					if (RestCycles <= 0)
+						RestCycles = 1;
 					if (RestCycles < Cycle)
 						Cycle = RestCycles;
 				}
@@ -435,7 +457,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (((Timer > 0) && TimerCounter >= Timer)) {
+				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
 					Random = (((Random >> 14) ^ (Random >> Shift)) & 0x01) |
 						(Random << 1);
@@ -451,13 +473,11 @@ private:
 			inline void UpdateCycles(int &Cycle) {
 				int RestCycles;
 
-				if (Timer > 0) {
-					RestCycles = Timer - TimerCounter;
-					if (RestCycles < 0)
-						RestCycles = 0;
-					if (RestCycles < Cycle)
-						Cycle = RestCycles;
-				}
+				RestCycles = Timer - TimerCounter;
+				if (RestCycles <= 0)
+					RestCycles = 1;
+				if (RestCycles < Cycle)
+					Cycle = RestCycles;
 			}
 		} NoiseChannel;
 
@@ -501,7 +521,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if ((Timer > 0) && (TimerCounter >= Timer)) {
+				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
 					if (ShiftCounter == 0) {
 						ShiftCounter = 8;
@@ -531,13 +551,11 @@ private:
 			inline void UpdateCycles(int &Cycle) {
 				int RestCycles;
 
-				if (Timer > 0) {
-					RestCycles = Timer - TimerCounter;
-					if (RestCycles < 0)
-						RestCycles = 0;
-					if (RestCycles < Cycle)
-						Cycle = RestCycles;
-				}
+				RestCycles = Timer - TimerCounter;
+				if (RestCycles <= 0)
+					RestCycles = 1;
+				if (RestCycles < Cycle)
+					Cycle = RestCycles;
 			}
 		} DMChannel;
 
@@ -550,7 +568,10 @@ private:
 				SqOut += SquareChannel1.Output;
 			if (SquareChannel2.CanOutput())
 				SqOut += SquareChannel2.Output;
-			TNDOut += TriangleChannel.Output * 3;
+			if (TriangleChannel.HighFreq())
+				TNDOut = 21;
+			else
+				TNDOut += TriangleChannel.Output * 3;
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
@@ -610,9 +631,7 @@ private:
 				TriangleChannel.UpdateCycles(NextCycle);
 				NoiseChannel.UpdateCycles(NextCycle);
 				DMChannel.UpdateCycles(NextCycle);
-				if (NextCycle == 0)
-					NextCycle = 1;
-				else if (NextCycle == 0x0800)
+				if (NextCycle == 0x0800)
 					NextCycle = 0;
 			}
 		}
@@ -676,7 +695,8 @@ public:
 			&CycleData, sizeof(CycleData));
 		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
 			&Channels, sizeof(Channels));
-		Channels.TriangleChannel.Output = Tables::SeqTable[0];
+		memset(&Channels.ChannelData, 0, sizeof(typename SChannels::SChannelData));
+		Channels.TriangleChannel.Sequencer = 0;
 		Channels.TriangleChannel.ControlFlag = false;
 	}
 	inline ~CAPU() {}
@@ -686,6 +706,8 @@ public:
 		/* Обрабатываем текущие такты */
 		Process(Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles);
 		PreprocessedCycles = Bus->GetClock()->GetPreCPUCycles();
+		/* Обновляем состояние каналов */
+		Channels.Timer(CycleData.CyclesLeft, abuf);
 	}
 
 	/* Обработать такты */
@@ -699,16 +721,18 @@ public:
 	/* Сброс */
 	inline void Reset() {
 		typename SChannels::SChannelData oldchn;
-		uint8 oldout;
+		int oldout;
 		int oldcontr;
 
 		memcpy(&oldchn, &Channels.ChannelData, sizeof(typename SChannels::SChannelData));
-		oldout = Channels.TriangleChannel.Output;
+		oldout = Channels.TriangleChannel.Sequencer;
 		oldcontr = Channels.TriangleChannel.ControlFlag;
 		memset(&Channels, 0, sizeof(Channels));
 		memcpy(&Channels.ChannelData, &oldchn, sizeof(typename SChannels::SChannelData));
-		Channels.TriangleChannel.Output = oldout;
+		Channels.TriangleChannel.Sequencer = oldout;
+		Channels.TriangleChannel.Output = Tables::SeqTable[oldout];
 		Channels.TriangleChannel.ControlFlag = oldcontr;
+		Channels.NoiseChannel.Timer = Tables::NoiseTable[0];
 		Channels.NoiseChannel.Random = 1;
 		Channels.NoiseChannel.Shift = 13;
 		Channels.DMChannel.Timer = Tables::DMTable[0];
@@ -866,9 +890,9 @@ public:
 					Channels.OddClock();
 				else
 					Channels.EvenClock();
-				CycleData.ResetCycle = CycleData.CyclesLeft + (InternalData.Odd & 1);
+				CycleData.ResetCycle = CycleData.CyclesLeft + (~InternalData.Odd & 1);
 				UpdateCycle();
-//				CycleData.DebugTimer = 0;
+				CycleData.DebugTimer = 0;
 				break;
 		}
 		Channels.Update(abuf);
@@ -903,8 +927,8 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 	InternalData.Odd ^= Cycles;
 	CycleData.CyclesLeft += Cycles;
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
-//		CycleData.DebugTimer += CycleData.CurCycle - CycleData.LastCur;
-//		CycleData.LastCur = CycleData.CurCycle;
+		CycleData.DebugTimer += CycleData.CurCycle - CycleData.LastCur;
+		CycleData.LastCur = CycleData.CurCycle;
 		Channels.Timer(CycleData.CurCycle, abuf);
 		if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0)) {
 			if (Channels.DMChannel.Address < 0x8000)
@@ -927,6 +951,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 			Channels.DMChannel.NotEmpty = true;
 		}
 		if (CycleData.CurCycle == Tables::StepCycles[CycleData.Step]) {
+			CycleData.DebugTimer = 0;
 			/* Секвенсер */
 			switch (Channels.Mode) {
 				case SChannels::Mode_4step:
@@ -941,7 +966,6 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 								Bus->GetCPU()->GenerateIRQ(GetCycles() *
 									ClockDivider, FrameIRQ);
 							}
-//							CycleData.DebugTimer = 0;
 						case 1:
 							Channels.OddClock();
 							break;
@@ -968,7 +992,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 			(CycleData.CurCycle == CycleData.ResetCycle)) {
 			CycleData.CyclesLeft -= CycleData.CurCycle;
 			CycleData.LastCycle -= CycleData.CurCycle;
-//S			CycleData.LastCur -= CycleData.CurCycle;
+			CycleData.LastCur -= CycleData.CurCycle;
 			Channels.CurCycle -= CycleData.CurCycle;
 			CycleData.Step = 0;
 			CycleData.NextCycle = Tables::StepCycles[0];
