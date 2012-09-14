@@ -121,8 +121,7 @@ private:
 		uint16 BigReg2; /* Вторая комбинация */
 		uint16 TempAR;
 		uint16 AR; /* Информация о аттрибутах */
-		uint16 FHUpd;
-		uint16 FH; /* Настоящий регистр */
+		uint16 FH; /* Точный сдвиг по горизонатли */
 		uint16 SpritePage; /* Страница для спрайтов */
 		/* Получить адрес для 0x2007 */
 		inline uint16 Get2007Address() { return RealReg1 & 0x3fff; }
@@ -146,8 +145,8 @@ private:
 			((Src & 0x03) << 10) ; BigReg2 = (BigReg2 & 0x0fff) | ((Src & 0x10) << 8);
 			SpritePage = (Src & 0x08) << 9; }
 		/* Запись в 0x2005/1 */
-		inline void Write2005_1(uint8 Src) { FH = Src & 0x07; BigReg1 = (BigReg1 & 0xffe0) |
-			(Src >> 3); }
+		inline void Write2005_1(uint8 Src) { FH = ~Src & 0x07;
+			BigReg1 = (BigReg1 & 0xffe0) | (Src >> 3); }
 		/* Запись в 0x2005/2 */
 		inline void Write2005_2(uint8 Src) { BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x07) << 12) |
 			((Src & 0xf8) << 2); }
@@ -169,8 +168,7 @@ private:
 			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
 			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
 		/* Обновление скроллинга */
-		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f);
-			FHUpd = FH ^ 0x07; }
+		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f); }
 	} Registers;
 
 	/* Размер спрайта */
@@ -652,7 +650,7 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 	col = 0;
 	if (ControlRegisters.ShowBackground &&
 		(ControlRegisters.BackgroundClip || (InternalData.x > 7))) {
-		col = (InternalData.ShiftReg >> (0x10 | (Registers.FHUpd << 1))) & 0x03;
+		col = (InternalData.ShiftReg >> (0x10 | (Registers.FH << 1))) & 0x03;
 		t = Registers.GetPALAddress(col, Registers.AR);
 	} else
 		t = 0;
@@ -702,7 +700,7 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 	if (!vbuf->Skip)
 		OutputPixel(InternalData.x, InternalData.y, col);
 	InternalData.ShiftReg <<= 2;
-	if ((InternalData.x & 0x07) == Registers.FHUpd)
+	if ((InternalData.x & 0x07) == Registers.FH)
 		Registers.AR >>= 2;
 	InternalData.x++;
 	if (!(InternalData.x & 0x07)) { /* Подгружаем тайлы */
@@ -880,10 +878,8 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 				CycleData.LastCycle -= 341;
 				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft - 341)) {
 					FetchSprite();
-					if (CycleData.CurCycle == 304) {
+					if (CycleData.CurCycle == 304)
 						Registers.RealReg1 = Registers.BigReg1;
-						Registers.FHUpd = Registers.FH ^ 0x07;
-					}
 					CycleData.CurCycle += 2;
 				}
 				CycleData.CurCycle += 341;

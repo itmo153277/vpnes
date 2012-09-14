@@ -93,7 +93,8 @@ void AudioCallback(int Task, void *Data) {
 				/* Противофаза */
 				((VPNES_ABUF *) Data)->Pos = ((VPNES_ABUF *) Data)->Size / 2;
 				memcpy(PCMBuf[PCMindex], PCMBuf[PCMindex] + ((VPNES_ABUF *) Data)->Pos,
-					((VPNES_ABUF *) Data)->Pos * sizeof(sint16));
+					(((VPNES_ABUF *) Data)->Size - ((VPNES_ABUF *) Data)->Pos) *
+					sizeof(sint16));
 				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
