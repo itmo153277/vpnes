@@ -25,16 +25,16 @@
 #include <string.h>
 #include <stdio.h>
 
-int WindowState;
-int SaveState;
+int WindowState = 0;
+int SaveState = 0;
 SDL_Surface *screen;
 SDL_Surface *bufs;
+Sint32 HideMouse = -1;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
 double framejit = 0.0;
-int skip = 0;
-int maxskip = 10;
+Uint32 skip = 0;
 int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
@@ -143,8 +143,6 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	vbuf.BMask = bufs->format->Bmask;
 	vbuf.AMask = bufs->format->Amask;
 	vbuf.Skip = 0;
-	/* Максимальное время отклика программы — 50 мс */
-	maxskip = (int) (50.0 / FrameLength);
 	ibuf = calloc(8, sizeof(int));
 	desired = malloc(sizeof(SDL_AudioSpec));
 	obtained = malloc(sizeof(SDL_AudioSpec));
@@ -154,7 +152,7 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	desired->samples = (int) (FrameLength * 44.1 * 4); /* 4 кадра */
 	desired->callback = AudioCallbackSDL;
 	desired->userdata = NULL;
-	if ( SDL_OpenAudio(desired, obtained) < 0 ) {
+	if (SDL_OpenAudio(desired, obtained) < 0) {
 		free(desired);
 		return -1;
 	}
@@ -167,7 +165,6 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
 	PCMmut = SDL_CreateMutex();
-	SaveState = 0;
 	if (JoyPad && (SDL_NumJoysticks() > 0)) {
 		joy = SDL_JoystickOpen(0);
 		if (joy) {
@@ -224,9 +221,9 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			if (vbuf.Skip) {
 				framestarttime = SDL_GetTicks();
 				framejit += (framestarttime - framecheck) - *Tim;
+				skip += (framestarttime - framecheck);
 				framecheck = framestarttime;
-				skip++;
-				if (skip >= maxskip)
+				if (skip >= 50)
 					framejit = 0;
 				if (framejit < *Tim) {
 					vbuf.Skip = 0;
@@ -274,6 +271,11 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 					case SDL_QUIT:
 						quit = -1;
 						WindowState = VPNES_QUIT;
+						break;
+					case SDL_MOUSEMOTION:
+						SDL_ShowCursor(SDL_ENABLE);
+						/* Если эмултор запущен больше ~25 дней, произойдет ошибка */
+						HideMouse = SDL_GetTicks();
 						break;
 					case SDL_KEYDOWN:
 //						if (!UseJoy)
@@ -434,6 +436,8 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			if (framejit > *Tim)
 				vbuf.Skip = -1;
 #endif
+			if ((HideMouse >= 0) && ((framestarttime - HideMouse) >= 2000))
+				SDL_ShowCursor(SDL_DISABLE);
 			framecheck = framestarttime;
 #endif
 			return quit;
