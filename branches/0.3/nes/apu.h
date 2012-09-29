@@ -757,7 +757,8 @@ public:
 				Res = Channels.Read_4015();
 				/* Если мы не попали на установку флага, сбрасываем его */
 				if ((Channels.Mode != SChannels::Mode_4step) ||
-					(CycleData.CyclesLeft > 2)) {
+					(CycleData.CyclesLeft <= Tables::StepCycles[\
+					SChannels::Mode_4step - 1])) {
 					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->ClearIRQ(FrameIRQ);
 				}
@@ -890,7 +891,7 @@ public:
 					Channels.OddClock();
 				else
 					Channels.EvenClock();
-				CycleData.ResetCycle = CycleData.CyclesLeft + (~InternalData.Odd & 1);
+				CycleData.ResetCycle = CycleData.CyclesLeft + 2 + (InternalData.Odd & 1);
 				UpdateCycle();
 				CycleData.DebugTimer = 0;
 				break;
@@ -961,13 +962,8 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 						case 2:
 							Channels.EvenClock();
 							break;
-						case 3:
-							if (!Channels.InterruptInhibit) {
-								Channels.FrameInterrupt = true;
-								Bus->GetCPU()->GenerateIRQ(GetCycles() *
-									ClockDivider, FrameIRQ);
-							}
 						case 1:
+						case 3:
 							Channels.OddClock();
 							break;
 					}
@@ -987,9 +983,21 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 			}
 			Channels.Update(abuf);
 			CycleData.Step++;
-			CycleData.NextCycle = Tables::StepCycles[CycleData.Step];
+			if (CycleData.Step != Channels.Mode)
+				CycleData.NextCycle = Tables::StepCycles[CycleData.Step];
+			else
+				CycleData.NextCycle = Tables::StepCycles[Channels.Mode - 1] + 2;
 		}
-		if ((CycleData.Step == Channels.Mode) ||
+		if ((CycleData.CurCycle >= Tables::StepCycles[SChannels::Mode_4step - 1]) &&
+			(Channels.Mode == SChannels::Mode_4step) && !Channels.InterruptInhibit) {
+			Channels.FrameInterrupt = true;
+			Bus->GetCPU()->GenerateIRQ(GetCycles() * ClockDivider, FrameIRQ);
+			CycleData.NextCycle = std::min(\
+				Tables::StepCycles[SChannels::Mode_4step - 1] + 2,
+				CycleData.CyclesLeft);
+		}
+		if (((CycleData.Step == Channels.Mode) &&
+			(CycleData.CurCycle == (Tables::StepCycles[Channels.Mode - 1] + 2))) ||
 			(CycleData.CurCycle == CycleData.ResetCycle)) {
 			CycleData.CyclesLeft -= CycleData.CurCycle;
 			CycleData.LastCycle -= CycleData.CurCycle;
@@ -1030,7 +1038,7 @@ struct NTSC_Tables {
 };
 
 /* Число тактов для каждого шага */
-const int NTSC_Tables::StepCycles[6] = {7458, 14914, 22372, 29830, 37282, 0};
+const int NTSC_Tables::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
 
 /* Перекрываемые кнопки контроллера */
 const int NTSC_Tables::ButtonsRemap[4] = {

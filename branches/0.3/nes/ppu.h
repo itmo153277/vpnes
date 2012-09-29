@@ -783,6 +783,9 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 			if (ControlRegisters.RenderingEnabled()) {
 				if (CycleData.CurCycle == 256)
 					Registers.UpdateScroll();
+				else if ((CycleData.CurCycle == 316) &&
+					(CycleData.Scanline == (_Settings::ActiveScanlines - 2)))
+					InternalData.OAM_addr = 0;
 				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft)) {
 					FetchSprite();
 					CycleData.CurCycle += 2;

@@ -63,19 +63,17 @@ sint16 *PCMBuf[2];
 int PCMindex = 1;
 int PCMready = 0;
 int PCMplay = 0;
-SDL_mutex *PCMmut = NULL;
-int lastpcm = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
-	/* Ожидание заполнения буфера */
-	SDL_mutexP(PCMmut);
-	memcpy(Stream, PCMBuf[PCMindex], Len);
 	PCMready = 0;
+	if (PCMplay)
+		memcpy(Stream, PCMBuf[PCMindex], Len);
 }
 
 void AudioCallback(int Task, void *Data) {
+	SDL_LockAudio();
 	switch (Task) {
 		case VPNES_PCM_START:
 			if (!PCMplay && PCMready) {
@@ -84,27 +82,22 @@ void AudioCallback(int Task, void *Data) {
 			}
 			break;
 		case VPNES_PCM_UPDATE:
-			/* Буфер заполнен */
-			SDL_mutexV(PCMmut);
-			/* Не должны попать на AudioCallbackSDL */
-			SDL_LockAudio();
 			if (PCMready) {
-				PCMindex ^= 1;
 				/* Противофаза */
 				((VPNES_ABUF *) Data)->Pos = ((VPNES_ABUF *) Data)->Size / 2;
-				memcpy(PCMBuf[PCMindex], PCMBuf[PCMindex] + ((VPNES_ABUF *) Data)->Pos,
-					(((VPNES_ABUF *) Data)->Size - ((VPNES_ABUF *) Data)->Pos) *
+				memcpy(((VPNES_ABUF *) Data)->PCM, ((VPNES_ABUF *) Data)->PCM +
+					((VPNES_ABUF *) Data)->Pos, (((VPNES_ABUF *) Data)->Pos) *
 					sizeof(sint16));
 				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
 				}
+			} else {
+				((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
+				PCMindex ^= 1;
+				/* Буфер заполнен */
+				PCMready = 1;
 			}
-			((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
-			PCMready = -1;
-			/* Меняем местами буферы */
-			PCMindex ^= 1;
-			SDL_UnlockAudio();
 			/* Запускаем аудио */
 			if (!PCMplay) {
 				SDL_PauseAudio(0);
@@ -112,10 +105,11 @@ void AudioCallback(int Task, void *Data) {
 			}
 			break;
 		case VPNES_PCM_STOP:
-			SDL_PauseAudio(-1);
 			PCMplay = 0;
+			SDL_PauseAudio(-1);
 			break;
 	}
+	SDL_UnlockAudio();
 }
 
 /* Инициализация SDL */
@@ -149,7 +143,7 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	desired->freq = 44100;
 	desired->format = AUDIO_S16SYS;
 	desired->channels = 1;
-	desired->samples = (int) (FrameLength * 44.1 * 4); /* 4 кадра */
+	desired->samples = (int) (FrameLength * 44.1 * 2); /* 2 кадра */
 	desired->callback = AudioCallbackSDL;
 	desired->userdata = NULL;
 	if (SDL_OpenAudio(desired, obtained) < 0) {
@@ -164,7 +158,6 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
-	PCMmut = SDL_CreateMutex();
 	if (JoyPad && (SDL_NumJoysticks() > 0)) {
 		joy = SDL_JoystickOpen(0);
 		if (joy) {
@@ -177,7 +170,9 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	}
 	if (!UseJoy)
 		SDL_JoystickEventState(SDL_IGNORE);
-	framecheck = framestarttime = SDL_GetTicks();
+	framestarttime = SDL_GetTicks();
+	framecheck = framestarttime;
+	HideMouse = framestarttime;
 	return 0;
 }
 
@@ -185,8 +180,6 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 void AppQuit(void) {
 	if (UseJoy)
 		SDL_JoystickClose(joy);
-	if (PCMmut != NULL)
-		SDL_DestroyMutex(PCMmut);
 	SDL_CloseAudio();
 	free(obtained);
 	free(PCMBuf[0]);

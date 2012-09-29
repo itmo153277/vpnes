@@ -502,10 +502,7 @@ private:
 public:
 	inline explicit CUxROM(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
-		if (ROM->Header.PRGSize < 0x20000)
-			SwitchMask = 0x07;
-		else
-			SwitchMask = 0x0f;
+		SwitchMask = mapper::GetMask(ROM->Header.PRGSize) >> 14;
 	}
 
 	/* Запись памяти */
