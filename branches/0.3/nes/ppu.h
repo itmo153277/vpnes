@@ -106,6 +106,8 @@ private:
 		inline void SetVBlank1() { VBlank = true; }
 		/* VBlank set */
 		inline void SetVBlank2() { if (VBlank) State |= 0x80; VBlank = false; };
+		/* VBlank get */
+		inline int GetVBlank() { return State & 0x80; }
 		/* VBlank clear */
 		inline void ClearVBlank() { State &= 0x7f; VBlank = false; }
 		/* Overflow set */
@@ -420,8 +422,13 @@ public:
 		PreRender();
 		switch (Address & 0x2007) {
 			case 0x2000: /* Установить режим работы */
+				old = ControlRegisters.GenerateNMI;
 				ControlRegisters.Controller(Src);
 				Registers.Write2000(Src);
+				if (ControlRegisters.GenerateNMI && !old && State.GetVBlank() &&
+					(CycleData.CyclesLeft < 341))
+					Bus->GetCPU()->GenerateNMI(GetCycles() * ClockDivider +
+					_Bus::CPUClass::ClockDivider);
 				break;
 			case 0x2001: /* Настроить маску */
 				old = ControlRegisters.RenderingEnabled();
@@ -907,7 +914,7 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 			CycleData.CurCycle = 341 + 343;
 		}
 		WAIT_CYCLE(341 + 343) { /* Генерируем NMI */
-			if (ControlRegisters.GenerateNMI)
+			if (ControlRegisters.GenerateNMI && State.GetVBlank())
 				Bus->GetCPU()->GenerateNMI(GetCycles() * ClockDivider);
 			/* Период VBlank — 20/70 сканлайнов */
 			CycleData.CyclesLeft -= (_Settings::VBlank + 1) * 341;
