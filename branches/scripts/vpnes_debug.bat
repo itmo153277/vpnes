@@ -82,7 +82,7 @@ For /F "delims=" %%A In ("%VPNES_PATH%") Do (
  Set VPNES_DIR=%%~dpA
 )
 
-%VPNES_PATH% 2> nul
+"%VPNES_PATH%" 2> nul
 
 If ErrorLevel 1 GoTo :EOF
 If Not Exist "%VPNES_DIR%stderr.txt" GoTo :EOF
