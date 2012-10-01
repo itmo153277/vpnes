@@ -65,8 +65,9 @@ private:
 
 	/* Внутренние данные */
 	struct SInternalData {
-		int StrobeCounter_A;
-		int StrobeCounter_B;
+		uint8 Strobe;
+		int Counter_A;
+		int Counter_B;
 		uint8 bMode; /* Начальный режим */
 		int DMA;
 		int Odd;
@@ -764,16 +765,16 @@ public:
 				}
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
-				if (InternalData.StrobeCounter_A < 4)
-					return 0x40 | ibuf[InternalData.StrobeCounter_A++];
-				if (InternalData.StrobeCounter_A < 8) {
-					Res = 0x40 | (ibuf[InternalData.StrobeCounter_A] &
+				if (InternalData.Counter_A < 4)
+					return 0x40 | ibuf[InternalData.Counter_A++];
+				if (InternalData.Counter_A < 8) {
+					Res = 0x40 | (ibuf[InternalData.Counter_A] &
 						~ibuf[Tables::ButtonsRemap[\
-						InternalData.StrobeCounter_A & 0x03]]);
-					InternalData.StrobeCounter_A++;
+						InternalData.Counter_A & 0x03]]);
+					InternalData.Counter_A++;
 					return Res;
 				}
-				break;
+				return 0x41;
 			case 0x4017: /* Данные контроллера 2 */
 				break;
 		}
@@ -783,8 +784,11 @@ public:
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address == 0x4016) { /* Стробирование контроллеров */
-			InternalData.StrobeCounter_A = 0;
-			InternalData.StrobeCounter_B = 0;
+			if ((~Src & 1) && (InternalData.Strobe & 1)) { /* Falling edge */
+				InternalData.Counter_A = 0;
+				InternalData.Counter_B = 0;
+			}
+			InternalData.Strobe = Src;
 			return;
 		} else /* Отрабатываем прошедшие такты */
 			Preprocess();

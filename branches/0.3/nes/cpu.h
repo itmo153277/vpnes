@@ -137,7 +137,7 @@ private:
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
 		Bus->GetClock()->Clock(1);
-		return  Bus->ReadCPUMemory(Address);
+		return Bus->ReadCPUMemory(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
 		Bus->GetClock()->Clock(1);
