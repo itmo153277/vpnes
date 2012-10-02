@@ -138,17 +138,18 @@ public:
 	inline explicit CNROM(_Bus *pBus, const ines::NES_ROM_Data *Data) {
 		Bus = pBus;
 		ROM = Data;
-		Bus->GetManager()->template SetPointer<NROMID::PRGID>(\
+		Bus->GetManager()->template SetPointer<ManagerID<NROMID::PRGID> >(\
 			ROM->PRG, ROM->Header.PRGSize * sizeof(uint8));
 		PRGLow = ROM->PRG;
 		PRGHi = ROM->PRG + (ROM->Header.PRGSize - 0x4000);
 		if (ROM->CHR != NULL) {
-			Bus->GetManager()->template SetPointer<NROMID::CHRID>(\
+			Bus->GetManager()->template SetPointer<ManagerID<NROMID::CHRID> >(\
 				ROM->CHR, ROM->Header.CHRSize * sizeof(uint8));
 			CHR = ROM->CHR;
 		} else
 			CHR = (uint8 *) Bus->GetManager()->\
-				template GetPointer<NROMID::CHRRAMID>(0x2000 * sizeof(uint8));
+				template GetPointer<ManagerID<NROMID::CHRRAMID> >(\
+				0x2000 * sizeof(uint8));
 		Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
 		if (ROM->Header.RAMSize == 0)
 			RAM = NULL;
@@ -157,13 +158,13 @@ public:
 			if (ROM->Trainer != NULL)
 				memcpy(RAM + 0x1000, ROM->Trainer, 0x0200 * sizeof(uint8));
 			if (ROM->Header.HaveBattery) {
-				Bus->GetManager()->template SetPointer<NROMID::BatteryID>(\
+				Bus->GetManager()->template SetPointer<ManagerID<NROMID::BatteryID> >(\
 					RAM + (ROM->Header.RAMSize - 0x2000), 0x2000 * sizeof(uint8));
 				if (ROM->Header.RAMSize > 0x2000)
-					Bus->GetManager()->template SetPointer<NROMID::RAMID>(\
+					Bus->GetManager()->template SetPointer<ManagerID<NROMID::RAMID> >(\
 						RAM, (ROM->Header.RAMSize - 0x2000) * sizeof(uint8));
 			} else
-				Bus->GetManager()->template SetPointer<NROMID::RAMID>(\
+				Bus->GetManager()->template SetPointer<ManagerID<NROMID::RAMID> >(\
 					RAM, ROM->Header.RAMSize * sizeof(uint8));
 		}
 	}
@@ -223,7 +224,7 @@ class CMMC1: public CNROM<_Bus> {
 	using CNROM<_Bus>::CHR;
 	using CNROM<_Bus>::RAM;
 private:
-	struct SInternalData {
+	struct SInternalData: public ManagerID<MMC1ID::InternalDataID> {
 		/* Модификация MMC1 */
 		enum {
 			MMC1_Normal,
@@ -271,8 +272,7 @@ private:
 public:
 	inline explicit CMMC1(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
-		Bus->GetManager()->template SetPointer<MMC1ID::InternalDataID>(\
-			&InternalData, sizeof(InternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		memset(&InternalData, 0, sizeof(InternalData));
 		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
@@ -284,7 +284,7 @@ public:
 				InternalData.Mode = SInternalData::MMC1_SXROM;
 				Bus->GetManager()->template FreeMemory<NROMID::RAMID>();
 				Bus->GetManager()->template FreeMemory<NROMID::BatteryID>();
-				Bus->GetManager()->template SetPointer<NROMID::BatteryID>(\
+				Bus->GetManager()->template SetPointer<ManagerID<NROMID::BatteryID> >(\
 					RAM, ROM->Header.RAMSize * sizeof(uint8));
 			} else
 				InternalData.Mode = SInternalData::MMC1_SOROM;
@@ -528,7 +528,7 @@ class CMMC3: public CNROM<_Bus> {
 	using CNROM<_Bus>::ROM;
 	using CNROM<_Bus>::CHR;
 private:
-	struct SInternalData {
+	struct SInternalData: public ManagerID<MMC3ID::InternalDataID> {
 		int PRGBanks[4]; /* PRG */
 		int CHRBanks[8]; /* CHR */
 		/* Переключение PRG */
@@ -549,7 +549,7 @@ private:
 		int EnableWrite;
 	} InternalData;
 
-	struct SIRQCircuit {
+	struct SIRQCircuit: public ManagerID<MMC3ID::IRQCircuitID> {
 		/* Счетчик сканлайнов */
 		uint8 IRQCounter;
 		/* Обновление счетчика */
@@ -585,8 +585,7 @@ public:
 		CNROM<_Bus>(pBus, Data) {
 		int i;
 
-		Bus->GetManager()->template SetPointer<MMC3ID::InternalDataID>(\
-			&InternalData, sizeof(InternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		memset(&InternalData, 0, sizeof(InternalData));
 		InternalData.PRGBanks[1] = 0x2000;
 		InternalData.PRGBanks[3] = ROM->Header.PRGSize - 0x2000;
@@ -595,8 +594,7 @@ public:
 			InternalData.CHRBanks[i] = i << 10;
 		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
-		Bus->GetManager()->template SetPointer<MMC3ID::IRQCircuitID>(\
-			&IRQCircuit, sizeof(IRQCircuit));
+		Bus->GetManager()->template SetPointer<SIRQCircuit>(&IRQCircuit);
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
 		PRGMask = mapper::GetMask(ROM->Header.PRGSize) >> 13;
 		CHRMask = mapper::GetMask(ROM->Header.CHRSize) >> 10;

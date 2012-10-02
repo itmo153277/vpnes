@@ -64,7 +64,7 @@ private:
 	};
 
 	/* Внутренние данные */
-	struct SInternalData {
+	struct SInternalData: public ManagerID<APUID::InternalDataID> {
 		uint8 Strobe;
 		int Counter_A;
 		int Counter_B;
@@ -74,7 +74,7 @@ private:
 	} InternalData;
 
 	/* Данные о тактах */
-	struct SCycleData {
+	struct SCycleData: public ManagerID<APUID::CycleDataID> {
 		int Step;
 		int CurCycle;
 		int NextCycle;
@@ -88,7 +88,7 @@ private:
 	/* Аудио буфер */
 	VPNES_ABUF *abuf;
 
-	struct SChannels {
+	struct SChannels: public ManagerID<APUID::ChannelsID> {
 		int NextCycle; /* Следующее действие */
 		int CurCycle; /* Текущий такт */
 		struct SChannelData {
@@ -689,13 +689,10 @@ private:
 public:
 	inline explicit CAPU(_Bus *pBus) {
 		Bus = pBus;
-		Bus->GetManager()->template SetPointer<APUID::InternalDataID>(\
-			&InternalData, sizeof(InternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		InternalData.bMode = 0x00;
-		Bus->GetManager()->template SetPointer<APUID::CycleDataID>(\
-			&CycleData, sizeof(CycleData));
-		Bus->GetManager()->template SetPointer<APUID::ChannelsID>(\
-			&Channels, sizeof(Channels));
+		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
+		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
 		memset(&Channels.ChannelData, 0, sizeof(typename SChannels::SChannelData));
 		Channels.TriangleChannel.Sequencer = 0;
 		Channels.TriangleChannel.ControlFlag = false;

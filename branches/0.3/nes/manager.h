@@ -43,6 +43,19 @@ private:
 		void *p; /* Pointer */
 		size_t Size; /* Size */
 		bool alloc; /* Was allocated */
+		/* Memory Dump */
+		virtual int LoadMemory(std::istream &State) = 0;
+		virtual int SaveMemory(std::ostream &State) = 0;
+	};
+	/* Adapter */
+	template <class T>
+	struct SMemory_Adapt: public SMemory {
+		int LoadMemory(std::istream &State) {
+			return T::MemoryManagement::LoadMemory(State, p, Size);
+		}
+		int SaveMemory(std::ostream &State) {
+			return T::MemoryManagement::SaveMemory(State, p, Size);
+		}
 	};
 
 	/* Вектор */
@@ -55,13 +68,13 @@ private:
 		return !strncmp(Memory->ID + _ID::Pos, _ID::ID, _ID::Length);
 	}
 	/* Новая запись */
-	template <class _ID>
+	template <class T>
 	inline void NewPointer(void *Pointer, size_t Size, bool alloc = false) {
 		/* Предполагается что блоков с таким ID нет */
 		SMemory *Block;
 
-		Block = new SMemory;
-		Block->ID = _ID::ID;
+		Block = new SMemory_Adapt<T>;
+		Block->ID = T::ID::ID;
 		Block->p = Pointer;
 		Block->Size = Size;
 		Block->alloc = alloc;
@@ -78,11 +91,11 @@ public:
 	}
 
 	/* Получить указатель */
-	template <class _ID>
+	template <class T>
 	inline void *GetPointer(size_t Size = 0);
 	/* Установить указатель */
-	template <class _ID>
-	inline int SetPointer(void *Pointer, size_t Size);
+	template <class T>
+	inline int SetPointer(void *Pointer, size_t Size = sizeof(T));
 	/* Загрузить память из потока */
 	template <class _ID>
 	inline int LoadMemory(std::istream &State);
@@ -235,15 +248,31 @@ const int MapperGroup<m>::Group::Length = 2;
 template <char m>
 const int MapperGroup<m>::Group::Pos = 2;
 
+/* Разрешение использовать с MemoryManager */
+template <class _ID>
+struct ManagerID {
+	typedef _ID ID;
+	struct MemoryManagement {
+		static inline int LoadMemory(std::istream &State, void *p, size_t Size) {
+			State.read((char *) p, Size);
+			return 0;
+		}
+		static inline int SaveMemory(std::ostream &State, void *p, size_t Size) {
+			State.write((char *) p, Size);
+			return 0;
+		}
+	};
+};
+
 /* CMemoryManager */
 
 /* Получить указатель */
-template <class _ID>
+template <class T>
 inline void *CMemoryManager::GetPointer(size_t Size) {
 	MemoryVec::iterator iter;
 	void *p;
 
-	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<_ID>);
+	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<typename T::ID>);
 	if (iter != MemoryBlocks.end()) { /* Нашли с нужным ID */
 		if (((*iter)->p == NULL) & (Size > 0)) /* Память была освобождена */
 			(*iter)->p = malloc(Size);
@@ -253,18 +282,18 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 		p = malloc(Size);
 		if (p == NULL)
 			return NULL;
-		NewPointer<_ID>(p, Size, true);
+		NewPointer<T>(p, Size, true);
 		return p;
 	}
 	return NULL;
 }
 
 /* Установить указатель */
-template <class _ID>
+template <class T>
 inline int CMemoryManager::SetPointer(void *Pointer, size_t Size) {
 	MemoryVec::iterator iter;
 
-	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<_ID>);
+	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<typename T::ID>);
 	if (iter != MemoryBlocks.end()) { /* Такой ID уже есть */
 		if ((*iter)->alloc)
 			free((*iter)->p);
@@ -272,19 +301,35 @@ inline int CMemoryManager::SetPointer(void *Pointer, size_t Size) {
 		(*iter)->Size = Size;
 		(*iter)->alloc = false;
 	} else
-		NewPointer<_ID>(Pointer, Size);
+		NewPointer<T>(Pointer, Size);
 	return 0;
 }
 
 /* Загрузить память из потока */
 template <class _ID>
 inline int CMemoryManager::LoadMemory(std::istream &State) {
+	MemoryVec::iterator iter;
+
+	for (iter = MemoryBlocks.begin();; iter++) {
+		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
+		if (iter == MemoryBlocks.end())
+			break;
+		(*iter)->LoadMemory(State);
+	}
 	return 0;
 }
 
 /* Сохранить память в поток */
 template <class _ID>
 inline int CMemoryManager::SaveMemory(std::ostream &State) {
+	MemoryVec::iterator iter;
+
+	for (iter = MemoryBlocks.begin();; iter++) {
+		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
+		if (iter == MemoryBlocks.end())
+			break;
+		(*iter)->SaveMemory(State);
+	}
 	return 0;
 }
 

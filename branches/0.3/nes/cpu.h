@@ -70,7 +70,7 @@ private:
 	static const SOpcode Opcodes[256];
 
 	/* Регистр состояния */
-	struct SState {
+	struct SState: public ManagerID<CPUID::StateID> {
 		int Negative;
 		int Overflow;
 		int Decimal;
@@ -90,7 +90,7 @@ private:
 	} State;
 
 	/* Регистры */
-	struct SRegisters {
+	struct SRegisters: public ManagerID<CPUID::RegistersID> {
 		uint8 a; /* Аккумулятор */
 		uint8 x; /* X */
 		uint8 y; /* Y */
@@ -102,7 +102,7 @@ private:
 	uint8 *RAM;
 
 	/* Данные о тактах */
-	struct SCycleData {
+	struct SCycleData: public ManagerID<CPUID::CycleDataID> {
 		int NMI; /* Такт распознавания NMI */
 		int IRQ; /* Такт распознавания IRQ */
 		int Cycles; /* Всего тактов */
@@ -110,7 +110,7 @@ private:
 	} CycleData;
 
 	/* Внутренние данные */
-	struct SInternalData {
+	struct SInternalData: public ManagerID<CPUID::InternalDataID> {
 		bool Halt; /* Зависание */
 		enum {
 			IRQLow = 0,
@@ -455,22 +455,18 @@ private:
 public:
 	inline explicit CCPU(_Bus *pBus) {
 		Bus = pBus;
-		Bus->GetManager()->template SetPointer<CPUID::StateID>(\
-			&State, sizeof(State));
+		Bus->GetManager()->template SetPointer<SState>(&State);
 		memset(&State, 0, sizeof(State));
-		Bus->GetManager()->template SetPointer<CPUID::RegistersID>(\
-			&Registers, sizeof(Registers));
+		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
 		memset(&Registers, 0, sizeof(Registers));
-		RAM = (uint8 *) Bus->GetManager()->template GetPointer<CPUID::RAMID>(\
+		RAM = (uint8 *) Bus->GetManager()->template GetPointer<ManagerID<CPUID::RAMID> >(\
 			0x0800 * sizeof(uint8));
 		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
-		Bus->GetManager()->template SetPointer<CPUID::CycleDataID>(\
-			&CycleData, sizeof(CycleData));
+		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.IRQ = -1;
 		CycleData.NMI = -1;
-		Bus->GetManager()->template SetPointer<CPUID::InternalDataID>(\
-			&InternalData, sizeof(InternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 	}
 	inline ~CCPU() {}
 

@@ -77,7 +77,7 @@ private:
 	int FrameCycles;
 
 	/* Данные о тактах */
-	struct SCycleData {
+	struct SCycleData: public ManagerID<PPUID::CycleDataID> {
 		int CurCycle; /* Текущий такт */
 		int CyclesLeft; /* Необработанные такты */
 		int PrecCycles; /* Точные такты */
@@ -89,7 +89,7 @@ private:
 	} CycleData;
 
 	/* Данные для обработки DMA */
-	struct SDMAData {
+	struct SDMAData: public ManagerID<PPUID::DMADataID> {
 		uint8 Latch; /* Буфер */
 		uint16 Address; /* Текущий адрес */
 		bool UseLatch; /* Использовать буфер */
@@ -97,7 +97,7 @@ private:
 	} DMAData;
 
 	/* Состояние PPU */
-	struct SState {
+	struct SState: public ManagerID<PPUID::StateID> {
 		uint8 State;
 		bool VBlank;
 		/* 0 объект */
@@ -117,7 +117,7 @@ private:
 	} State;
 
 	/* Внутренние регистры */
-	struct SRegisters {
+	struct SRegisters: public ManagerID<PPUID::RegistersID> {
 		uint16 BigReg1; /* Первая комбинация */
 		uint16 RealReg1; /* Настоящий регистр */
 		uint16 BigReg2; /* Вторая комбинация */
@@ -180,7 +180,7 @@ private:
 	};
 
 	/* Управляющие регистры */
-	struct SControlRegisters {
+	struct SControlRegisters: public ManagerID<PPUID::ControlRegistersID> {
 		int VerticalIncrement; /* Инкремент по Y */
 		SpriteSize Size; /* Размер спрайтов */
 		int GenerateNMI; /* Генерировать NMI */
@@ -224,7 +224,7 @@ private:
 	} ControlRegisters;
 
 	/* Данные спрайтов */
-	struct SSprites {
+	struct SSprites: public ManagerID<PPUID::SpritesID> {
 		int x; /* Координаты */
 		int y;
 		int cx; /* Текущая x */
@@ -244,7 +244,7 @@ private:
 	/* Данные видеобуфера */
 	VPNES_VBUF *vbuf;
 
-	struct SInternalData {
+	struct SInternalData: public ManagerID<PPUID::InternalDataID> {
 		/* Внутренний флаг */
 		bool Trigger;
 		/* Внутренний буфер */
@@ -318,36 +318,30 @@ private:
 public:
 	inline explicit CPPU(_Bus *pBus) {
 		Bus = pBus;
-		Bus->GetManager()->template SetPointer<PPUID::CycleDataID>(\
-			&CycleData, sizeof(CycleData));
-		Bus->GetManager()->template SetPointer<PPUID::DMADataID>(\
-			&DMAData, sizeof(DMAData));
+		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
+		Bus->GetManager()->template SetPointer<SDMAData>(&DMAData);
 		Bus->GetSolderPad()->Screen1 = (uint8 *)
-			Bus->GetManager()->template GetPointer<PPUID::RAM1ID>(\
+			Bus->GetManager()->template GetPointer<ManagerID<PPUID::RAM1ID> >(\
 				0x0400 * sizeof(uint8));
 		memset(Bus->GetSolderPad()->Screen1, 0x00, 0x0400 * sizeof(uint8));
 		Bus->GetSolderPad()->Screen2 = (uint8 *)
-			Bus->GetManager()->template GetPointer<PPUID::RAM2ID>(\
+			Bus->GetManager()->template GetPointer<ManagerID<PPUID::RAM2ID> >(\
 				0x0400 * sizeof(uint8));
 		memset(Bus->GetSolderPad()->Screen2, 0x00, 0x0400 * sizeof(uint8));
-		Bus->GetManager()->template SetPointer<PPUID::StateID>(\
-			&State, sizeof(State));
+		Bus->GetManager()->template SetPointer<SState>(&State);
 		memset(&State, 0x00, sizeof(State));
-		Bus->GetManager()->template SetPointer<PPUID::RegistersID>(\
-			&Registers, sizeof(Registers));
-		Bus->GetManager()->template SetPointer<PPUID::ControlRegistersID>(\
-			&ControlRegisters, sizeof(ControlRegisters));
-		Bus->GetManager()->template SetPointer<PPUID::SpritesID>(\
+		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
+		Bus->GetManager()->template SetPointer<SControlRegisters>(&ControlRegisters);
+		Bus->GetManager()->template SetPointer<SSprites>(\
 			Sprites, sizeof(SSprites) * 8);
 		PalMem = (uint8 *)
-			Bus->GetManager()->template GetPointer<PPUID::PalMemID>(\
+			Bus->GetManager()->template GetPointer<ManagerID<PPUID::PalMemID> >(\
 				0x20 * sizeof(uint8));
 		memset(PalMem, 0x00, 0x20 * sizeof(uint8));
 		OAM = (uint8 *)
-			Bus->GetManager()->template GetPointer<PPUID::OAMID>(\
+			Bus->GetManager()->template GetPointer<ManagerID<PPUID::OAMID> >(\
 				0x0100 * sizeof(uint8));
-		Bus->GetManager()->template SetPointer<PPUID::InternalDataID>(\
-			&InternalData, sizeof(InternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 	}
 	inline ~CPPU() {}
 
