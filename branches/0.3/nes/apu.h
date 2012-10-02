@@ -1127,6 +1127,31 @@ const double NTSC_Tables::TNDTable[203] = {
 	0.73436200, 0.73640200, 0.73843300, 0.74045500, 0.74246800
 };
 
+/* Таблицы для PAL */
+struct PAL_Tables: public NTSC_Tables {
+	/* Число тактов на каждом шаге */
+	static const int StepCycles[6];
+	/* Таблица длин для канала шума */
+	static const int NoiseTable[16];
+	/* Таблица длин для ДМ-канала */
+	static const int DMTable[16];
+};
+
+/* Число тактов для каждого шага */
+const int PAL_Tables::StepCycles[6] = {8312, 16626, 24938, 33252, 41564, 0};
+
+/* Таблица длин для канала шума */
+const int PAL_Tables::NoiseTable[16] = {
+	0x0004, 0x0007, 0x000e, 0x001e, 0x003c, 0x0058, 0x0076, 0x0094,
+	0x00bc, 0x00ec, 0x0162, 0x01d8, 0x02c4, 0x03b0, 0x0762, 0x0ec2
+};
+
+/* Таблица длин для ДМ-канала */
+const int PAL_Tables::DMTable[16] = {
+	398, 354, 316, 298, 276, 236, 210, 198,
+	176, 148, 132, 118,  98,  78,  66,  50
+};
+
 }
 
 /* Стандартный АПУ */

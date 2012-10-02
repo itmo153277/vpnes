@@ -79,7 +79,7 @@ typedef NTSC_NES_Config<CBus, CAxROM>::Config AxROM_NTSC_Config;
 /* PAL NES */
 struct PAL_Settings {
 	/* Таблицы для APU */
-	typedef apu::NTSC_Tables Tables;
+	typedef apu::PAL_Tables Tables;
 	/* Частота */
 	static inline const double GetFreq() { return 1.0 / 26601.7125; }
 	/* Делители частоты */

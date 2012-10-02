@@ -440,8 +440,13 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			framestarttime = SDL_GetTicks();
 			framejit += (framestarttime - framecheck) - *Tim;
 #if !defined(VPNES_DISABLE_FSKIP)
-			if (framejit > *Tim)
+			if (framejit > *Tim) {
 				vbuf.Skip = -1;
+				if (ftell(stderr) >= 0) {
+					fputs("Warning: frame skip\n", stderr);
+					fflush(stderr);
+				}
+			}
 #endif
 			if ((HideMouse >= 0) && ((framestarttime - HideMouse) >= 2000))
 				SDL_ShowCursor(SDL_DISABLE);
