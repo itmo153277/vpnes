@@ -328,8 +328,22 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 									ibuf[VPNES_INPUT_RIGHT] = 0;
 									break;
 								case SDLK_F1:
-									quit = -1;
-									WindowState = VPNES_RESET;
+									if (!CPUHalt) {
+										quit = -1;
+										WindowState = VPNES_RESET;
+									}
+									break;
+								case SDLK_F5:
+									if (!CPUHalt) {
+										quit = -1;
+										WindowState = VPNES_SAVESTATE;
+									}
+									break;
+								case SDLK_F7:
+									if (!CPUHalt) {
+										quit = -1;
+										WindowState = VPNES_LOADSTATE;
+									}
 								default:
 									break;
 							}

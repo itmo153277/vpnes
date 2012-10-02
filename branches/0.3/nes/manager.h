@@ -32,6 +32,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "../types.h"
+
 namespace vpnes {
 
 /* Менеджер памяти */
@@ -64,8 +66,14 @@ private:
 
 	/* Поиск по ID */
 	template <class _ID>
-	inline static bool MemoryCompare(SMemory *Memory) {
-		return !strncmp(Memory->ID + _ID::Pos, _ID::ID, _ID::Length);
+	static inline bool CompareID(const char *ID) {
+		if (strlen(ID) < (_ID::Pos + _ID::Length))
+			return false;
+		return !strncmp(ID + _ID::Pos, _ID::ID, _ID::Length);
+	}
+	template <class _ID>
+	static inline bool MemoryCompare(SMemory *Memory) {
+		return CompareID<_ID>(Memory->ID);
 	}
 	/* Новая запись */
 	template <class T>
@@ -258,6 +266,9 @@ struct ManagerID {
 			return 0;
 		}
 		static inline int SaveMemory(std::ostream &State, void *p, size_t Size) {
+			uint32 s = Size;
+
+			State.write((char *) &s, sizeof(s));
 			State.write((char *) p, Size);
 			return 0;
 		}
@@ -309,12 +320,23 @@ inline int CMemoryManager::SetPointer(void *Pointer, size_t Size) {
 template <class _ID>
 inline int CMemoryManager::LoadMemory(std::istream &State) {
 	MemoryVec::iterator iter;
+	char ID[7];
+	uint32 Size;
 
-	for (iter = MemoryBlocks.begin();; iter++) {
-		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
-		if (iter == MemoryBlocks.end())
+	for (;;) {
+		State.getline(ID, 7 * sizeof(char), '\0');
+		if (!(*ID))
 			break;
-		(*iter)->LoadMemory(State);
+		State.read((char *) &Size, sizeof(Size));
+		if (!CompareID<_ID>(ID)) {
+			State.seekg(Size, std::ios_base::cur);
+			continue;
+		}
+		for (iter = MemoryBlocks.begin();iter != MemoryBlocks.end(); iter++)
+			if (!strcmp(ID, (*iter)->ID)) {
+				(*iter)->LoadMemory(State);
+				break;
+			}
 	}
 	return 0;
 }
@@ -328,6 +350,7 @@ inline int CMemoryManager::SaveMemory(std::ostream &State) {
 		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
 		if (iter == MemoryBlocks.end())
 			break;
+		State.write((*iter)->ID, (strlen((*iter)->ID) + 1) * sizeof(char));
 		(*iter)->SaveMemory(State);
 	}
 	return 0;

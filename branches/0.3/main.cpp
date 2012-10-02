@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include "window.h"
 #include "nes/ines.h"
 #include "nes/nes.h"
@@ -35,6 +36,8 @@ int main(int argc, char *argv[]) {
 	vpnes::CNESConfig *NESConfig;
 	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
+	std::fstream State;
+	std::basic_string<char> Name;
 
 #ifdef BUILDNUM
 	std::cerr << "VPNES " VERSION " Build " << BUILDNUM <<
@@ -65,6 +68,15 @@ int main(int argc, char *argv[]) {
 		NESConfig->GetFrameLength()) == 0) {
 		/* Включаем приставку */
 		NES = NESConfig->GetNES(&WindowCallback);
+		if (Data.Header.HaveBattery) { /* Сохраненная память */
+			Name = argv[1];
+			Name += ".vpram";
+			State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
+			if (!State.fail()) {
+				NES->LoadState(State);
+				State.close();
+			}
+		}
 		NES->UpdateBuf();
 		NES->Reset();
 		do {
@@ -75,13 +87,42 @@ int main(int argc, char *argv[]) {
 					NES->UpdateBuf();
 					break;
 				case VPNES_SAVESTATE:
+					Name = argv[1];
+					Name += '.';
+					Name += '0' + SaveState;
+					State.open(Name.c_str(), std::ios_base::out |
+						std::ios_base::binary | std::ios_base::trunc);
+					if (!State.fail()) {
+						NES->SaveState(State);
+						State.close();
+					}
+					break;
 				case VPNES_LOADSTATE:
+					Name = argv[1];
+					Name += '.';
+					Name += '0' + SaveState;
+					State.open(Name.c_str(), std::ios_base::in |
+						std::ios_base::binary);
+					if (!State.fail()) {
+						NES->LoadState(State);
+						State.close();
+					}
 					break;
 				case VPNES_RESET:
 					NES->Reset();
 					break;
 			}
 		} while (WindowState != VPNES_QUIT);
+		if (Data.Header.HaveBattery) { /* Нужно правильное выключение */
+			Name = argv[1];
+			Name += ".vpram";
+			State.open(Name.c_str(), std::ios_base::out |
+				std::ios_base::binary | std::ios_base::trunc);
+			if (!State.fail()) {
+				NES->PowerOff(State);
+				State.close();
+			}
+		}
 		delete NES;
 	}
 	delete NESConfig;

@@ -18,3 +18,9 @@ Down   - Down Arrow
 Left   - Left Arrow
 Right  - Right Arrow
 Reset  - F1
+Save   - F5
+Load   - F7
+
+== About saving states ==
+
+This emulator provide support of saving your game progress by backuping memory to save state files. Be aware that these files are incompatible with various versions of the program. The battery-backed memory (.vpram files) are most likely portable but still there is no guaranty that the file format won't change.
