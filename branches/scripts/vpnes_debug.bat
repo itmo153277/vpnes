@@ -12,7 +12,7 @@ SetLocal EnableExtensions
 If ErrorLevel 1 GoTo End
 
 Echo VPNES bug report builder
-Echo Verion: 0.1
+Echo Verion: 0.2
 Echo.
 
 Set VPNES_SCRIPT_PATH=%~dp0
@@ -115,8 +115,9 @@ GoTo :EOF
 :: Собрать отчет
 :BuildReport
 
-Echo == Bug report == > Report.txt
-Echo Version 0.1 >> Report.txt
+Echo == Bug report == >> Report.txt
+Echo Version 0.2 >> Report.txt
+Echo %date% %time% >> Report.txt
 
 For /F "delims=" %%A In ("%VPNES_ROM%") Do (
  Echo ROM file: %%~nxA >> Report.txt
