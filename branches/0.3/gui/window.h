@@ -54,11 +54,22 @@ extern int SaveState;
 #ifdef _WIN32
 /* Дескриптор окна */
 extern HWND WindowHandle;
+/* Программа */
 extern HINSTANCE Instance;
+#ifdef VPNES_INTERACTIVE
+/* Меню */
+extern HMENU Menu;
+#endif
+#endif
+#ifdef VPNES_INTERACTIVE
+/* Не использовать интерактивнй режим */
+extern int DisableInteractive;
 #endif
 
 /* Инициализация SDL */
 int InitMainWindow(int Width, int Height);
+/* Очистить окно */
+void ClearWindow(void);
 /* Установить режим */
 int SetMode(int Width, int Height, double FrameLength);
 /* Выход */

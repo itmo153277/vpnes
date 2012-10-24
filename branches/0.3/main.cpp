@@ -40,10 +40,15 @@ int main(int argc, char *argv[]) {
 		std::endl;
 	std::cerr << "License: GPL v2" << std::endl;
 #endif
+#ifdef VPNES_INTERACTIVE
+	if (argc != 2)
+		DisableInteractive = 0;
 	if (InitMainWindow(512, 448) < 0)
 		return 0;
-#ifdef VPNES_INTERACTIVE
-	InteractiveGUI();
+	if (DisableInteractive)
+		StartGUI(argv[1]);
+	else
+		InteractiveGUI();
 #else
 	if (argc != 2)
 		return 0;

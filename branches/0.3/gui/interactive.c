@@ -33,6 +33,7 @@
 #ifdef _WIN32
 char FileName[MAX_PATH];
 int opennew = 0;
+int quit = 0;
 #endif
 
 /* Обработчик сообщений */
@@ -69,6 +70,10 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 			}
 			SDL_PauseAudio(0);
 			break;
+		case ID_FILE_CLOSE:
+			WindowState = VPNES_QUIT;
+			quit = 0;
+			return -1;
 		case ID_FILE_EXIT:
 			WindowState = VPNES_QUIT;
 			return -1;
@@ -95,22 +100,37 @@ int InteractiveGUI() {
 	int ret = 0;
 	SDL_Event event;
 
-	FileName[0] = '0';
-	WindowState = -1;
-	while (WindowState != VPNES_QUIT) {
-		SDL_WaitEvent(&event);
-		switch (event.type) {
-			case SDL_QUIT:
-				WindowState = VPNES_QUIT;
-				break;
-			case SDL_SYSWMEVENT:
-				InteractiveDispatcher(event.syswm.msg);
-				break;
+	FileName[0] = '\0';
+	do {
+		quit = -1;
+		WindowState = -1;
+		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_GRAYED);
+		EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_GRAYED);
+		while (WindowState != VPNES_QUIT) {
+			SDL_WaitEvent(&event);
+			switch (event.type) {
+				case SDL_QUIT:
+					WindowState = VPNES_QUIT;
+					break;
+				case SDL_SYSWMEVENT:
+					InteractiveDispatcher(event.syswm.msg);
+					break;
+			}
 		}
-	}
-	while (opennew) {
-		opennew = 0;
-		ret = StartGUI(FileName);
-	}
+		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
+		while (opennew) {
+			opennew = 0;
+			ret = StartGUI(FileName);
+		}
+		ClearWindow();
+	} while (!quit);
 	return ret;
 }

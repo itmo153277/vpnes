@@ -39,7 +39,6 @@ Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
 double framejit = 0.0;
 Uint32 skip = 0;
-int CPUHalt = 0;
 double delta = 0.0;
 VPNES_VBUF vbuf;
 VPNES_ABUF abuf;
@@ -69,49 +68,59 @@ int PCMready = 0;
 int PCMplay = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
+#ifdef VPNES_INTERACTIVE
+int DisableInteractive = -1;
+#endif
 
 #ifdef _WIN32
-
 #include "win32-res/win32-res.h"
 
-HICON Icon;
+HICON Icon = INVALID_HANDLE_VALUE;
 #ifdef VPNES_INTERACTIVE
-HMENU Menu;	
+HMENU Menu = INVALID_HANDLE_VALUE;	
 #endif
-HWND WindowHandle;
-HINSTANCE Instance;
+HWND WindowHandle = INVALID_HANDLE_VALUE;
+HINSTANCE Instance = INVALID_HANDLE_VALUE;
 
+/* Инициализация Win32 */
 void InitWin32() {
 	SDL_SysWMinfo WMInfo;
 
 	SDL_VERSION(&WMInfo.version)
 	SDL_GetWMInfo(&WMInfo);
+	/* Получаем данные */
 	WindowHandle = WMInfo.window;
 	Instance = GetModuleHandle(NULL);
+	/* Иконка */
 	Icon = LoadIcon(Instance, MAKEINTRESOURCE(IDI_MAINICON));
 	SetClassLong(WindowHandle, GCL_HICON, (LONG) Icon);
 #ifdef VPNES_INTERACTIVE
-	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
-	SetMenu(WindowHandle, Menu);
-	SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+	if (!DisableInteractive) {
+		/* Меню */
+		Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
+		SetMenu(WindowHandle, Menu);
+		SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+	}
 #endif
 }
 
+/* Удаление Win32 */
 void DestroyWin32() {
 #ifdef VPNES_INTERACTIVE
 	DestroyMenu(Menu);
 #endif
 	DestroyIcon(Icon);
 }
-
 #endif
 
+/* Callback для SDL */
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	PCMready = 0;
 	if (PCMplay)
 		memcpy(Stream, PCMBuf[PCMindex], Len);
 }
 
+/* Вызывается libvpnes'ом */
 void AudioCallback(int Task, void *Data) {
 	SDL_LockAudio();
 	switch (Task) {
@@ -165,6 +174,18 @@ int InitMainWindow(int Width, int Height) {
 	if (screen == NULL)
 		return -1;
 	return 0;
+}
+
+/* Очистить окно */
+void ClearWindow(void) {
+	if (screen == NULL)
+		return;
+	if (SDL_MUSTLOCK(screen))
+		SDL_LockSurface(screen);
+	SDL_FillRect(screen, NULL, 0);
+	if (SDL_MUSTLOCK(screen))
+		SDL_UnlockSurface(screen);
+	SDL_Flip(screen);
 }
 
 /* Установить режим */
@@ -296,24 +317,20 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			SDL_Flip(screen);
 #if defined(VPNES_SHOW_CURFRAME)
 			/* Текущий фрейм */
-			if (!CPUHalt)
-				itoa(cur_frame, buf, 10);
-				SDL_WM_SetCaption(buf, NULL);
-				cur_frame++;
-			}
+			itoa(cur_frame, buf, 10);
+			SDL_WM_SetCaption(buf, NULL);
+			cur_frame++;
 #elif defined(VPNES_SHOW_FPS)
 			/* FPS */
-			if (!CPUHalt) {
-				passed = SDL_GetTicks() - fpst;
-				if (passed > 1000) {
-					fps = cur_frame * 1000.0 / passed;
-					snprintf(buf, 20, "%.3lf", fps);
-					SDL_WM_SetCaption(buf, NULL);
-					fpst = SDL_GetTicks();
-					cur_frame = 0;
-				}
-				cur_frame++;
+			passed = SDL_GetTicks() - fpst;
+			if (passed > 1000) {
+				fps = cur_frame * 1000.0 / passed;
+				snprintf(buf, 20, "%.3lf", fps);
+				SDL_WM_SetCaption(buf, NULL);
+				fpst = SDL_GetTicks();
+				cur_frame = 0;
 			}
+			cur_frame++;
 #endif
 			/* Обрабатываем сообщения */
 			while (SDL_PollEvent(&event))
@@ -385,22 +402,16 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 									ibuf[VPNES_INPUT_RIGHT] = 0;
 									break;
 								case SDLK_F1:
-									if (!CPUHalt) {
-										quit = -1;
-										WindowState = VPNES_RESET;
-									}
+									quit = -1;
+									WindowState = VPNES_RESET;
 									break;
 								case SDLK_F5:
-									if (!CPUHalt) {
-										quit = -1;
-										WindowState = VPNES_SAVESTATE;
-									}
+									quit = -1;
+									WindowState = VPNES_SAVESTATE;
 									break;
 								case SDLK_F7:
-									if (!CPUHalt) {
-										quit = -1;
-										WindowState = VPNES_LOADSTATE;
-									}
+									quit = -1;
+									WindowState = VPNES_LOADSTATE;
 								default:
 									break;
 							}
@@ -517,8 +528,6 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 #endif
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
-			CPUHalt = 1;
-			SDL_WM_SetCaption("CPU HALTED!", NULL);
 			if (ftell(stderr) >= 0) {
 				HaltData = (VPNES_CPUHALT *) Data;
 				fprintf(stderr, "Fatal Error: CPU halted\n"
