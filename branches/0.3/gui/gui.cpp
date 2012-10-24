@@ -22,6 +22,7 @@
 #include "gui.h"
 #include <fstream>
 #include <string>
+#include "window.h"
 #include "../nes/ines.h"
 #include "../nes/nes.h"
 #include "../nes/libvpnes.h"
@@ -50,7 +51,7 @@ int StartGUI(char *RomName) {
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
 		", no trainer" : ", have trainer 512") << std::endl;
 	/* Инициализация окна */
-	if (InitMainWindow(NESConfig->GetWidth(), NESConfig->GetHeight(), 1,
+	if (SetMode(NESConfig->GetWidth(), NESConfig->GetHeight(),
 		NESConfig->GetFrameLength()) == 0) {
 		/* Включаем приставку */
 		NES = NESConfig->GetNES(&WindowCallback);
@@ -113,6 +114,6 @@ int StartGUI(char *RomName) {
 	}
 	delete NESConfig;
 	vpnes::FreeROMData(&Data);
-	AppQuit();
+	AppClose();
 	return 0;
 }

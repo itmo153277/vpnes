@@ -26,6 +26,10 @@
 #include "config.h"
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "../types.h"
 
 #ifdef __cplusplus
@@ -47,10 +51,18 @@ extern "C" {
 extern int WindowState;
 /* Номер слота сохранения */
 extern int SaveState;
+#ifdef _WIN32
+/* Дескриптор окна */
+extern HWND WindowHandle;
+extern HINSTANCE Instance;
+#endif
 
 /* Инициализация SDL */
-int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength);
+int InitMainWindow(int Width, int Height);
+/* Установить режим */
+int SetMode(int Width, int Height, double FrameLength);
 /* Выход */
+void AppClose(void);
 void AppQuit(void);
 /* Callback-функция */
 int WindowCallback(uint32, void *);

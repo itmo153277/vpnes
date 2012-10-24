@@ -21,9 +21,13 @@
 
 #include "window.h"
 #include <SDL.h>
+#include <SDL_syswm.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifdef VPNES_INTERACTIVE
+#include "interactive.h"
+#endif
 
 int WindowState = 0;
 int SaveState = 0;
@@ -65,6 +69,42 @@ int PCMready = 0;
 int PCMplay = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
+
+#ifdef _WIN32
+
+#include "win32-res/win32-res.h"
+
+HICON Icon;
+#ifdef VPNES_INTERACTIVE
+HMENU Menu;	
+#endif
+HWND WindowHandle;
+HINSTANCE Instance;
+
+void InitWin32() {
+	SDL_SysWMinfo WMInfo;
+
+	SDL_VERSION(&WMInfo.version)
+	SDL_GetWMInfo(&WMInfo);
+	WindowHandle = WMInfo.window;
+	Instance = GetModuleHandle(NULL);
+	Icon = LoadIcon(Instance, MAKEINTRESOURCE(IDI_MAINICON));
+	SetClassLong(WindowHandle, GCL_HICON, (LONG) Icon);
+#ifdef VPNES_INTERACTIVE
+	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
+	SetMenu(WindowHandle, Menu);
+	SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+#endif
+}
+
+void DestroyWin32() {
+#ifdef VPNES_INTERACTIVE
+	DestroyMenu(Menu);
+#endif
+	DestroyIcon(Icon);
+}
+
+#endif
 
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	PCMready = 0;
@@ -113,13 +153,24 @@ void AudioCallback(int Task, void *Data) {
 }
 
 /* Инициализация SDL */
-int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
-	int i;
-
+int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+#ifdef _WIN32
+	InitWin32();
+#endif
 	SDL_WM_SetCaption("VPNES " VERSION, NULL);
+	screen = SDL_SetVideoMode(Width, Height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	if (screen == NULL)
+		return -1;
+	return 0;
+}
+
+/* Установить режим */
+int SetMode(int Width, int Height, double FrameLength) {
+	int i;
+
 	screen = SDL_SetVideoMode(Width * 2, Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return -1;
@@ -158,7 +209,7 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
-	if (JoyPad && (SDL_NumJoysticks() > 0)) {
+	if (SDL_NumJoysticks() > 0) {
 		joy = SDL_JoystickOpen(0);
 		if (joy) {
 			fprintf(stderr, "Joystick: %s\n", SDL_JoystickName(0));
@@ -177,7 +228,7 @@ int InitMainWindow(int Width, int Height, int JoyPad, double FrameLength) {
 }
 
 /* Выход */
-void AppQuit(void) {
+void AppClose(void) {
 	if (UseJoy)
 		SDL_JoystickClose(joy);
 	SDL_CloseAudio();
@@ -188,6 +239,12 @@ void AppQuit(void) {
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
 	}
+}
+
+void AppQuit() {
+#ifdef _WIN32
+	DestroyWin32();
+#endif
 	SDL_Quit();
 }
 
@@ -427,6 +484,12 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 								ibuf[VPNES_INPUT_RIGHT] = 0;
 						}
 						break;
+#ifdef VPNES_INTERACTIVE
+					case SDL_SYSWMEVENT:
+						if (InteractiveDispatcher(event.syswm.msg))
+							quit = -1;
+						break;
+#endif
 				}
 #if !defined(VPNES_DISABLE_SYNC)
 			/* Синхронизация */

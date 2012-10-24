@@ -26,9 +26,15 @@
 #include "config.h"
 #endif
 
-#include "window.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Запуск GUI */
 int StartGUI(char*);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

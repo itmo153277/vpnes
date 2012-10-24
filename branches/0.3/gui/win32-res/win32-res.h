@@ -26,6 +26,15 @@
 #include "config.h"
 #endif
 
-#define IDI_MAINICON 101
+#define IDI_MAINICON         101
+#define IDR_MAINMENU         102
+#define ID_FILE_OPEN         40001
+#define ID_FILE_CLOSE        40002
+#define ID_FILE_SETTINGS     40003
+#define ID_FILE_EXIT         40004
+#define ID_CPU_SOFTWARERESET 40005
+#define ID_CPU_HARDWARERESET 40006
+#define ID_CPU_SAVESTATE     40007
+#define ID_CPU_LOADSTATE     40008
 
 #endif

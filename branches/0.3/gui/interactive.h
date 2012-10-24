@@ -19,36 +19,27 @@
 
 \****************************************************************************/
 
+#ifndef __INTERACTIVE_H_
+#define __INTERACTIVE_H_
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <SDL.h>
-#include <iostream>
-#include "gui/window.h"
-#include "gui/gui.h"
+#include <SDL_syswm.h>
 
-#ifdef VPNES_INTERACTIVE
-#include "gui/interactive.h"
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#include "types.h"
+/* Обработчик сообщений */
+int InteractiveDispatcher(SDL_SysWMmsg *Msg);
+/* Запуск GUI */
+int InteractiveGUI();
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-#ifdef BUILDNUM
-	std::cerr << "VPNES " VERSION " Build " << BUILDNUM <<
-#ifdef SVNREV
-		" (" SVNREV ")" <<
-#endif
-		std::endl;
-	std::cerr << "License: GPL v2" << std::endl;
-#endif
-	if (InitMainWindow(512, 448) < 0)
-		return 0;
-#ifdef VPNES_INTERACTIVE
-	InteractiveGUI();
-#else
-	if (argc != 2)
-		return 0;
-	StartGUI(argv[1]);
-#endif
-	AppQuit();
-	return 0;
+#ifdef __cplusplus
 }
+#endif
+
+#endif
