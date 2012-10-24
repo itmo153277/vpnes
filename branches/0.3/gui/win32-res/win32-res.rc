@@ -1,0 +1,4 @@
+
+#include "win32-res.h"
+
+IDI_ICON1               ICON                    "icon.ico"

@@ -569,14 +569,17 @@ private:
 				SqOut += SquareChannel1.Output;
 			if (SquareChannel2.CanOutput())
 				SqOut += SquareChannel2.Output;
-			if (TriangleChannel.HighFreq())
-				TNDOut = 21;
-			else
-				TNDOut += TriangleChannel.Output * 3;
 			if (NoiseChannel.CanOutput())
 				TNDOut += NoiseChannel.Output * 2;
 			TNDOut += DMChannel.Output;
-			NewOutput = Tables::SquareTable[SqOut] + Tables::TNDTable[TNDOut];
+			if (TriangleChannel.HighFreq())
+				NewOutput = (Tables::TNDTable[TNDOut + 21] +
+					Tables::TNDTable[TNDOut + 24]) / 2;
+			else {
+				TNDOut += TriangleChannel.Output * 3;
+				NewOutput = Tables::TNDTable[TNDOut];
+			}
+			NewOutput += Tables::SquareTable[SqOut];
 			if (ChannelData.LastOutput != NewOutput) {
 				FlushBuffer(Buf);
 				ChannelData.LastOutput = NewOutput;

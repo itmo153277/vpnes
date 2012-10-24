@@ -26,7 +26,7 @@
 #include "config.h"
 #endif
 
-#include "types.h"
+#include "../types.h"
 
 #ifdef __cplusplus
 extern "C" {

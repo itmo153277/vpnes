@@ -30,6 +30,9 @@
 /* Disable frame synchronization */
 #undef VPNES_DISABLE_SYNC
 
+/* Interactive mode */
+#undef VPNES_INTERACTIVE
+
 /* Show current frame number in window title */
 #undef VPNES_SHOW_CURFRAME
 
