@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifdef VPNES_INTERACTIVE
+#if defined(VPNES_INTERACTIVE)
 #include "interactive.h"
 #endif
 
@@ -34,12 +34,16 @@ int SaveState = 0;
 SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 HideMouse = -1;
+#if !defined(VPNES_DISABLE_SYNC)
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
 double framejit = 0.0;
-Uint32 skip = 0;
 double delta = 0.0;
+#if !defined(VPNES_DISABLE_FSKIP)
+Uint32 skip = 0;
+#endif
+#endif
 VPNES_VBUF vbuf;
 VPNES_ABUF abuf;
 VPNES_IBUF ibuf;
@@ -68,19 +72,12 @@ int PCMready = 0;
 int PCMplay = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
-#ifdef VPNES_INTERACTIVE
-int DisableInteractive = -1;
-#endif
-
 #ifdef _WIN32
-#include "win32-res/win32-res.h"
-
 HICON Icon = INVALID_HANDLE_VALUE;
-#ifdef VPNES_INTERACTIVE
-HMENU Menu = INVALID_HANDLE_VALUE;	
-#endif
 HWND WindowHandle = INVALID_HANDLE_VALUE;
 HINSTANCE Instance = INVALID_HANDLE_VALUE;
+
+#include "win32-res/win32-res.h"
 
 /* Инициализация Win32 */
 void InitWin32() {
@@ -94,21 +91,10 @@ void InitWin32() {
 	/* Иконка */
 	Icon = LoadIcon(Instance, MAKEINTRESOURCE(IDI_MAINICON));
 	SetClassLong(WindowHandle, GCL_HICON, (LONG) Icon);
-#ifdef VPNES_INTERACTIVE
-	if (!DisableInteractive) {
-		/* Меню */
-		Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
-		SetMenu(WindowHandle, Menu);
-		SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
-	}
-#endif
 }
 
 /* Удаление Win32 */
 void DestroyWin32() {
-#ifdef VPNES_INTERACTIVE
-	DestroyMenu(Menu);
-#endif
 	DestroyIcon(Icon);
 }
 #endif
@@ -169,6 +155,9 @@ int InitMainWindow(int Width, int Height) {
 #ifdef _WIN32
 	InitWin32();
 #endif
+#if defined(VPNES_INTERACTIVE)
+	InitInteractive();
+#endif
 	SDL_WM_SetCaption("VPNES " VERSION, NULL);
 	screen = SDL_SetVideoMode(Width, Height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
@@ -182,7 +171,7 @@ void ClearWindow(void) {
 		return;
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
-	SDL_FillRect(screen, NULL, 0);
+	SDL_FillRect(screen, NULL, screen->format->colorkey);
 	if (SDL_MUSTLOCK(screen))
 		SDL_UnlockSurface(screen);
 	SDL_Flip(screen);
@@ -226,7 +215,9 @@ int SetMode(int Width, int Height, double FrameLength) {
 	hardware_spec = obtained;
 	abuf.Callback = AudioCallback;
 	PCMBuf[0] = malloc(hardware_spec->size);
+	memset(PCMBuf[0], hardware_spec->silence, hardware_spec->size);
 	PCMBuf[1] = malloc(hardware_spec->size);
+	memset(PCMBuf[1], hardware_spec->silence, hardware_spec->size);
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
@@ -242,9 +233,7 @@ int SetMode(int Width, int Height, double FrameLength) {
 	}
 	if (!UseJoy)
 		SDL_JoystickEventState(SDL_IGNORE);
-	framestarttime = SDL_GetTicks();
-	framecheck = framestarttime;
-	HideMouse = framestarttime;
+	Resume();
 	return 0;
 }
 
@@ -263,10 +252,35 @@ void AppClose(void) {
 }
 
 void AppQuit() {
+#if defined(VPNES_INTERACTIVE)
+	DestroyInteractive();
+#endif
 #ifdef _WIN32
 	DestroyWin32();
 #endif
 	SDL_Quit();
+}
+
+/* Пауза */
+void Pause(void) {
+	SDL_PauseAudio(-1);
+}
+
+/* Проделжить */
+void Resume(void) {
+	SDL_LockAudio();
+	if (PCMplay && PCMready)
+		SDL_PauseAudio(0);
+	SDL_UnlockAudio();
+#if !defined(VPNES_DISABLE_SYNC)
+	framestarttime = SDL_GetTicks();
+	framecheck = framestarttime;
+	HideMouse = framestarttime;
+	framejit = 0;
+#if !defined(VPNES_DISABLE_FSKIP)
+	skip = 0;
+#endif
+#endif
 }
 
 /* Callback-функция */
@@ -495,7 +509,10 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 								ibuf[VPNES_INPUT_RIGHT] = 0;
 						}
 						break;
-#ifdef VPNES_INTERACTIVE
+					case SDL_USEREVENT:
+						quit = -1;
+						break;
+#if defined(VPNES_INTERACTIVE)
 					case SDL_SYSWMEVENT:
 						if (InteractiveDispatcher(event.syswm.msg))
 							quit = -1;

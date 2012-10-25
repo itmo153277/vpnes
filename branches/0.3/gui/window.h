@@ -56,14 +56,6 @@ extern int SaveState;
 extern HWND WindowHandle;
 /* Программа */
 extern HINSTANCE Instance;
-#ifdef VPNES_INTERACTIVE
-/* Меню */
-extern HMENU Menu;
-#endif
-#endif
-#ifdef VPNES_INTERACTIVE
-/* Не использовать интерактивнй режим */
-extern int DisableInteractive;
 #endif
 
 /* Инициализация SDL */
@@ -75,6 +67,9 @@ int SetMode(int Width, int Height, double FrameLength);
 /* Выход */
 void AppClose(void);
 void AppQuit(void);
+/* Управление эмуляцией */
+void Pause(void);
+void Resume(void);
 /* Callback-функция */
 int WindowCallback(uint32, void *);
 

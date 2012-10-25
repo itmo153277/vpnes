@@ -67,7 +67,7 @@ private:
 	/* Поиск по ID */
 	template <class _ID>
 	static inline bool CompareID(const char *ID) {
-		if (strlen(ID) < (_ID::Pos + _ID::Length))
+		if (strlen(ID) < (size_t) (_ID::Pos + _ID::Length))
 			return false;
 		return !strncmp(ID + _ID::Pos, _ID::ID, _ID::Length);
 	}

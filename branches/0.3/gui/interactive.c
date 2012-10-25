@@ -30,7 +30,10 @@
 #include "win32-res/win32-res.h"
 #endif
 
+int DisableInteractive = -1;
 #ifdef _WIN32
+HMENU Menu = INVALID_HANDLE_VALUE;
+WNDPROC OldWndProc = NULL;
 char FileName[MAX_PATH];
 int opennew = 0;
 int quit = 0;
@@ -40,18 +43,19 @@ int quit = 0;
 int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 #ifdef _WIN32
 	OPENFILENAME ofn;
+	int res;
 
 	if (Msg->msg == WM_ENTERMENULOOP) {
-		SDL_PauseAudio(-1);
+		Pause();
 		return 0;
 	} else if (Msg->msg == WM_EXITMENULOOP) {
-		SDL_PauseAudio(0);
+		Resume();
 		return 0;
 	} else if (Msg->msg != WM_COMMAND)
 		return 0;
 	switch (Msg->wParam) {
 		case ID_FILE_OPEN:
-			SDL_PauseAudio(-1);
+			Pause();
 			memset(&ofn, 0, sizeof(OPENFILENAME));
 			ofn.lStructSize = sizeof(OPENFILENAME);
 			ofn.hwndOwner = WindowHandle;
@@ -62,13 +66,13 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 			ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY |
 				OFN_ALLOWMULTISELECT;
 			ofn.lpstrDefExt = "nes";
-			if (GetOpenFileName(&ofn)) {
-				SDL_PauseAudio(0);
+			res = GetOpenFileName(&ofn);
+			Resume();
+			if (res) {
 				WindowState = VPNES_QUIT;
 				opennew = -1;
 				return -1;
 			}
-			SDL_PauseAudio(0);
 			break;
 		case ID_FILE_CLOSE:
 			WindowState = VPNES_QUIT;
@@ -95,6 +99,43 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 	return 0;
 }
 
+#ifdef _WIN32
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	SDL_SysWMmsg Msg;
+	SDL_Event Event;
+
+	Msg.msg = msg;
+	Msg.wParam = wParam;
+	Msg.lParam = lParam;
+	if (InteractiveDispatcher(&Msg) < 0) {
+		Event.type = SDL_USEREVENT;
+		SDL_PushEvent(&Event);
+	}
+	return CallWindowProc(OldWndProc, hwnd, msg, wParam, lParam);
+}
+#endif
+
+/* Инициализация интерактивного режима */
+void InitInteractive(void) {
+#ifdef _WIN32
+	if (DisableInteractive)
+		return;
+	/* Меню */
+	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
+	SetMenu(WindowHandle, Menu);
+	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+	OldWndProc = (WNDPROC) SetWindowLong(WindowHandle, GWL_WNDPROC, (LONG) WndProc);
+#endif
+	return;
+}
+
+/* Завершение интерактивного режима */
+void DestroyInteractive(void) {
+#ifdef _WIN32
+	DestroyMenu(Menu);
+#endif
+}
+
 /* Запуск GUI */
 int InteractiveGUI() {
 	int ret = 0;
@@ -104,12 +145,14 @@ int InteractiveGUI() {
 	do {
 		quit = -1;
 		WindowState = -1;
+#ifdef _WIN32
 		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_GRAYED);
 		EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_GRAYED);
+#endif
 		while (WindowState != VPNES_QUIT) {
 			SDL_WaitEvent(&event);
 			switch (event.type) {
@@ -121,11 +164,13 @@ int InteractiveGUI() {
 					break;
 			}
 		}
+#ifdef _WIN32
 		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
+#endif
 		while (opennew) {
 			opennew = 0;
 			ret = StartGUI(FileName);

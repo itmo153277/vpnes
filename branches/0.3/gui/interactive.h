@@ -33,11 +33,17 @@
 extern "C" {
 #endif
 
+/* Не использовать интерактивнй режим */
+extern int DisableInteractive;
+
 /* Обработчик сообщений */
 int InteractiveDispatcher(SDL_SysWMmsg *Msg);
 /* Запуск GUI */
 int InteractiveGUI();
-
+/* Инициализация интерактивного режима */
+void InitInteractive(void);
+/* Завершение интерактивного режима */
+void DestroyInteractive(void);
 #ifdef __cplusplus
 }
 #endif
