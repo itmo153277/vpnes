@@ -98,40 +98,37 @@ private:
 			double TimeDiff; /* Различие времени */
 			double Time; /* Время */
 			double Sum; /* Сумма */
-		} ChannelData;
+			/* Вывод семпла */
+			inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
+				double Res = Avr + Sample;
 
-		/* Вывод семпла */
-		inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
-			double Res = ChannelData.Avr + Sample;
-
-			ChannelData.Avr -= Res / 128 / Buf->Freq;
-			Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
-			Buf->Pos++;
-			if (Buf->Pos == Buf->Size) {
-				Buf->Pos = 0;
-				Buf->Callback(VPNES_PCM_UPDATE, Buf);
+				Avr -= Res / 128 / Buf->Freq;
+				Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
+				Buf->Pos++;
+				if (Buf->Pos == Buf->Size) {
+					Buf->Pos = 0;
+					Buf->Callback(VPNES_PCM_UPDATE, Buf);
+				}
 			}
-		}
-		/* Дописать буфер */
-		inline void FlushBuffer(VPNES_ABUF *Buf) {
-			int i, num;
+			/* Дописать буфер */
+			inline void FlushBuffer(VPNES_ABUF *Buf) {
+				int i, num;
 
-			ChannelData.Time += ChannelData.UpdCycle * _Bus::ClockClass::GetFix() *
-				ClockDivider * Buf->Freq;
-			num = (int) ChannelData.Time;
-			if (num > 0) {
-				ChannelData.Time -= num;
-				ChannelData.Sum += ChannelData.LastOutput * (1.0 - ChannelData.TimeDiff);
-				OutputSample(ChannelData.Sum, Buf);
-				for (i = 1; i < num; i++)
-					OutputSample(ChannelData.LastOutput, Buf);
-				ChannelData.Sum = ChannelData.LastOutput * ChannelData.Time;
-			} else
-				ChannelData.Sum += ChannelData.LastOutput * (ChannelData.Time -
-					ChannelData.TimeDiff);
-			ChannelData.TimeDiff = ChannelData.Time;
-			ChannelData.UpdCycle = 0;
-		}
+				Time += UpdCycle * _Bus::ClockClass::GetFix() * ClockDivider * Buf->Freq;
+				num = (int) Time;
+				if (num > 0) {
+					Time -= num;
+					Sum += LastOutput * (1.0 - TimeDiff);
+					OutputSample(Sum, Buf);
+					for (i = 1; i < num; i++)
+						OutputSample(LastOutput, Buf);
+					Sum = LastOutput * Time;
+				} else
+					Sum += LastOutput * (Time - TimeDiff);
+				TimeDiff = Time;
+				UpdCycle = 0;
+			}
+		} ChannelData;
 
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
 		int InterruptInhibit; /* Подавление IRQ */
@@ -581,7 +578,7 @@ private:
 			}
 			NewOutput += Tables::SquareTable[SqOut];
 			if (ChannelData.LastOutput != NewOutput) {
-				FlushBuffer(Buf);
+				ChannelData.FlushBuffer(Buf);
 				ChannelData.LastOutput = NewOutput;
 			}
 		}
@@ -909,7 +906,7 @@ public:
 	/* Дописать буфер */
 	inline void FlushBuffer() {
 		Channels.Timer(CycleData.CyclesLeft, abuf);
-		Channels.FlushBuffer(abuf);
+		Channels.ChannelData.FlushBuffer(abuf);
 	}
 	/* Текущий такт */
 	inline int GetCycles() {

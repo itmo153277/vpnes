@@ -39,11 +39,11 @@ int StartGUI(char *RomName) {
 	/* Открываем образ */
 	ROM.open(RomName, std::ios_base::in | std::ios_base::binary);
 	if (ROM.fail())
-		return 0;
+		return -1;
 	NESConfig = vpnes::OpenROM(ROM, &Data);
 	ROM.close();
 	if (NESConfig == NULL)
-		return 0;
+		return -1;
 	std::cerr << "ROM: " << Data.Header.Mapper << " mapper, PRG " << Data.Header.PRGSize <<
 		", W-RAM " << Data.Header.RAMSize << (Data.Header.HaveBattery ? " (battery "
 		"backed), CHR " : " (no battery), CHR " ) << Data.Header.CHRSize <<

@@ -34,6 +34,7 @@ int SaveState = 0;
 SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 HideMouse = -1;
+int Active = 0;
 #if !defined(VPNES_DISABLE_SYNC)
 Sint32 delaytime;
 Uint32 framestarttime = 0;
@@ -108,6 +109,14 @@ void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 
 /* Вызывается libvpnes'ом */
 void AudioCallback(int Task, void *Data) {
+	if (!Active && (Task == VPNES_PCM_UPDATE)) {
+		/* Забыли разбокировать */
+		if (ftell(stderr) >= 0) {
+			fputs("Warning: audio system unlock message missing\n", stderr);
+			fflush(stderr);
+		}
+		Resume();
+	}
 	SDL_LockAudio();
 	switch (Task) {
 		case VPNES_PCM_START:
@@ -126,6 +135,17 @@ void AudioCallback(int Task, void *Data) {
 				if (ftell(stderr) >= 0) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
+				}
+				/* FIXME */
+				/* Пытаемся перезапустить если произошел deadlock */
+				if (PCMplay && (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) {
+					if (ftell(stderr) >= 0) {
+						fputs("Warning: audio system has been unlocked\n", stderr);
+						fflush(stderr);
+					}
+					/* Происходит при отложенной обработки delay в win32 */
+					/* Причины непонятны (баг в SDL/неполная совместимость с win32? */
+					SDL_PauseAudio(0);
 				}
 			} else {
 				((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
@@ -218,6 +238,9 @@ int SetMode(int Width, int Height, double FrameLength) {
 	memset(PCMBuf[0], hardware_spec->silence, hardware_spec->size);
 	PCMBuf[1] = malloc(hardware_spec->size);
 	memset(PCMBuf[1], hardware_spec->silence, hardware_spec->size);
+	PCMindex = 1;
+	PCMready = 0;
+	PCMplay = 0;
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
@@ -233,6 +256,9 @@ int SetMode(int Width, int Height, double FrameLength) {
 	}
 	if (!UseJoy)
 		SDL_JoystickEventState(SDL_IGNORE);
+#if !defined(VPNES_DISABLE_SYNC)
+	delta = 0.0;
+#endif
 	Resume();
 	return 0;
 }
@@ -263,11 +289,18 @@ void AppQuit() {
 
 /* Пауза */
 void Pause(void) {
+	if (!Active)
+		return;
+	SDL_LockAudio();
 	SDL_PauseAudio(-1);
+	SDL_UnlockAudio();
+	Active = 0;
 }
 
 /* Проделжить */
 void Resume(void) {
+	if (Active)
+		return;
 	SDL_LockAudio();
 	if (PCMplay && PCMready)
 		SDL_PauseAudio(0);
@@ -281,6 +314,7 @@ void Resume(void) {
 	skip = 0;
 #endif
 #endif
+	Active = -1;
 }
 
 /* Callback-функция */
@@ -308,8 +342,13 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				framejit += (framestarttime - framecheck) - *Tim;
 				skip += (framestarttime - framecheck);
 				framecheck = framestarttime;
-				if (skip >= 50)
+				if (skip >= 50) {
 					framejit = 0;
+					if (ftell(stderr) >= 0) {
+						fputs("Warning: resetting sync\n", stderr);
+						fflush(stderr);
+					}
+				}
 				if (framejit < *Tim) {
 					vbuf.Skip = 0;
 					skip = 0;
