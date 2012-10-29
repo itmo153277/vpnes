@@ -25,8 +25,10 @@
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
+#include <malloc.h>
 #include <windows.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #include "win32-res/win32-res.h"
 #endif
 
@@ -43,7 +45,16 @@ int quit = 0;
 int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 #ifdef _WIN32
 	OPENFILENAME ofn;
+	HDROP hDrop;
+
 	switch (Msg->msg) {
+		case WM_DROPFILES:
+			hDrop = (HDROP) Msg->wParam;
+			DragQueryFile(hDrop, 0, FileName, MAX_PATH);
+			DragFinish(hDrop);
+			WindowState = VPNES_QUIT;
+			opennew = -1;
+			return -1;
 		case WM_ENTERSIZEMOVE:
 		case WM_ENTERMENULOOP:
 			Pause();
@@ -133,6 +144,8 @@ void InitInteractive(void) {
 	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
 	SetMenu(WindowHandle, Menu);
 	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+	/* Использовать Drag'n'Drop */
+	DragAcceptFiles(WindowHandle, 1);
 	/* Перехватчик сообщений */
 	OldWndProc = (WNDPROC) SetWindowLong(WindowHandle, GWL_WNDPROC, (LONG) WndProc);
 #endif
