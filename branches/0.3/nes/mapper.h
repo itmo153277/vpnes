@@ -357,10 +357,15 @@ public:
 				Bus->GetPPU()->PreRender();
 				InternalData.ShiftCounter = 0;
 				if (Address < 0xa000) { /* Control */
-					if (InternalData.ShiftReg & 0x10)
+					if (InternalData.ShiftReg & 0x10) {
+						if (InternalData.CHRSwitch == SInternalData::CHRSwitch_8k)
+							InternalData.CHRBanks[1] = InternalData.CHRBanks[0] | 0x1000;
 						InternalData.CHRSwitch = SInternalData::CHRSwitch_4k;
-					else
+					} else {
+						if (InternalData.CHRSwitch == SInternalData::CHRSwitch_4k)
+							InternalData.CHRBanks[0] &= ~0x1000;
 						InternalData.CHRSwitch = SInternalData::CHRSwitch_8k;
+					}
 					switch (InternalData.ShiftReg & 0x0c) {
 						case 0x00:
 						case 0x04:
@@ -391,6 +396,9 @@ public:
 					switch (InternalData.Mode) {
 						case SInternalData::MMC1_Normal:
 							InternalData.CHRBanks[0] = InternalData.ShiftReg << 12;
+							if (InternalData.CHRSwitch ==
+								SInternalData::CHRSwitch_8k)
+								InternalData.CHRBanks[0] &= ~0x1000;
 							break;
 						case SInternalData::MMC1_SNROM:
 							if (InternalData.CHRSwitch ==
@@ -477,8 +485,7 @@ public:
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		if (Address < 0x1000)
-			return CHR[((InternalData.CHRBanks[0] & ~(InternalData.CHRSwitch << 12)) |
-				Address) & CHRMask];
+			return CHR[(InternalData.CHRBanks[0] | Address) & CHRMask];
 		else
 			return CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
 				(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) & CHRMask];
@@ -487,8 +494,7 @@ public:
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 		if (ROM->CHR == NULL) {
 			if (Address < 0x1000)
-				CHR[((InternalData.CHRBanks[0] & ~(InternalData.CHRSwitch << 12)) |
-					Address) & CHRMask] = Src;
+				CHR[(InternalData.CHRBanks[0] | Address) & CHRMask] = Src;
 			else
 				CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
 					(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) &

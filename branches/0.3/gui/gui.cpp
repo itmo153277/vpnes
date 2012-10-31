@@ -55,9 +55,9 @@ int StartGUI(char *RomName) {
 		"backed), CHR " : " (no battery), CHR " ) << Data.Header.CHRSize <<
 		((Data.CHR == NULL) ? " RAM, System " : ", System ") << Data.Header.TVSystem <<
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
-		", no trainer" : ", have trainer 512") << std::endl;
+		", no trainer" : ", have trainer 512");
 	InfoString = InfoStr.str();
-	std::cerr << InfoStr;
+	std::cerr << InfoString << std::endl;
 	InfoText = InfoString.c_str();
 	/* Инициализация окна */
 	if (SetMode(NESConfig->GetWidth(), NESConfig->GetHeight(),
