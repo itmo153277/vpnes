@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifdef _WIN32
+#include <commctrl.h>
+#endif
 #if defined(VPNES_INTERACTIVE)
 #include "interactive.h"
 #endif
@@ -84,10 +87,15 @@ HINSTANCE Instance = INVALID_HANDLE_VALUE;
 /* Инициализация Win32 */
 void InitWin32() {
 	SDL_SysWMinfo WMInfo;
+	INITCOMMONCONTROLSEX icc;
 
+	/* Инициализация контролов */
+	icc.dwSize = sizeof(icc);
+	icc.dwICC = ICC_WIN95_CLASSES;
+	InitCommonControlsEx(&icc);
+	/* Получаем данные */
 	SDL_VERSION(&WMInfo.version)
 	SDL_GetWMInfo(&WMInfo);
-	/* Получаем данные */
 	WindowHandle = WMInfo.window;
 	Instance = GetModuleHandle(NULL);
 	/* Иконка */
