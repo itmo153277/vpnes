@@ -23,12 +23,13 @@
 
 IDI_MAINICON ICON "icon.ico"
 
+
 IDR_MAINMENU MENU
 BEGIN
     POPUP "&File"
     BEGIN
         MENUITEM "&Open",           ID_FILE_OPEN
-        MENUITEM "&Close",          ID_FILE_CLOSE
+        MENUITEM "C&lose",          ID_FILE_CLOSE
         MENUITEM SEPARATOR
         MENUITEM "&Settings",       ID_FILE_SETTINGS
         MENUITEM SEPARATOR
@@ -37,9 +38,24 @@ BEGIN
     POPUP "&CPU"
     BEGIN
         MENUITEM "Software &Reset", ID_CPU_SOFTWARERESET
-        MENUITEM "&Hardware Reset", ID_CPU_HARDWARERESET
+        MENUITEM "Har&dware Reset", ID_CPU_HARDWARERESET
         MENUITEM SEPARATOR
         MENUITEM "&Save State",     ID_CPU_SAVESTATE
         MENUITEM "&Load State",     ID_CPU_LOADSTATE
     END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About",          ID_CPU_ABOUT
+    END
+END
+
+IDD_ABOUTDIALOG DIALOGEX 0, 0, 200, 117
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CTEXT "VPNES " VPNES_VERSION VPNES_BUILD "\nCopyright (c) Ivanov Viktor 2012",
+	IDC_STATIC, 7, 7, 186, 32
+    LTEXT "", IDC_STATICINFO, 7, 46, 186, 43, 0, WS_EX_CLIENTEDGE
+    DEFPUSHBUTTON "OK", IDCANCEL, 75, 96, 50, 14
 END

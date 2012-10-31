@@ -21,11 +21,15 @@
 
 #include "gui.h"
 #include <fstream>
+#include <sstream>
 #include <string>
 #include "window.h"
 #include "../nes/ines.h"
 #include "../nes/nes.h"
 #include "../nes/libvpnes.h"
+
+/* Информация об образе */
+const char *InfoText = NULL;
 
 /* Запуск GUI */
 int StartGUI(char *RomName) {
@@ -34,6 +38,8 @@ int StartGUI(char *RomName) {
 	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
 	std::fstream State;
+	std::stringstream InfoStr;
+	std::basic_string<char> InfoString;
 	std::basic_string<char> Name;
 
 	/* Открываем образ */
@@ -44,12 +50,15 @@ int StartGUI(char *RomName) {
 	ROM.close();
 	if (NESConfig == NULL)
 		return -1;
-	std::cerr << "ROM: " << Data.Header.Mapper << " mapper, PRG " << Data.Header.PRGSize <<
+	InfoStr << "ROM: " << Data.Header.Mapper << " mapper, PRG " << Data.Header.PRGSize <<
 		", W-RAM " << Data.Header.RAMSize << (Data.Header.HaveBattery ? " (battery "
 		"backed), CHR " : " (no battery), CHR " ) << Data.Header.CHRSize <<
 		((Data.CHR == NULL) ? " RAM, System " : ", System ") << Data.Header.TVSystem <<
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
 		", no trainer" : ", have trainer 512") << std::endl;
+	InfoString = InfoStr.str();
+	std::cerr << InfoStr;
+	InfoText = InfoString.c_str();
 	/* Инициализация окна */
 	if (SetMode(NESConfig->GetWidth(), NESConfig->GetHeight(),
 		NESConfig->GetFrameLength()) == 0) {

@@ -30,6 +30,9 @@
 extern "C" {
 #endif
 
+/* Информация об образе */
+extern const char *InfoText;
+
 /* Запуск GUI */
 int StartGUI(char*);
 

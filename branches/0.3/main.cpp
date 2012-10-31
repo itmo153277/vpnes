@@ -33,11 +33,11 @@
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 #ifdef BUILDNUM
-	std::cerr << "VPNES " VERSION " Build " << BUILDNUM <<
+	std::cerr << "VPNES " VERSION " Build " BUILDNUM
 #ifdef SVNREV
-		" (" SVNREV ")" <<
+		" (" SVNREV ")"
 #endif
-		std::endl;
+		<< std::endl;
 	std::cerr << "License: GPL v2" << std::endl;
 #endif
 #ifdef VPNES_INTERACTIVE

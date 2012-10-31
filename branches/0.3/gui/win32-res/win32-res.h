@@ -26,8 +26,11 @@
 #include "config.h"
 #endif
 
+#include <windows.h>
+
 #define IDI_MAINICON         101
-#define IDR_MAINMENU         102
+#define IDR_MAINMENU         101
+#define IDD_ABOUTDIALOG      101
 #define ID_FILE_OPEN         40001
 #define ID_FILE_CLOSE        40002
 #define ID_FILE_SETTINGS     40003
@@ -36,5 +39,28 @@
 #define ID_CPU_HARDWARERESET 40006
 #define ID_CPU_SAVESTATE     40007
 #define ID_CPU_LOADSTATE     40008
+#define ID_CPU_ABOUT         40009
+#define IDC_STATIC           -1
+#define IDC_STATICINFO       101
+
+#ifndef VPNES_VERSION
+#ifdef VERSION
+#define VPNES_VERSION VERSION
+#else
+#define VPNES_VERSION "0.3"
+#endif
+#endif
+
+#ifndef VPNES_BUILD
+#ifdef BUILDNUM
+#ifdef SVNREV
+#define VPNES_BUILD "\nBuild " BUILDNUM " (" SVNREV ")"
+#else
+#define VPNES_BUILD "\nBuild " BUILDNUM
+#endif
+#else
+#define VPNES_BUILD ""
+#endif
+#endif
 
 #endif

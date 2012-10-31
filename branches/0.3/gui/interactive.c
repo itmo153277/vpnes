@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
-#include <malloc.h>
 #include <windows.h>
 #include <commdlg.h>
 #include <shellapi.h>
@@ -33,12 +32,51 @@
 #endif
 
 int DisableInteractive = -1;
+const char DefaultInfoText[] = "No ROM";
 #ifdef _WIN32
 HMENU Menu = INVALID_HANDLE_VALUE;
 WNDPROC OldWndProc = NULL;
 char FileName[MAX_PATH];
 int opennew = 0;
 int quit = 0;
+#endif
+
+#ifdef _WIN32
+BOOL CALLBACK AboutProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+		case WM_INITDIALOG:
+			SetDlgItemText(hwnd, IDC_STATICINFO, InfoText);
+			return TRUE;
+		case WM_COMMAND:
+			if (wParam == IDCANCEL) {
+				EndDialog(hwnd, wParam);
+				return TRUE;
+			}
+			break;
+	}
+	return FALSE;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	SDL_SysWMmsg Msg;
+	SDL_Event Event;
+
+	switch (msg) {
+		case WM_SYSKEYUP:
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		case WM_SYSKEYDOWN:
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		default:
+			Msg.msg = msg;
+			Msg.wParam = wParam;
+			Msg.lParam = lParam;
+			if (InteractiveDispatcher(&Msg) < 0) {
+				Event.type = SDL_USEREVENT;
+				SDL_PushEvent(&Event);
+			}
+			return CallWindowProc(OldWndProc, hwnd, msg, wParam, lParam);
+	}
+}
 #endif
 
 /* Обработчик сообщений */
@@ -105,35 +143,18 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 				case ID_CPU_LOADSTATE:
 					WindowState = VPNES_LOADSTATE;
 					return -1;
+				case ID_CPU_ABOUT:
+					Pause();
+					DialogBox(Instance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), WindowHandle,
+						(DLGPROC) AboutProc);
+					Resume();
+					break;
 			}
 			break;
 	}
 #endif
 	return 0;
 }
-
-#ifdef _WIN32
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	SDL_SysWMmsg Msg;
-	SDL_Event Event;
-
-	switch (msg) {
-		case WM_SYSKEYUP:
-			return DefWindowProc(hwnd, msg, wParam, lParam);
-		case WM_SYSKEYDOWN:
-			return DefWindowProc(hwnd, msg, wParam, lParam);
-		default:
-			Msg.msg = msg;
-			Msg.wParam = wParam;
-			Msg.lParam = lParam;
-			if (InteractiveDispatcher(&Msg) < 0) {
-				Event.type = SDL_USEREVENT;
-				SDL_PushEvent(&Event);
-			}
-			return CallWindowProc(OldWndProc, hwnd, msg, wParam, lParam);
-	}
-}
-#endif
 
 /* Инициализация интерактивного режима */
 void InitInteractive(void) {
@@ -170,6 +191,7 @@ int InteractiveGUI() {
 	do {
 		quit = -1;
 		ret = 0;
+		InfoText = DefaultInfoText;
 		WindowState = -1;
 #ifdef _WIN32
 		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_GRAYED);
@@ -190,6 +212,8 @@ int InteractiveGUI() {
 					break;
 			}
 		}
+		/* Необходимо убедиться, что очередь пуста */
+		while (SDL_PollEvent(&event));
 #ifdef _WIN32
 		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);

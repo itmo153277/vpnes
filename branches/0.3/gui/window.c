@@ -35,6 +35,7 @@ SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 HideMouse = -1;
 int Active = 0;
+int Run = 0;
 #if !defined(VPNES_DISABLE_SYNC)
 Sint32 delaytime;
 Uint32 framestarttime = 0;
@@ -172,6 +173,7 @@ int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+	/* Установка параметров окна */
 #ifdef _WIN32
 	InitWin32();
 #endif
@@ -182,6 +184,19 @@ int InitMainWindow(int Width, int Height) {
 	screen = SDL_SetVideoMode(Width, Height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
 		return -1;
+	/* Джойстик */
+	if (SDL_NumJoysticks() > 0) {
+		joy = SDL_JoystickOpen(0);
+		if (joy) {
+			fprintf(stderr, "Joystick: %s\n", SDL_JoystickName(0));
+			UseJoy = -1;
+			SDL_JoystickEventState(SDL_ENABLE);
+		} else
+			fputs("Couldn't open joystick\n", stderr);
+		fflush(stderr);
+	}
+	if (!UseJoy)
+		SDL_JoystickEventState(SDL_IGNORE);
 	return 0;
 }
 
@@ -244,29 +259,17 @@ int SetMode(int Width, int Height, double FrameLength) {
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
-	if (SDL_NumJoysticks() > 0) {
-		joy = SDL_JoystickOpen(0);
-		if (joy) {
-			fprintf(stderr, "Joystick: %s\n", SDL_JoystickName(0));
-			UseJoy = -1;
-			SDL_JoystickEventState(SDL_ENABLE);
-		} else
-			fputs("Couldn't open joystick\n", stderr);
-		fflush(stderr);
-	}
-	if (!UseJoy)
-		SDL_JoystickEventState(SDL_IGNORE);
 #if !defined(VPNES_DISABLE_SYNC)
 	delta = 0.0;
 #endif
+	Active = 0;
+	Run = -1;
 	Resume();
 	return 0;
 }
 
 /* Выход */
 void AppClose(void) {
-	if (UseJoy)
-		SDL_JoystickClose(joy);
 	SDL_CloseAudio();
 	free(obtained);
 	free(PCMBuf[0]);
@@ -275,6 +278,7 @@ void AppClose(void) {
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
 	}
+	Run = 0;
 }
 
 void AppQuit() {
@@ -284,11 +288,15 @@ void AppQuit() {
 #ifdef _WIN32
 	DestroyWin32();
 #endif
+	if (UseJoy)
+		SDL_JoystickClose(joy);
 	SDL_Quit();
 }
 
 /* Пауза */
 void Pause(void) {
+	if (!Run)
+		return;
 	if (!Active)
 		return;
 	SDL_LockAudio();
@@ -299,6 +307,8 @@ void Pause(void) {
 
 /* Проделжить */
 void Resume(void) {
+	if (!Run)
+		return;
 	if (Active)
 		return;
 	SDL_LockAudio();
