@@ -38,3 +38,6 @@
 
 /* Show fps in window title */
 #undef VPNES_SHOW_FPS
+
+/* Enable TTF support */
+#undef VPNES_USE_TTF

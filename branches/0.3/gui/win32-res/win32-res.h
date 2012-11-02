@@ -29,6 +29,7 @@
 #include <windows.h>
 
 #define IDI_MAINICON         101
+#if defined(VPNES_INTERACTIVE)
 #define IDR_MAINMENU         101
 #define IDD_ABOUTDIALOG      101
 #define ID_FILE_OPEN         40001
@@ -61,6 +62,8 @@
 #else
 #define VPNES_BUILD ""
 #endif
+#endif
+
 #endif
 
 #endif

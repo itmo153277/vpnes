@@ -27,14 +27,17 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <commdlg.h>
+#include <commctrl.h>
 #include <shellapi.h>
 #include "win32-res/win32-res.h"
 #endif
 
 int DisableInteractive = -1;
-const char DefaultInfoText[] = "No ROM";
+char ResFileName[256];
 #ifdef _WIN32
+const char DefaultInfoText[] = "No ROM";
 HMENU Menu = INVALID_HANDLE_VALUE;
+INITCOMMONCONTROLSEX icc;
 WNDPROC OldWndProc = NULL;
 char FileName[MAX_PATH];
 int opennew = 0;
@@ -161,6 +164,11 @@ void InitInteractive(void) {
 	if (DisableInteractive)
 		return;
 #ifdef _WIN32
+	/* Инициализация контролов */
+	memset(&icc, 0, sizeof(INITCOMMONCONTROLSEX));
+	icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	icc.dwICC = ICC_WIN95_CLASSES;
+	InitCommonControlsEx(&icc);
 	/* Меню */
 	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
 	SetMenu(WindowHandle, Menu);
@@ -188,6 +196,7 @@ int InteractiveGUI() {
 	SDL_Event event;
 
 	FileName[0] = '\0';
+	ResFileName[255] = '\0';
 	do {
 		quit = -1;
 		ret = 0;
@@ -222,8 +231,9 @@ int InteractiveGUI() {
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
 #endif
 		while (opennew) {
+			strncpy(ResFileName, FileName, 255);
 			opennew = 0;
-			ret = StartGUI(FileName);
+			ret = StartGUI(ResFileName);
 		}
 		ClearWindow();
 		if (ret < 0)

@@ -22,12 +22,12 @@
 #include "window.h"
 #include <SDL.h>
 #include <SDL_syswm.h>
+#if defined(VPNES_USE_TTF)
+#include <SDL_ttf.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifdef _WIN32
-#include <commctrl.h>
-#endif
 #if defined(VPNES_INTERACTIVE)
 #include "interactive.h"
 #endif
@@ -87,12 +87,7 @@ HINSTANCE Instance = INVALID_HANDLE_VALUE;
 /* Инициализация Win32 */
 void InitWin32() {
 	SDL_SysWMinfo WMInfo;
-	INITCOMMONCONTROLSEX icc;
 
-	/* Инициализация контролов */
-	icc.dwSize = sizeof(icc);
-	icc.dwICC = ICC_WIN95_CLASSES;
-	InitCommonControlsEx(&icc);
 	/* Получаем данные */
 	SDL_VERSION(&WMInfo.version)
 	SDL_GetWMInfo(&WMInfo);
@@ -181,6 +176,10 @@ int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+#if defined(VPNES_USE_TTF)
+	if (TTF_Init() < 0)
+		return -1;
+#endif
 	/* Установка параметров окна */
 #ifdef _WIN32
 	InitWin32();
@@ -298,6 +297,9 @@ void AppQuit() {
 #endif
 	if (UseJoy)
 		SDL_JoystickClose(joy);
+#if defined(VPNES_USE_TTF)
+	TTF_Quit();
+#endif
 	SDL_Quit();
 }
 
