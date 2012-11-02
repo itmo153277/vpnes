@@ -34,7 +34,7 @@ fi
 
 #Libraries
 
-AM_PATH_SDL([1.2.14], [], [PKG_CHECK_MODULES([SDL], [SDL >= 1.2.14], []
+AM_PATH_SDL([1.2.14], [], [PKG_CHECK_MODULES([SDL], [SDL >= 1.2.14], [],
 	[AC_MSG_ERROR([SDL >= 1.2.14 required])])])
 LIBS="$SDL_LIBS $LIBS"
 CFLAGS="$SDL_CFLAGS $CFLAGS"
@@ -55,7 +55,8 @@ else
 fi
 
 if test "x$sdl_ttf_use" = "xyes" ; then
-	AC_CHECK_FT2([2.4.0], [], [sdl_ttf_use="no"])
+	AC_CHECK_FT2([2.4.0], [], [PKG_CHECK_MODULES([FT2], [FreeType >= 15.0.0], [],
+	[sdl_ttf_use="no"])])
 	LIBS="$FT2_LIBS $LIBS"
 	CFLAGS="$FT2_CFLAGS $CFLAGS"
 	CXXFLAGS="$FT2_CFLAGS $CXXFLAGS"

@@ -170,7 +170,7 @@ void InitInteractive(void) {
 	icc.dwICC = ICC_WIN95_CLASSES;
 	InitCommonControlsEx(&icc);
 	/* Меню */
-	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDR_MAINMENU));
+	Menu = LoadMenu(Instance, MAKEINTRESOURCE(IDM_MAINMENU));
 	SetMenu(WindowHandle, Menu);
 	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
 	/* Использовать Drag'n'Drop */

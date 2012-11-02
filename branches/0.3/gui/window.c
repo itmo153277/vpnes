@@ -77,6 +77,22 @@ int PCMready = 0;
 int PCMplay = 0;
 int UseJoy = 0;
 SDL_Joystick *joy = NULL;
+#if defined(VPNES_USE_TTF)
+TTF_Font *font = NULL;
+SDL_Surface *text_surface = NULL;
+char *text_string = NULL;
+const SDL_Color text_color = {255, 0, 0};
+SDL_Rect text_rect = {10, 10};
+Uint32 text_timer = 0;
+Sint32 text_timer_dif = 0;
+int draw_text = 0;
+#ifdef _WIN32
+HGLOBAL ResourceHandle = INVALID_HANDLE_VALUE;
+HRSRC ResourceInfo = INVALID_HANDLE_VALUE;
+void *FontData = NULL;
+SDL_RWops *FontRW = NULL;
+#endif
+#endif
 #ifdef _WIN32
 HICON Icon = INVALID_HANDLE_VALUE;
 HWND WindowHandle = INVALID_HANDLE_VALUE;
@@ -176,16 +192,28 @@ int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
-#if defined(VPNES_USE_TTF)
-	if (TTF_Init() < 0)
-		return -1;
-#endif
 	/* Установка параметров окна */
 #ifdef _WIN32
 	InitWin32();
 #endif
 #if defined(VPNES_INTERACTIVE)
 	InitInteractive();
+#endif
+#if defined(VPNES_USE_TTF)
+	if (TTF_Init() < 0)
+		return -1;
+#ifdef _WIN32
+	ResourceInfo = FindResource(Instance, MAKEINTRESOURCE(IDR_MAINFONT), RT_RCDATA);
+	ResourceHandle = LoadResource(Instance, ResourceInfo);
+	FontData = LockResource(ResourceHandle);
+	FontRW = SDL_RWFromConstMem(FontData, SizeofResource(Instance, ResourceInfo));
+	if (FontRW != NULL)
+		font = TTF_OpenFontRW(FontRW, -1, 20);
+#else
+	font = TTF_OpenFont("text.ttf", 20);
+#endif
+	if (font == NULL)
+		return -1;
 #endif
 	SDL_WM_SetCaption("VPNES " VERSION, NULL);
 	screen = SDL_SetVideoMode(Width, Height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
@@ -231,6 +259,11 @@ int SetMode(int Width, int Height, double FrameLength) {
 		screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
 	if (bufs == NULL)
 		return -1;
+#if defined(VPNES_USE_TTF)
+	draw_text = -1;
+	text_string = "Hardware reset";
+	text_timer_dif = 0;
+#endif
 	for (i = 0; i < 64; i++)
 		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
 	vbuf.Buf = bufs->pixels;
@@ -282,13 +315,29 @@ void AppClose(void) {
 	free(PCMBuf[0]);
 	free(PCMBuf[1]);
 	free(ibuf);
+#if defined(VPNES_USE_TTF)
+	if (text_surface != NULL) {
+		SDL_FreeSurface(text_surface);
+		text_surface = NULL;
+	}
+#endif
 	if (bufs != NULL) {
 		SDL_FreeSurface(bufs);
+		bufs = NULL;
 	}
 	Run = 0;
 }
 
 void AppQuit() {
+#if defined(VPNES_USE_TTF)
+	if (font != NULL)
+		TTF_CloseFont(font);
+#ifdef _WIN32
+	UnlockResource(ResourceHandle);
+	FreeResource(ResourceHandle);
+#endif
+	TTF_Quit();
+#endif
 #if defined(VPNES_INTERACTIVE)
 	DestroyInteractive();
 #endif
@@ -297,9 +346,6 @@ void AppQuit() {
 #endif
 	if (UseJoy)
 		SDL_JoystickClose(joy);
-#if defined(VPNES_USE_TTF)
-	TTF_Quit();
-#endif
 	SDL_Quit();
 }
 
@@ -309,6 +355,9 @@ void Pause(void) {
 		return;
 	if (!Active)
 		return;
+#if defined(VPNES_USE_TTF)
+	text_timer_dif = text_timer - SDL_GetTicks();
+#endif
 	SDL_LockAudio();
 	SDL_PauseAudio(-1);
 	SDL_UnlockAudio();
@@ -329,10 +378,15 @@ void Resume(void) {
 	framestarttime = SDL_GetTicks();
 	framecheck = framestarttime;
 	HideMouse = framestarttime;
+#if defined(VPNES_USE_TTF)
+	text_timer = framestarttime + text_timer_dif;
+#endif
 	framejit = 0;
 #if !defined(VPNES_DISABLE_FSKIP)
 	skip = 0;
 #endif
+#elif defined(VPNES_USE_TTF)
+	text_timer = SDL_GetTicks() + text_timer_dif;
 #endif
 	Active = -1;
 }
@@ -385,6 +439,10 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			if (SDL_MUSTLOCK(screen))
 				SDL_LockSurface(screen);
 			SDL_SoftStretch(bufs, NULL, screen, NULL);
+#if defined(VPNES_USE_TTF)
+			if (text_surface != NULL)
+				SDL_BlitSurface(text_surface, NULL, screen, &text_rect);
+#endif
 			if (SDL_MUSTLOCK(screen))
 				SDL_UnlockSurface(screen);
 			SDL_Flip(screen);
@@ -602,8 +660,40 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				SDL_ShowCursor(SDL_DISABLE);
 			framecheck = framestarttime;
 #endif
+#if defined(VPNES_USE_TTF)
+			if ((quit < 0) && !draw_text && (WindowState != VPNES_QUIT)) {
+				draw_text = -1;
+				switch (WindowState) {
+					case VPNES_RESET:
+						text_string = "Software reset";
+						break;
+					case VPNES_SAVESTATE:
+						text_string = "Save state";
+						break;
+					case VPNES_LOADSTATE:
+						text_string = "Load state";
+						break;
+					default:
+						draw_text = 0;
+				}
+			}
+			if ((text_surface != NULL) && (draw_text ||
+				((SDL_GetTicks() - text_timer) >= 2000))) {
+				SDL_FreeSurface(text_surface);
+				text_surface = NULL;
+			}
+			if (draw_text) {
+				text_surface = TTF_RenderUTF8_Solid(font, text_string, text_color);
+				text_timer = SDL_GetTicks();
+				draw_text = 0;
+			}
+#endif
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
+#if defined(VPNES_USE_TTF)
+			draw_text = -1;
+			text_string = "CPU halt";
+#endif
 			if (ftell(stderr) >= 0) {
 				HaltData = (VPNES_CPUHALT *) Data;
 				fprintf(stderr, "Fatal Error: CPU halted\n"

@@ -212,7 +212,7 @@ top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes-gui.a
 libvpnes_gui_a_SOURCES = gui.cpp window.c $(am__append_1)
 noinst_HEADERS = gui.h interactive.h window.h win32-res/win32-res.h
-dist_noinst_DATA = interactive.c win32-res/icon.ico \
+dist_noinst_DATA = interactive.c text.ttf win32-res/icon.ico \
                    win32-res/win32-res.rc
 
 all: all-am

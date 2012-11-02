@@ -29,8 +29,11 @@
 #include <windows.h>
 
 #define IDI_MAINICON         101
+#if defined(VPNES_USE_TTF)
+#define IDR_MAINFONT         102
+#endif
 #if defined(VPNES_INTERACTIVE)
-#define IDR_MAINMENU         101
+#define IDM_MAINMENU         101
 #define IDD_ABOUTDIALOG      101
 #define ID_FILE_OPEN         40001
 #define ID_FILE_CLOSE        40002
