@@ -208,9 +208,9 @@ int InitMainWindow(int Width, int Height) {
 	FontData = LockResource(ResourceHandle);
 	FontRW = SDL_RWFromConstMem(FontData, SizeofResource(Instance, ResourceInfo));
 	if (FontRW != NULL)
-		font = TTF_OpenFontRW(FontRW, -1, 20);
+		font = TTF_OpenFontRW(FontRW, -1, 22);
 #else
-	font = TTF_OpenFont("text.ttf", 20);
+	font = TTF_OpenFont("text.otf", 22);
 #endif
 	if (font == NULL)
 		return -1;
@@ -683,7 +683,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				text_surface = NULL;
 			}
 			if (draw_text) {
-				text_surface = TTF_RenderUTF8_Solid(font, text_string, text_color);
+				text_surface = TTF_RenderUTF8_Blended(font, text_string, text_color);
 				text_timer = SDL_GetTicks();
 				draw_text = 0;
 			}

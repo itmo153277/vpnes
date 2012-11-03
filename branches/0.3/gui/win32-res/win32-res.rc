@@ -24,7 +24,7 @@
 IDI_MAINICON ICON "icon.ico"
 
 #if defined(VPNES_USE_TTF)
-IDR_MAINFONT RCDATA "../text.ttf"
+IDR_MAINFONT RCDATA "../text.otf"
 #endif
 
 #if defined(VPNES_INTERACTIVE)
