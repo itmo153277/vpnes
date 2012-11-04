@@ -81,8 +81,12 @@ SDL_Joystick *joy = NULL;
 TTF_Font *font = NULL;
 SDL_Surface *text_surface = NULL;
 char *text_string = NULL;
-const SDL_Color text_color = {255, 0, 0};
+const SDL_Color text_color = {224, 224, 224};
+const SDL_Color border_color = {56, 56, 56};
+const SDL_Color bg_color = {40, 40, 40};
 SDL_Rect text_rect = {10, 10};
+SDL_Rect text_in_rect = {7, 7};
+SDL_Rect border_rect = {1, 1};
 Uint32 text_timer = 0;
 Sint32 text_timer_dif = 0;
 int draw_text = 0;
@@ -683,7 +687,22 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				text_surface = NULL;
 			}
 			if (draw_text) {
-				text_surface = TTF_RenderUTF8_Blended(font, text_string, text_color);
+				SDL_Surface *temp_surface;
+
+				temp_surface = TTF_RenderUTF8_Shaded(font, text_string, text_color, bg_color);
+				text_surface = SDL_CreateRGBSurface(SDL_HWSURFACE,
+					temp_surface->w + text_in_rect.x * 2,
+					temp_surface->h + text_in_rect.y * 2,
+					screen->format->BitsPerPixel, screen->format->Rmask,
+					screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
+				SDL_FillRect(text_surface, NULL, SDL_MapRGB(text_surface->format,
+					border_color.r, border_color.g, border_color.b));
+				border_rect.w = text_surface->w - border_rect.x * 2;
+				border_rect.h = text_surface->h - border_rect.y * 2;
+				SDL_FillRect(text_surface, &border_rect, SDL_MapRGB(text_surface->format,
+					bg_color.r, bg_color.g, bg_color.b));
+				SDL_BlitSurface(temp_surface, NULL, text_surface, &text_in_rect);
+				SDL_FreeSurface(temp_surface);
 				text_timer = SDL_GetTicks();
 				draw_text = 0;
 			}

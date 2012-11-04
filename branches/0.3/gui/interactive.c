@@ -210,6 +210,8 @@ int InteractiveGUI() {
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_GRAYED);
 #endif
+		/* Курсор мыши должен отображаться всегда */
+		SDL_ShowCursor(SDL_ENABLE);
 		while (WindowState != VPNES_QUIT) {
 			SDL_WaitEvent(&event);
 			switch (event.type) {
