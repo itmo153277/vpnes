@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
 #else
 	if (argc != 2)
 		return 0;
+	if (InitMainWindow(512, 448) < 0)
+		return 0;
 	StartGUI(argv[1]);
 #endif
 	AppQuit();

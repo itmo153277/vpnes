@@ -52,7 +52,7 @@ Uint32 skip = 0;
 VPNES_VBUF vbuf;
 VPNES_ABUF abuf;
 VPNES_IBUF ibuf;
-Uint32 Pal[64];
+Uint32 Pal[64 * 8]; /* + tinted */
 const Uint8 NES_Palette[64][3] = {
 	{124, 124, 124}, {0,   0,   252}, {0,   0,   188}, {68,  40,  188}, {148, 0,   132},
 	{168, 0,  32  }, {168, 16,  0  }, {136, 20,  0  }, {80,  48,  0  }, {0,   120, 0  },
@@ -253,7 +253,7 @@ void ClearWindow(void) {
 
 /* Установить режим */
 int SetMode(int Width, int Height, double FrameLength) {
-	int i;
+	int i, j;
 
 	screen = SDL_SetVideoMode(Width * 2, Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (screen == NULL)
@@ -268,8 +268,18 @@ int SetMode(int Width, int Height, double FrameLength) {
 	text_string = "Hardware reset";
 	text_timer_dif = 0;
 #endif
+#define C_R(comp) ((comp) & 1)
+#define C_G(comp) (((comp) & 2) >> 1)
+#define C_B(comp) (((comp) & 4) >> 2)
 	for (i = 0; i < 64; i++)
-		Pal[i] = SDL_MapRGB(bufs->format, NES_Palette[i][0], NES_Palette[i][1], NES_Palette[i][2]);
+		for (j = 0; j < 8; j++)
+			Pal[i + 64 * j] = SDL_MapRGB(bufs->format,
+				(int) (NES_Palette[i][0] * (6 - C_G(j) - C_B(j)) / 6.0),
+				(int) (NES_Palette[i][1] * (6 - C_R(j) - C_B(j)) / 6.0),
+				(int) (NES_Palette[i][2] * (6 - C_R(j) - C_G(j)) / 6.0));
+#undef C_R
+#undef C_G
+#undef C_B
 	vbuf.Buf = bufs->pixels;
 	vbuf.Pal = Pal;
 	vbuf.RMask = bufs->format->Rmask;

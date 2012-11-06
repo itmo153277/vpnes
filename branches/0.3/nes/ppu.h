@@ -189,38 +189,14 @@ private:
 		int SpriteClip; /* Не показывать 8 пикселей слева */
 		int ShowBackground; /* Рендерить фон */
 		int ShowSprites; /* Рендерить спрайты */
-		int IntensifyRed; /* Только красный */
-		int IntensifyGreen; /* Только зеленый */
-		int IntensifyBlue; /* Только синий */
-		int IntensifySum;
+		int Tint; /* Флаг затемнения */
 		inline void Controller(uint8 Src) { VerticalIncrement = Src & 0x04;
 			Size = (Src & 0x20) ? Size8x16 : Size8x8; GenerateNMI = Src & 0x80; }
 		inline void Mask(uint8 Src) { Grayscale = Src & 0x01;
 			BackgroundClip = Src & 0x02; SpriteClip = Src & 0x04;
 			ShowBackground = Src & 0x08; ShowSprites = Src & 0x10;
-			if (Src & 0x20) IntensifyRed = 1; else IntensifyRed = 0;
-			if (Src & 0x40) IntensifyGreen = 1; else IntensifyGreen = 0;
-			if (Src & 0x80) IntensifyBlue = 1; else IntensifyBlue = 0;
-			IntensifySum = IntensifyRed + IntensifyGreen + IntensifyBlue; }
+			Tint = Src >> 5; }
 		inline bool RenderingEnabled() { return ShowBackground || ShowSprites; }
-		/* Увеличить интенсивность */
-		inline void Intensify(uint32 &Colour, uint32 MaskA, uint32 MaskB, uint32 MaskC) {
-			double A = Colour & MaskA, B = Colour & MaskB, C = Colour & MaskC;
-
-			Colour = 0;
-			A *= (6 - IntensifyGreen - IntensifyBlue) / 6.0;
-			B *= (6 - IntensifyGreen - IntensifyRed) / 6.0;
-			C *= (6 - IntensifyRed - IntensifyBlue) / 6.0;
-#define ApplyMask(x) \
-			if (x > Mask##x)\
-				Colour |= Mask##x;\
-			else\
-				Colour |= ((uint32) x) & Mask##x
-			ApplyMask(A);
-			ApplyMask(B);
-			ApplyMask(C);
-#undef ApplyMask
-		}
 	} ControlRegisters;
 
 	/* Данные спрайтов */
@@ -271,14 +247,11 @@ private:
 	static const uint16 ColourTable[256];
 
 	/* Вывод точки */
-	inline void OutputPixel(int x, int y, int col) {
-		uint32 color = vbuf->Pal[col];
-
+	inline void OutputPixel(int x, int y, int col, int tint) {
 		if ((x >= Screen::Left) && (y >= Screen::Top) &&
 			(x < Screen::Right) && (y < Screen::Bottom)) {
-			if (ControlRegisters.IntensifySum > 0)
-				ControlRegisters.Intensify(color, vbuf->RMask, vbuf->GMask, vbuf->BMask);
-			vbuf->Buf[(x - Screen::Left) + (y - Screen::Top) * 256] = color;
+			vbuf->Buf[(x - Screen::Left) + (y - Screen::Top) * 256] =
+				vbuf->Pal[col + (tint << 6)];
 		}
 	}
 
@@ -699,7 +672,7 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 	else
 		col &= 0x3f;
 	if (!vbuf->Skip)
-		OutputPixel(InternalData.x, InternalData.y, col);
+		OutputPixel(InternalData.x, InternalData.y, col, ControlRegisters.Tint);
 	InternalData.ShiftReg <<= 2;
 	if ((InternalData.x & 0x07) == Registers.FH)
 		Registers.AR >>= 2;

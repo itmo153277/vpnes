@@ -5,20 +5,17 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev7])
+AC_REVISION([rev8])
 
 AC_CANONICAL_HOST
 
 host_os_windows=no
 case ${host_os} in
-	*mingw32*)
-		host_os_windows=yes
-		;;
-	*cygwin*)
+	*cygwin* | *mingw* )
 		host_os_windows=yes
 		;;
 esac
-AM_CONDITIONAL([WINDOWS], test "x$host_os_windows" = "xyes")
+AM_CONDITIONAL([WINDOWS], [test "x$host_os_windows" = "xyes"])
 
 #Programs
 
@@ -40,9 +37,9 @@ LIBS="$SDL_LIBS $LIBS"
 CFLAGS="$SDL_CFLAGS $CFLAGS"
 CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 
-AC_ARG_WITH(sdl_ttf-prefix,[  --with-sdl_ttf-prefix=PFX   
-                          prefix where SDL_ttf is installed (optional)],
-	sdl_ttf_prefix="$withval", sdl_ttf_prefix="")
+AC_ARG_WITH(sdl_ttf-prefix, AS_HELP_STRING([--with-sdl_ttf-prefix=PFX], 
+	[prefix where SDL_ttf is installed (optional)]),
+	[sdl_ttf_prefix="$withval"], [sdl_ttf_prefix=""])
 
 sdl_ttf_use="no"
 
@@ -71,25 +68,43 @@ fi
 
 #Headers
 
+if test "x$host_os_windows" = "xyes" ; then
+	LIBS="-luser32 $LIBS"
+	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])])
+fi
+
 #Compilator characterics
 
 #Functions
 
 AC_ARG_ENABLE(interactive, AS_HELP_STRING([--enable-interactive], [interactive mode]),
-              [vpnes_interactive=yes])
+              [vpnes_interactive=$enableval])
 AM_CONDITIONAL([VPNES_INTERACTIVE], test "x$vpnes_interactive" = "xyes")
 if test "x$vpnes_interactive" = "xyes" ; then
 	AC_DEFINE([VPNES_INTERACTIVE], 1, [Interactive mode])
+	if test "x$host_os_windows" = "xyes" ; then
+		LIBS="-lcomctl32 $LIBS"
+		AC_CHECK_HEADERS([commdlg.h commctrl.h shellapi.h], [],
+			[AC_MSG_ERROR([required headers not found])], [#include <windows.h>])
+	fi
 fi
 AC_ARG_ENABLE(showcurframe, AS_HELP_STRING([--enable-showcurframe], 
-	[show current frame number in window title]),
-	AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Show current frame number in window title])])
+	[show frame number in window title]),
+	[if test "x$enableval" = "xyes" ; then
+		AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Show frame number in window title])
+	fi])
 AC_ARG_ENABLE(showfps, AS_HELP_STRING([--enable-showfps], [show fps in window title]),
-              [AC_DEFINE([VPNES_SHOW_FPS], 1, [Show fps in window title])])
+	[if test "x$enableval" = "xyes" ; then
+		AC_DEFINE([VPNES_SHOW_FPS], 1, [Show fps in window title])
+	fi])
 AC_ARG_ENABLE(sync, AS_HELP_STRING([--disable-sync], [disable frame synchronization]),
-              [AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Disable frame synchronization])])
+	[if test "x$enableval" = "xno" ; then
+		AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Disable frame synchronization])
+	fi])
 AC_ARG_ENABLE(fskip, AS_HELP_STRING([--disable-fskip], [disable frame skipping]),
-              [AC_DEFINE([VPNES_DISABLE_FSKIP], 1, [Disable frame skip])])
+	[if test "x$enableval" = "xno" ; then
+		AC_DEFINE([VPNES_DISABLE_FSKIP], 1, [Disable frame skip])
+	fi])
 
 AC_CONFIG_FILES([Makefile
                  gui/Makefile
