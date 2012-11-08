@@ -34,6 +34,7 @@
 
 int WindowState = 0;
 int SaveState = 0;
+int CanLog = 0;
 SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 HideMouse = -1;
@@ -124,6 +125,9 @@ void DestroyWin32() {
 }
 #endif
 
+/* Возобновление */
+void Resume(void);
+
 /* Callback для SDL */
 void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	PCMready = 0;
@@ -133,14 +137,8 @@ void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 
 /* Вызывается libvpnes'ом */
 void AudioCallback(int Task, void *Data) {
-	if (!Active && (Task == VPNES_PCM_UPDATE)) {
-		/* Забыли разбокировать */
-		if (ftell(stderr) >= 0) {
-			fputs("Warning: audio system unlock message missing\n", stderr);
-			fflush(stderr);
-		}
+	if (!Active && (Task == VPNES_PCM_UPDATE))
 		Resume();
-	}
 	SDL_LockAudio();
 	switch (Task) {
 		case VPNES_PCM_START:
@@ -160,15 +158,8 @@ void AudioCallback(int Task, void *Data) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
 				}
-				/* FIXME */
-				/* Пытаемся перезапустить если произошел deadlock */
+				/* Заняты проигрыванием предыдущего буфера после активации */
 				if (PCMplay && (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) {
-					if (ftell(stderr) >= 0) {
-						fputs("Warning: audio system has been unlocked\n", stderr);
-						fflush(stderr);
-					}
-					/* Происходит при отложенной обработки delay в win32 */
-					/* Причины непонятны (баг в SDL/неполная совместимость с win32? */
 					SDL_PauseAudio(0);
 				}
 			} else {
@@ -196,6 +187,12 @@ int InitMainWindow(int Width, int Height) {
 	/* Инициализация библиотеки */
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		return -1;
+	if (ftell(stderr) >= 0)
+		CanLog = -1;
+	else {
+		fputc('\n', stderr);
+		CanLog = !ferror(stderr);
+	}
 	/* Установка параметров окна */
 #ifdef _WIN32
 	InitWin32();
@@ -432,7 +429,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				framecheck = framestarttime;
 				if (skip >= 50) {
 					framejit = 0;
-					if (ftell(stderr) >= 0) {
+					if (CanLog) {
 						fputs("Warning: resetting sync\n", stderr);
 						fflush(stderr);
 					}
@@ -664,7 +661,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 #if !defined(VPNES_DISABLE_FSKIP)
 			if (framejit > *Tim) {
 				vbuf.Skip = -1;
-				if (ftell(stderr) >= 0) {
+				if (CanLog) {
 					fputs("Warning: frame skip\n", stderr);
 					fflush(stderr);
 				}
@@ -723,7 +720,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			draw_text = -1;
 			text_string = "CPU halt";
 #endif
-			if (ftell(stderr) >= 0) {
+			if (CanLog) {
 				HaltData = (VPNES_CPUHALT *) Data;
 				fprintf(stderr, "Fatal Error: CPU halted\n"
 				                "Registers:\n"

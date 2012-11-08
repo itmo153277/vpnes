@@ -98,11 +98,11 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 			return -1;
 		case WM_ENTERSIZEMOVE:
 		case WM_ENTERMENULOOP:
+		case WM_NCLBUTTONDOWN:
+		case WM_NCRBUTTONDOWN:
+		case WM_SIZING:
+		case WM_MOVING:
 			Pause();
-			break;
-		case WM_EXITSIZEMOVE:
-		case WM_EXITMENULOOP:
-			Resume();
 			break;
 		case WM_COMMAND:
 			switch (Msg->wParam) {
@@ -124,7 +124,6 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 						opennew = -1;
 						return -1;
 					}
-					Resume();
 					break;
 				case ID_FILE_CLOSE:
 					WindowState = VPNES_QUIT;
@@ -150,7 +149,6 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 					Pause();
 					DialogBox(Instance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), WindowHandle,
 						(DLGPROC) AboutProc);
-					Resume();
 					break;
 			}
 			break;

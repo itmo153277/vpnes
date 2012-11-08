@@ -69,7 +69,6 @@ void AppClose(void);
 void AppQuit(void);
 /* Управление эмуляцией */
 void Pause(void);
-void Resume(void);
 /* Callback-функция */
 int WindowCallback(uint32, void *);
 
