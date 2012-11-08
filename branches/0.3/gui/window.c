@@ -137,8 +137,6 @@ void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 
 /* Вызывается libvpnes'ом */
 void AudioCallback(int Task, void *Data) {
-	if (!Active && (Task == VPNES_PCM_UPDATE))
-		Resume();
 	SDL_LockAudio();
 	switch (Task) {
 		case VPNES_PCM_START:
@@ -154,13 +152,9 @@ void AudioCallback(int Task, void *Data) {
 				memcpy(((VPNES_ABUF *) Data)->PCM, ((VPNES_ABUF *) Data)->PCM +
 					((VPNES_ABUF *) Data)->Pos, (((VPNES_ABUF *) Data)->Pos) *
 					sizeof(sint16));
-				if (ftell(stderr) >= 0) {
+				if (CanLog) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
-				}
-				/* Заняты проигрыванием предыдущего буфера после активации */
-				if (PCMplay && (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) {
-					SDL_PauseAudio(0);
 				}
 			} else {
 				((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
@@ -169,7 +163,7 @@ void AudioCallback(int Task, void *Data) {
 				PCMready = 1;
 			}
 			/* Запускаем аудио */
-			if (!PCMplay) {
+			if (!PCMplay || (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) {
 				SDL_PauseAudio(0);
 				PCMplay = -1;
 			}
@@ -190,7 +184,7 @@ int InitMainWindow(int Width, int Height) {
 	if (ftell(stderr) >= 0)
 		CanLog = -1;
 	else {
-		fputc('\n', stderr);
+		fputc('\r', stderr);
 		CanLog = !ferror(stderr);
 	}
 	/* Установка параметров окна */
@@ -688,8 +682,11 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						draw_text = 0;
 				}
 			}
+			/* Тут уже должно быть отключено ожидание */
+			if (!Active)
+				Resume();
 			if ((text_surface != NULL) && (draw_text ||
-				((SDL_GetTicks() - text_timer) >= 2000))) {
+				((SDL_GetTicks() - text_timer) >= 4000))) {
 				SDL_FreeSurface(text_surface);
 				text_surface = NULL;
 			}
