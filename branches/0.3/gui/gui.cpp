@@ -57,7 +57,7 @@ int StartGUI(char *RomName) {
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
 		", no trainer" : ", have trainer 512");
 	InfoString = InfoStr.str();
-	std::cerr << InfoString << std::endl;
+	std::clog << InfoString << std::endl;
 	InfoText = InfoString.c_str();
 	/* Инициализация окна */
 	if (SetMode(NESConfig->GetWidth(), NESConfig->GetHeight(),

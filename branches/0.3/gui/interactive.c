@@ -66,7 +66,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	switch (msg) {
 		case WM_SYSKEYUP:
-			return DefWindowProc(hwnd, msg, wParam, lParam);
 		case WM_SYSKEYDOWN:
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 		default:

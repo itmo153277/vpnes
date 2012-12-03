@@ -33,19 +33,19 @@
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 #ifdef BUILDNUM
-	std::cerr << "VPNES " VERSION " Build " BUILDNUM
+	std::clog << "VPNES " VERSION " Build " BUILDNUM
 #ifdef SVNREV
 		" (" SVNREV ")"
 #endif
 		<< std::endl;
-	std::cerr << "License: GPL v2" << std::endl;
+	std::clog << "License: GPL v2" << std::endl;
 #endif
 #ifdef VPNES_INTERACTIVE
 	if (argc != 2)
 		DisableInteractive = 0;
 	if (InitMainWindow(512, 448) < 0)
 		return 0;
-	if (DisableInteractive)
+	if (DisableInteractive && CanLog)
 		StartGUI(argv[1]);
 	else
 		InteractiveGUI();

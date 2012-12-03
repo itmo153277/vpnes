@@ -39,6 +39,7 @@ SDL_Surface *screen;
 SDL_Surface *bufs;
 Sint32 HideMouse = -1;
 int Active = 0;
+int Stop = 0;
 int Run = 0;
 #if !defined(VPNES_DISABLE_SYNC)
 Sint32 delaytime;
@@ -48,6 +49,7 @@ double framejit = 0.0;
 double delta = 0.0;
 #if !defined(VPNES_DISABLE_FSKIP)
 Uint32 skip = 0;
+int skipped = 0;
 #endif
 #endif
 VPNES_VBUF vbuf;
@@ -77,6 +79,7 @@ int PCMindex = 1;
 int PCMready = 0;
 int PCMplay = 0;
 int UseJoy = 0;
+int skipped_samples = 0;
 SDL_Joystick *joy = NULL;
 #if defined(VPNES_USE_TTF)
 TTF_Font *font = NULL;
@@ -152,11 +155,17 @@ void AudioCallback(int Task, void *Data) {
 				memcpy(((VPNES_ABUF *) Data)->PCM, ((VPNES_ABUF *) Data)->PCM +
 					((VPNES_ABUF *) Data)->Pos, (((VPNES_ABUF *) Data)->Pos) *
 					sizeof(sint16));
+				skipped_samples += ((VPNES_ABUF *) Data)->Pos;
 				if (CanLog) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
 				}
 			} else {
+				if (CanLog && (skipped_samples > 0)) {
+					fprintf(stderr, "Info: Skipped %d samples\n", skipped_samples);
+					fflush(stderr);
+					skipped_samples = 0;
+				}
 				((VPNES_ABUF *) Data)->PCM = PCMBuf[PCMindex];
 				PCMindex ^= 1;
 				/* Буфер заполнен */
@@ -304,11 +313,13 @@ int SetMode(int Width, int Height, double FrameLength) {
 	abuf.PCM = PCMBuf[PCMindex ^ 1];
 	abuf.Size = hardware_spec->size / sizeof(sint16);
 	abuf.Freq = 44.1;
+	skipped_samples = 0;
 #if !defined(VPNES_DISABLE_SYNC)
 	delta = 0.0;
 #endif
 	Active = 0;
 	Run = -1;
+	Stop = 0;
 	Resume();
 	return 0;
 }
@@ -369,6 +380,12 @@ void Pause(void) {
 	Active = 0;
 }
 
+/* Остановка */
+void StopRender(void) {
+	Stop = -1;
+	Pause();
+}
+
 /* Проделжить */
 void Resume(void) {
 	if (!Run)
@@ -389,11 +406,13 @@ void Resume(void) {
 	framejit = 0;
 #if !defined(VPNES_DISABLE_FSKIP)
 	skip = 0;
+	skipped = 0;
 #endif
 #elif defined(VPNES_USE_TTF)
 	text_timer = SDL_GetTicks() + text_timer_dif;
 #endif
 	Active = -1;
+	Stop = 0;
 }
 
 /* Callback-функция */
@@ -416,29 +435,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 		case VPNES_CALLBACK_FRAME:
 			Tim = (VPNES_FRAME *) Data;
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-			if (vbuf.Skip) {
-				framestarttime = SDL_GetTicks();
-				framejit += (framestarttime - framecheck) - *Tim;
-				skip += (framestarttime - framecheck);
-				framecheck = framestarttime;
-				if (skip >= 50) {
-					framejit = 0;
-					if (CanLog) {
-						fputs("Warning: resetting sync\n", stderr);
-						fflush(stderr);
-					}
-				}
-				if (framejit < *Tim) {
-					vbuf.Skip = 0;
-					skip = 0;
-				}
-				delta += *Tim;
-				delta -= (Uint32) delta;
-#if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
-				cur_frame++;
-#endif
-				return 0;
-			}
+			if (!vbuf.Skip) {
 #endif
 			/* Обновляем экран */
 			if (SDL_MUSTLOCK(screen))
@@ -451,6 +448,9 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			if (SDL_MUSTLOCK(screen))
 				SDL_UnlockSurface(screen);
 			SDL_Flip(screen);
+#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
+			}
+#endif
 #if defined(VPNES_SHOW_CURFRAME)
 			/* Текущий фрейм */
 			itoa(cur_frame, buf, 10);
@@ -469,7 +469,11 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			cur_frame++;
 #endif
 			/* Обрабатываем сообщения */
-			while (SDL_PollEvent(&event))
+			for (;;) {
+				if (Stop)
+					SDL_WaitEvent(&event);
+				else if (!SDL_PollEvent(&event))
+					break;
 				switch (event.type) {
 					case SDL_QUIT:
 						quit = -1;
@@ -641,6 +645,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						break;
 #endif
 				}
+			}
 #if !defined(VPNES_DISABLE_SYNC)
 			/* Синхронизация */
 			delta += *Tim;
@@ -648,13 +653,34 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 			delta -= (Uint32) delta;
 			if (framejit > delaytime)
 				delaytime = 0;
+			else
+				delaytime = (Uint32) (delaytime - framejit);
 			if (delaytime > 0)
-				SDL_Delay((Uint32) (delaytime - framejit));
+				SDL_Delay(delaytime);
 			framestarttime = SDL_GetTicks();
 			framejit += (framestarttime - framecheck) - *Tim;
 #if !defined(VPNES_DISABLE_FSKIP)
-			if (framejit > *Tim) {
+			if (vbuf.Skip) {
+				skip += (framestarttime - framecheck);
+				if (skip >= 50) {
+					framejit = 0;
+					if (CanLog) {
+						fputs("Warning: resetting sync\n", stderr);
+						fflush(stderr);
+					}
+				}
+				skipped++;
+				if (framejit < *Tim) {
+					vbuf.Skip = 0;
+					if (CanLog) {
+						fprintf(stderr, "Info: Skipped %d frames\n", skipped);
+						fflush(stderr);
+					}
+				}
+			} else if (framejit > *Tim) {
 				vbuf.Skip = -1;
+				skip = 0;
+				skipped = 0;
 				if (CanLog) {
 					fputs("Warning: frame skip\n", stderr);
 					fflush(stderr);
