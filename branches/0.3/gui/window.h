@@ -47,8 +47,6 @@ extern "C" {
 #define VPNES_LOADSTATE  0x00000004
 #define VPNES_RESET      0x00000008
 
-/* Возможность лога */
-extern int CanLog;
 /* Обратная связь с главным циклом */
 extern int WindowState;
 /* Номер слота сохранения */
@@ -60,6 +58,8 @@ extern HWND WindowHandle;
 extern HINSTANCE Instance;
 #endif
 
+/* Инициализация лога */
+int InitLog(void);
 /* Инициализация SDL */
 int InitMainWindow(int Width, int Height);
 /* Очистить окно */

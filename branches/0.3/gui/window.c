@@ -155,11 +155,11 @@ void AudioCallback(int Task, void *Data) {
 				memcpy(((VPNES_ABUF *) Data)->PCM, ((VPNES_ABUF *) Data)->PCM +
 					((VPNES_ABUF *) Data)->Pos, (((VPNES_ABUF *) Data)->Pos) *
 					sizeof(sint16));
-				skipped_samples += ((VPNES_ABUF *) Data)->Pos;
-				if (CanLog) {
+				if (CanLog && (skipped_samples == 0)) {
 					fputs("Warning: audio buffer was dropped\n", stderr);
 					fflush(stderr);
 				}
+				skipped_samples += ((VPNES_ABUF *) Data)->Pos;
 			} else {
 				if (CanLog && (skipped_samples > 0)) {
 					fprintf(stderr, "Info: Skipped %d samples\n", skipped_samples);
@@ -185,17 +185,22 @@ void AudioCallback(int Task, void *Data) {
 	SDL_UnlockAudio();
 }
 
-/* Инициализация SDL */
-int InitMainWindow(int Width, int Height) {
-	/* Инициализация библиотеки */
-	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-		return -1;
+/* Инициализация лога */
+int InitLog(void) {
 	if (ftell(stderr) >= 0)
 		CanLog = -1;
 	else {
 		fputc('\r', stderr);
 		CanLog = !ferror(stderr);
 	}
+	return CanLog;
+}
+
+/* Инициализация SDL */
+int InitMainWindow(int Width, int Height) {
+	/* Инициализация библиотеки */
+	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+		return -1;
 	/* Установка параметров окна */
 #ifdef _WIN32
 	InitWin32();

@@ -39,7 +39,7 @@ extern int DisableInteractive;
 /* Обработчик сообщений */
 int InteractiveDispatcher(SDL_SysWMmsg *Msg);
 /* Запуск GUI */
-int InteractiveGUI();
+int InteractiveGUI(char *Rom);
 /* Инициализация интерактивного режима */
 void InitInteractive(void);
 /* Завершение интерактивного режима */

@@ -32,14 +32,22 @@
 #include "win32-res/win32-res.h"
 #endif
 
+#ifndef VPNES_MAX_PATH
+#ifdef MAX_PATH
+#define VPNES_MAX_PATH MAX_PATH
+#else
+#define VPNES_MAX_PATH 256
+#endif
+#endif
+
 int DisableInteractive = -1;
-char ResFileName[256];
+char ResFileName[VPNES_MAX_PATH];
+char FileName[VPNES_MAX_PATH];
 #ifdef _WIN32
 const char DefaultInfoText[] = "No ROM";
 HMENU Menu = INVALID_HANDLE_VALUE;
 INITCOMMONCONTROLSEX icc;
 WNDPROC OldWndProc = NULL;
-char FileName[MAX_PATH];
 int opennew = 0;
 int quit = 0;
 #endif
@@ -90,7 +98,7 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 	switch (Msg->msg) {
 		case WM_DROPFILES:
 			hDrop = (HDROP) Msg->wParam;
-			DragQueryFile(hDrop, 0, FileName, MAX_PATH);
+			DragQueryFile(hDrop, 0, FileName, VPNES_MAX_PATH);
 			DragFinish(hDrop);
 			WindowState = VPNES_QUIT;
 			opennew = -1;
@@ -114,7 +122,7 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 					ofn.lpstrFilter = "iNES 1.0 Files (*.nes)\0*.nes\0"
 						"All Files (*.*)\0*.*\0";
 					ofn.lpstrFile = FileName;
-					ofn.nMaxFile = MAX_PATH;
+					ofn.nMaxFile = VPNES_MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY |
 						OFN_ALLOWMULTISELECT;
 					ofn.lpstrDefExt = "nes";
@@ -188,15 +196,31 @@ void DestroyInteractive(void) {
 }
 
 /* Запуск GUI */
-int InteractiveGUI() {
+int InteractiveGUI(char *Rom) {
 	int ret = 0;
 	SDL_Event event;
 
-	FileName[0] = '\0';
-	ResFileName[255] = '\0';
-	do {
-		quit = -1;
+	if (Rom != NULL) {
+		strncpy(FileName, Rom, VPNES_MAX_PATH - 1);
+		opennew = -1;
+	} else
+		FileName[0] = '\0';
+	FileName[VPNES_MAX_PATH - 1] = '\0';
+	ResFileName[VPNES_MAX_PATH - 1] = '\0';
+	quit = 0;
+	for (;;) {
 		ret = 0;
+		while (opennew) {
+			strncpy(ResFileName, FileName, VPNES_MAX_PATH - 1);
+			opennew = 0;
+			ret = StartGUI(ResFileName);
+		}
+		ClearWindow();
+		if (ret < 0)
+			quit = 0;
+		if (quit)
+			break;
+		quit = -1;
 		InfoText = DefaultInfoText;
 		WindowState = -1;
 #ifdef _WIN32
@@ -229,14 +253,6 @@ int InteractiveGUI() {
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
 #endif
-		while (opennew) {
-			strncpy(ResFileName, FileName, 255);
-			opennew = 0;
-			ret = StartGUI(ResFileName);
-		}
-		ClearWindow();
-		if (ret < 0)
-			quit = 0;
-	} while (!quit);
+	}
 	return ret;
 }

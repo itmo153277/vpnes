@@ -41,17 +41,18 @@ int main(int argc, char *argv[]) {
 	std::clog << "License: GPL v2" << std::endl;
 #endif
 #ifdef VPNES_INTERACTIVE
-	if (argc != 2)
+	if ((argc < 2) || !InitLog())
 		DisableInteractive = 0;
 	if (InitMainWindow(512, 448) < 0)
 		return 0;
-	if (DisableInteractive && CanLog)
+	if (DisableInteractive)
 		StartGUI(argv[1]);
 	else
-		InteractiveGUI();
+		InteractiveGUI((argc > 1) ? argv[1] : NULL);
 #else
 	if (argc != 2)
 		return 0;
+	InitLog();
 	if (InitMainWindow(512, 448) < 0)
 		return 0;
 	StartGUI(argv[1]);
