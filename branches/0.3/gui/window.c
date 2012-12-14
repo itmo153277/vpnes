@@ -42,6 +42,7 @@ int Active = 0;
 int Stop = 0;
 int Run = 0;
 #if !defined(VPNES_DISABLE_SYNC)
+double PlayRate = 1.0;
 Sint32 delaytime;
 Uint32 framestarttime = 0;
 Uint32 framecheck = 0;
@@ -94,6 +95,7 @@ SDL_Rect border_rect = {1, 1};
 Uint32 text_timer = 0;
 Sint32 text_timer_dif = 0;
 int draw_text = 0;
+char spstr[20];
 #ifdef _WIN32
 HGLOBAL ResourceHandle = INVALID_HANDLE_VALUE;
 HRSRC ResourceInfo = INVALID_HANDLE_VALUE;
@@ -322,6 +324,7 @@ int SetMode(int Width, int Height, double FrameLength) {
 	skipped_samples = 0;
 #if !defined(VPNES_DISABLE_SYNC)
 	delta = 0.0;
+	PlayRate = 1.0;
 #endif
 	Active = 0;
 	Run = -1;
@@ -408,7 +411,7 @@ void ResumeRender(void) {
 #endif
 }
 
-/* Проделжить */
+/* Продолжить */
 void Resume(void) {
 	if (!Run || Active)
 		return;
@@ -440,7 +443,7 @@ void Resume(void) {
 int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	SDL_Event event;
 	int quit = 0;
-	double *Tim;
+	double Tim;
 	VPNES_CPUHALT *HaltData;
 #if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
@@ -455,7 +458,9 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 
 	switch (VPNES_CALLBACK_EVENT) {
 		case VPNES_CALLBACK_FRAME:
-			Tim = (VPNES_FRAME *) Data;
+#if !defined(VPNES_DISABLE_SYNC)
+			Tim = *((VPNES_FRAME *) Data) / PlayRate;
+#endif
 			do {
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
 				if (!vbuf.Skip) {
@@ -587,6 +592,16 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 										quit = -1;
 										WindowState = VPNES_STEP;
 										StopRender();
+										break;
+#if !defined(VPNES_DISABLE_SYNC)
+									case SDLK_TAB:
+										quit = -1;
+										WindowState = VPNES_RATE;
+										PlayRate = PlayRate * 2;
+										if (PlayRate > 4)
+											PlayRate = 0.5;
+										abuf.Freq = 44.1 / PlayRate;
+#endif
 									default:
 										break;
 								}
@@ -683,7 +698,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				}
 #if !defined(VPNES_DISABLE_SYNC)
 				/* Синхронизация */
-				delta += *Tim;
+				delta += Tim;
 				delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
 				delta -= (Uint32) delta;
 #if !defined(VPNES_DISABLE_FSKIP)
@@ -699,7 +714,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				}
 #endif
 				framestarttime = SDL_GetTicks();
-				framejit += (framestarttime - framecheck) - *Tim;
+				framejit += (framestarttime - framecheck) - Tim;
 #if !defined(VPNES_DISABLE_FSKIP)
 				if (vbuf.Skip) {
 					skip += (framestarttime - framecheck);
@@ -711,14 +726,14 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						}
 					}
 					skipped++;
-					if (framejit < *Tim) {
+					if (framejit < Tim) {
 						vbuf.Skip = 0;
 						if (CanLog) {
 							fprintf(stderr, "Info: Skipped %d frames\n", skipped);
 							fflush(stderr);
 						}
 					}
-				} else if (framejit > *Tim) {
+				} else if (framejit > Tim) {
 					vbuf.Skip = -1;
 					skip = 0;
 					skipped = 0;
@@ -756,6 +771,13 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						case VPNES_STEP:
 							text_string = "Step";
 							break;
+#if !defined(VPNES_DISABLE_SYNC)
+						case VPNES_RATE:
+							sprintf(spstr, "Speed: x%1.1f", PlayRate);
+							text_string = spstr;
+							quit = 0;
+							break;
+#endif
 						default:
 							draw_text = 0;
 					}

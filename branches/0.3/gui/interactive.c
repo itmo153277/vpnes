@@ -236,6 +236,17 @@ int InteractiveGUI(char *Rom) {
 	FileName[VPNES_MAX_PATH - 1] = '\0';
 	ResFileName[VPNES_MAX_PATH - 1] = '\0';
 	for (;;) {
+#ifdef _WIN32
+		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_RESUME, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_STEP, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
+#endif
 		ret = 0;
 		while (opennew) {
 			strncpy(ResFileName, FileName, VPNES_MAX_PATH - 1);
@@ -276,15 +287,6 @@ int InteractiveGUI(char *Rom) {
 		}
 		/* Необходимо убедиться, что очередь пуста */
 		while (SDL_PollEvent(&event));
-#ifdef _WIN32
-		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_STEP, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
-		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
-#endif
 	}
 	return ret;
 }

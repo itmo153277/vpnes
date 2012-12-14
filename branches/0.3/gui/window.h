@@ -49,6 +49,7 @@ extern "C" {
 #define VPNES_PAUSE      0x00000010
 #define VPNES_RESUME     0x00000020
 #define VPNES_STEP       0x00000040
+#define VPNES_RATE       0x00000080
 
 /* Обратная связь с главным циклом */
 extern int WindowState;
