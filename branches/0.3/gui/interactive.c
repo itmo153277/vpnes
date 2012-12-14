@@ -146,6 +146,18 @@ int InteractiveDispatcher(SDL_SysWMmsg *Msg) {
 					WindowState = VPNES_QUIT;
 					opennew = -1;
 					return -1;
+				case ID_CPU_PAUSE:
+					StopRender();
+					WindowState = VPNES_PAUSE;
+					return -1;
+				case ID_CPU_RESUME:
+					ResumeRender();
+					WindowState = VPNES_RESUME;
+					return -1;
+				case ID_CPU_STEP:
+					StopRender();
+					WindowState = VPNES_STEP;
+					return -1;
 				case ID_CPU_SAVESTATE:
 					WindowState = VPNES_SAVESTATE;
 					return -1;
@@ -195,6 +207,19 @@ void DestroyInteractive(void) {
 #endif
 }
 
+/* Изменить состояние */
+void ChangeRenderState(int RenderState) {
+#ifdef _WIN32
+	if (RenderState) {
+		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_RESUME, MF_ENABLED);
+	} else {
+		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_RESUME, MF_GRAYED);
+	}
+#endif
+}
+
 /* Запуск GUI */
 int InteractiveGUI(char *Rom) {
 	int ret = 0;
@@ -203,11 +228,13 @@ int InteractiveGUI(char *Rom) {
 	if (Rom != NULL) {
 		strncpy(FileName, Rom, VPNES_MAX_PATH - 1);
 		opennew = -1;
-	} else
+		quit = -1;
+	} else {
 		FileName[0] = '\0';
+		quit = 0;
+	}
 	FileName[VPNES_MAX_PATH - 1] = '\0';
 	ResFileName[VPNES_MAX_PATH - 1] = '\0';
-	quit = 0;
 	for (;;) {
 		ret = 0;
 		while (opennew) {
@@ -228,6 +255,9 @@ int InteractiveGUI(char *Rom) {
 		EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_RESUME, MF_GRAYED);
+		EnableMenuItem(Menu, ID_CPU_STEP, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_GRAYED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_GRAYED);
 #endif
@@ -250,6 +280,8 @@ int InteractiveGUI(char *Rom) {
 		EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_PAUSE, MF_ENABLED);
+		EnableMenuItem(Menu, ID_CPU_STEP, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
 		EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
 #endif

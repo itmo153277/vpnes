@@ -30,7 +30,7 @@
 
 #define IDI_MAINICON         101
 #if defined(VPNES_USE_TTF)
-#define IDR_MAINFONT         102
+#define IDR_MAINFONT         101
 #endif
 #if defined(VPNES_INTERACTIVE)
 #define IDM_MAINMENU         101
@@ -41,9 +41,12 @@
 #define ID_FILE_EXIT         40004
 #define ID_CPU_SOFTWARERESET 40005
 #define ID_CPU_HARDWARERESET 40006
-#define ID_CPU_SAVESTATE     40007
-#define ID_CPU_LOADSTATE     40008
-#define ID_CPU_ABOUT         40009
+#define ID_CPU_PAUSE         40007
+#define ID_CPU_RESUME        40008
+#define ID_CPU_STEP          40009
+#define ID_CPU_SAVESTATE     40010
+#define ID_CPU_LOADSTATE     40011
+#define ID_CPU_ABOUT         40012
 #define IDC_STATIC           -1
 #define IDC_STATICINFO       101
 

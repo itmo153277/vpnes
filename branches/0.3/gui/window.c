@@ -144,7 +144,8 @@ void AudioCallback(int Task, void *Data) {
 	switch (Task) {
 		case VPNES_PCM_START:
 			if (!PCMplay && PCMready) {
-				SDL_PauseAudio(0);
+				if (!Stop)
+					SDL_PauseAudio(0);
 				PCMplay = -1;
 			}
 			break;
@@ -172,7 +173,7 @@ void AudioCallback(int Task, void *Data) {
 				PCMready = 1;
 			}
 			/* Запускаем аудио */
-			if (!PCMplay || (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) {
+			if ((!PCMplay || (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)) && !Stop) {
 				SDL_PauseAudio(0);
 				PCMplay = -1;
 			}
@@ -372,35 +373,48 @@ void AppQuit() {
 
 /* Пауза */
 void Pause(void) {
-	if (!Run)
-		return;
-	if (!Active)
+	if (!Run || !Active)
 		return;
 #if defined(VPNES_USE_TTF)
 	text_timer_dif = text_timer - SDL_GetTicks();
 #endif
-	SDL_LockAudio();
 	SDL_PauseAudio(-1);
-	SDL_UnlockAudio();
 	Active = 0;
 }
 
 /* Остановка */
 void StopRender(void) {
 	Stop = -1;
-	Pause();
+	SDL_PauseAudio(-1);
+#if defined(VPNES_INTERACTIVE)
+	ChangeRenderState(Stop);
+#endif
 }
 
-/* Проделжить */
-void Resume(void) {
-	if (!Run)
+/* Возобновить рендер */
+void ResumeRender(void) {
+	if (!Stop)
 		return;
-	if (Active)
-		return;
+	Stop = 0;
 	SDL_LockAudio();
 	if (PCMplay && PCMready)
 		SDL_PauseAudio(0);
 	SDL_UnlockAudio();
+#if defined(VPNES_INTERACTIVE)
+	ChangeRenderState(Stop);
+#endif
+}
+
+/* Проделжить */
+void Resume(void) {
+	if (!Run || Active)
+		return;
+	if (!Stop) {
+		SDL_LockAudio();
+		if (PCMplay && PCMready)
+			SDL_PauseAudio(0);
+		SDL_UnlockAudio();
+	}
 #if !defined(VPNES_DISABLE_SYNC)
 	framestarttime = SDL_GetTicks();
 	framecheck = framestarttime;
@@ -417,7 +431,6 @@ void Resume(void) {
 	text_timer = SDL_GetTicks() + text_timer_dif;
 #endif
 	Active = -1;
-	Stop = 0;
 }
 
 /* Callback-функция */
@@ -428,6 +441,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	VPNES_CPUHALT *HaltData;
 #if defined(VPNES_SHOW_CURFRAME) || defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
+	int first = 1;
 	char buf[20];
 #endif
 #if defined(VPNES_SHOW_FPS)
@@ -439,309 +453,340 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 	switch (VPNES_CALLBACK_EVENT) {
 		case VPNES_CALLBACK_FRAME:
 			Tim = (VPNES_FRAME *) Data;
+			do {
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-			if (!vbuf.Skip) {
+				if (!vbuf.Skip) {
 #endif
-			/* Обновляем экран */
-			if (SDL_MUSTLOCK(screen))
-				SDL_LockSurface(screen);
-			SDL_SoftStretch(bufs, NULL, screen, NULL);
+				/* Обновляем экран */
+				if (SDL_MUSTLOCK(screen))
+					SDL_LockSurface(screen);
+				SDL_SoftStretch(bufs, NULL, screen, NULL);
 #if defined(VPNES_USE_TTF)
-			if (text_surface != NULL)
-				SDL_BlitSurface(text_surface, NULL, screen, &text_rect);
+				if (text_surface != NULL)
+					SDL_BlitSurface(text_surface, NULL, screen, &text_rect);
 #endif
-			if (SDL_MUSTLOCK(screen))
-				SDL_UnlockSurface(screen);
-			SDL_Flip(screen);
+				if (SDL_MUSTLOCK(screen))
+					SDL_UnlockSurface(screen);
+				SDL_Flip(screen);
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-			}
+				}
 #endif
 #if defined(VPNES_SHOW_CURFRAME)
-			/* Текущий фрейм */
-			itoa(cur_frame, buf, 10);
-			SDL_WM_SetCaption(buf, NULL);
-			cur_frame++;
+				if (first) {
+					/* Текущий фрейм */
+					itoa(cur_frame, buf, 10);
+					SDL_WM_SetCaption(buf, NULL);
+					cur_frame++;
+					first = 0;
+				}
 #elif defined(VPNES_SHOW_FPS)
-			/* FPS */
-			passed = SDL_GetTicks() - fpst;
-			if (passed > 1000) {
-				fps = cur_frame * 1000.0 / passed;
-				snprintf(buf, 20, "%.3lf", fps);
-				SDL_WM_SetCaption(buf, NULL);
-				fpst = SDL_GetTicks();
-				cur_frame = 0;
-			}
-			cur_frame++;
+				/* FPS */
+				passed = SDL_GetTicks() - fpst;
+				if (passed > 1000) {
+					fps = cur_frame * 1000.0 / passed;
+					snprintf(buf, 20, "%.3lf", fps);
+					SDL_WM_SetCaption(buf, NULL);
+					fpst = SDL_GetTicks();
+					cur_frame = 0;
+				}
+				cur_frame++;
 #endif
-			/* Обрабатываем сообщения */
-			for (;;) {
-				if (Stop)
-					SDL_WaitEvent(&event);
-				else if (!SDL_PollEvent(&event))
-					break;
-				switch (event.type) {
-					case SDL_QUIT:
-						quit = -1;
-						WindowState = VPNES_QUIT;
-						break;
-					case SDL_MOUSEMOTION:
-						SDL_ShowCursor(SDL_ENABLE);
-						/* Если эмултор запущен больше ~25 дней, произойдет ошибка */
-						HideMouse = SDL_GetTicks();
-						break;
-					case SDL_KEYDOWN:
-//						if (!UseJoy)
-							switch (event.key.keysym.sym) {
-								case SDLK_c:
-									ibuf[VPNES_INPUT_A] = 1;
-									break;
-								case SDLK_x:
-									ibuf[VPNES_INPUT_B] = 1;
-									break;
-								case SDLK_a:
-									ibuf[VPNES_INPUT_SELECT] = 1;
-									break;
-								case SDLK_s:
-									ibuf[VPNES_INPUT_START] = 1;
-									break;
-								case SDLK_DOWN:
-									ibuf[VPNES_INPUT_DOWN] = 1;
-									break;
-								case SDLK_UP:
-									ibuf[VPNES_INPUT_UP] = 1;
-									break;
-								case SDLK_LEFT:
-									ibuf[VPNES_INPUT_LEFT] = 1;
-									break;
-								case SDLK_RIGHT:
-									ibuf[VPNES_INPUT_RIGHT] = 1;
-								default:
-									break;
-							}
-						break;
-					case SDL_KEYUP:
-//						if (!UseJoy)
-							switch (event.key.keysym.sym) {
-								case SDLK_c:
-									ibuf[VPNES_INPUT_A] = 0;
-									break;
-								case SDLK_x:
-									ibuf[VPNES_INPUT_B] = 0;
-									break;
-								case SDLK_a:
-									ibuf[VPNES_INPUT_SELECT] = 0;
-									break;
-								case SDLK_s:
-									ibuf[VPNES_INPUT_START] = 0;
-									break;
-								case SDLK_DOWN:
-									ibuf[VPNES_INPUT_DOWN] = 0;
-									break;
-								case SDLK_UP:
-									ibuf[VPNES_INPUT_UP] = 0;
-									break;
-								case SDLK_LEFT:
-									ibuf[VPNES_INPUT_LEFT] = 0;
-									break;
-								case SDLK_RIGHT:
-									ibuf[VPNES_INPUT_RIGHT] = 0;
-									break;
-								case SDLK_F1:
-									quit = -1;
-									WindowState = VPNES_RESET;
-									break;
-								case SDLK_F5:
-									quit = -1;
-									WindowState = VPNES_SAVESTATE;
-									break;
-								case SDLK_F7:
-									quit = -1;
-									WindowState = VPNES_LOADSTATE;
-								default:
-									break;
-							}
-						break;
-					case SDL_JOYAXISMOTION:
-						if (event.jaxis.which == 0)
-							switch (event.jaxis.axis) {
-								case 0:
-									if (event.jaxis.value < -8192)
-										ibuf[VPNES_INPUT_LEFT] = 1;
-									else
-										ibuf[VPNES_INPUT_LEFT] = 0;
-									if (event.jaxis.value > 8192)
-										ibuf[VPNES_INPUT_RIGHT] = 1;
-									else
-										ibuf[VPNES_INPUT_RIGHT] = 0;
-									break;
-								case 1:
-									if (event.jaxis.value < -8192)
-										ibuf[VPNES_INPUT_UP] = 1;
-									else
-										ibuf[VPNES_INPUT_UP] = 0;
-									if (event.jaxis.value > 8192)
-										ibuf[VPNES_INPUT_DOWN] = 1;
-									else
-										ibuf[VPNES_INPUT_DOWN] = 0;
-									break;
-							}
-						break;
-					case SDL_JOYBUTTONDOWN:
-						if (event.jbutton.which == 0)
-							switch (event.jbutton.button) {
-								case 0:
-									ibuf[VPNES_INPUT_A] = 1;
-									break;
-								case 1:
-									ibuf[VPNES_INPUT_B] = 1;
-									break;
-								case 6:
-									ibuf[VPNES_INPUT_SELECT] = 1;
-									break;
-								case 7:
-									ibuf[VPNES_INPUT_START] = 1;
-									break;
-							}
-						break;
-					case SDL_JOYBUTTONUP:
-						if (event.jbutton.which == 0)
-							switch (event.jbutton.button) {
-								case 0:
-									ibuf[VPNES_INPUT_A] = 0;
-									break;
-								case 1:
-									ibuf[VPNES_INPUT_B] = 0;
-									break;
-								case 6:
-									ibuf[VPNES_INPUT_SELECT] = 0;
-									break;
-								case 7:
-									ibuf[VPNES_INPUT_START] = 0;
-									break;
-							}
-						break;
-					case SDL_JOYHATMOTION:
-						if (event.jhat.which == 0) {
-							if (event.jhat.value & SDL_HAT_UP)
-								ibuf[VPNES_INPUT_UP] = 1;
-							else
-								ibuf[VPNES_INPUT_UP] = 0;
-							if (event.jhat.value & SDL_HAT_DOWN)
-								ibuf[VPNES_INPUT_DOWN] = 1;
-							else
-								ibuf[VPNES_INPUT_DOWN] = 0;
-							if (event.jhat.value & SDL_HAT_LEFT)
-								ibuf[VPNES_INPUT_LEFT] = 1;
-							else
-								ibuf[VPNES_INPUT_LEFT] = 0;
-							if (event.jhat.value & SDL_HAT_RIGHT)
-								ibuf[VPNES_INPUT_RIGHT] = 1;
-							else
-								ibuf[VPNES_INPUT_RIGHT] = 0;
-						}
-						break;
-					case SDL_USEREVENT:
-						quit = -1;
-						break;
-#if defined(VPNES_INTERACTIVE)
-					case SDL_SYSWMEVENT:
-						if (InteractiveDispatcher(event.syswm.msg))
+				/* Обрабатываем сообщения */
+				while (SDL_PollEvent(&event)) {
+					switch (event.type) {
+						case SDL_QUIT:
 							quit = -1;
-						break;
+							WindowState = VPNES_QUIT;
+							break;
+						case SDL_MOUSEMOTION:
+							SDL_ShowCursor(SDL_ENABLE);
+							/* Если эмултор запущен больше ~25 дней, произойдет ошибка */
+							HideMouse = SDL_GetTicks();
+							break;
+						case SDL_KEYDOWN:
+								switch (event.key.keysym.sym) {
+									case SDLK_c:
+										ibuf[VPNES_INPUT_A] = 1;
+										break;
+									case SDLK_x:
+										ibuf[VPNES_INPUT_B] = 1;
+										break;
+									case SDLK_a:
+										ibuf[VPNES_INPUT_SELECT] = 1;
+										break;
+									case SDLK_s:
+										ibuf[VPNES_INPUT_START] = 1;
+										break;
+									case SDLK_DOWN:
+										ibuf[VPNES_INPUT_DOWN] = 1;
+										break;
+									case SDLK_UP:
+										ibuf[VPNES_INPUT_UP] = 1;
+										break;
+									case SDLK_LEFT:
+										ibuf[VPNES_INPUT_LEFT] = 1;
+										break;
+									case SDLK_RIGHT:
+										ibuf[VPNES_INPUT_RIGHT] = 1;
+									default:
+										break;
+								}
+							break;
+						case SDL_KEYUP:
+								switch (event.key.keysym.sym) {
+									case SDLK_c:
+										ibuf[VPNES_INPUT_A] = 0;
+										break;
+									case SDLK_x:
+										ibuf[VPNES_INPUT_B] = 0;
+										break;
+									case SDLK_a:
+										ibuf[VPNES_INPUT_SELECT] = 0;
+										break;
+									case SDLK_s:
+										ibuf[VPNES_INPUT_START] = 0;
+										break;
+									case SDLK_DOWN:
+										ibuf[VPNES_INPUT_DOWN] = 0;
+										break;
+									case SDLK_UP:
+										ibuf[VPNES_INPUT_UP] = 0;
+										break;
+									case SDLK_LEFT:
+										ibuf[VPNES_INPUT_LEFT] = 0;
+										break;
+									case SDLK_RIGHT:
+										ibuf[VPNES_INPUT_RIGHT] = 0;
+										break;
+									case SDLK_F1:
+										quit = -1;
+										WindowState = VPNES_RESET;
+										break;
+									case SDLK_F5:
+										quit = -1;
+										WindowState = VPNES_SAVESTATE;
+										break;
+									case SDLK_F7:
+										quit = -1;
+										WindowState = VPNES_LOADSTATE;
+										break;
+									case SDLK_PAUSE:
+										quit = -1;
+										if (Stop) {
+											WindowState = VPNES_RESUME;
+											ResumeRender();
+										} else {
+											WindowState = VPNES_PAUSE;
+											StopRender();
+										}
+										break;
+									case SDLK_SPACE:
+										quit = -1;
+										WindowState = VPNES_STEP;
+										StopRender();
+									default:
+										break;
+								}
+							break;
+						case SDL_JOYAXISMOTION:
+							if (event.jaxis.which == 0)
+								switch (event.jaxis.axis) {
+									case 0:
+										if (event.jaxis.value < -8192)
+											ibuf[VPNES_INPUT_LEFT] = 1;
+										else
+											ibuf[VPNES_INPUT_LEFT] = 0;
+										if (event.jaxis.value > 8192)
+											ibuf[VPNES_INPUT_RIGHT] = 1;
+										else
+											ibuf[VPNES_INPUT_RIGHT] = 0;
+										break;
+									case 1:
+										if (event.jaxis.value < -8192)
+											ibuf[VPNES_INPUT_UP] = 1;
+										else
+											ibuf[VPNES_INPUT_UP] = 0;
+										if (event.jaxis.value > 8192)
+											ibuf[VPNES_INPUT_DOWN] = 1;
+										else
+											ibuf[VPNES_INPUT_DOWN] = 0;
+										break;
+								}
+							break;
+						case SDL_JOYBUTTONDOWN:
+							if (event.jbutton.which == 0)
+								switch (event.jbutton.button) {
+									case 0:
+										ibuf[VPNES_INPUT_A] = 1;
+										break;
+									case 1:
+										ibuf[VPNES_INPUT_B] = 1;
+										break;
+									case 6:
+										ibuf[VPNES_INPUT_SELECT] = 1;
+										break;
+									case 7:
+										ibuf[VPNES_INPUT_START] = 1;
+										break;
+								}
+							break;
+						case SDL_JOYBUTTONUP:
+							if (event.jbutton.which == 0)
+								switch (event.jbutton.button) {
+									case 0:
+										ibuf[VPNES_INPUT_A] = 0;
+										break;
+									case 1:
+										ibuf[VPNES_INPUT_B] = 0;
+										break;
+									case 6:
+										ibuf[VPNES_INPUT_SELECT] = 0;
+										break;
+									case 7:
+										ibuf[VPNES_INPUT_START] = 0;
+										break;
+								}
+							break;
+						case SDL_JOYHATMOTION:
+							if (event.jhat.which == 0) {
+								if (event.jhat.value & SDL_HAT_UP)
+									ibuf[VPNES_INPUT_UP] = 1;
+								else
+									ibuf[VPNES_INPUT_UP] = 0;
+								if (event.jhat.value & SDL_HAT_DOWN)
+									ibuf[VPNES_INPUT_DOWN] = 1;
+								else
+									ibuf[VPNES_INPUT_DOWN] = 0;
+								if (event.jhat.value & SDL_HAT_LEFT)
+									ibuf[VPNES_INPUT_LEFT] = 1;
+								else
+									ibuf[VPNES_INPUT_LEFT] = 0;
+								if (event.jhat.value & SDL_HAT_RIGHT)
+									ibuf[VPNES_INPUT_RIGHT] = 1;
+								else
+									ibuf[VPNES_INPUT_RIGHT] = 0;
+							}
+							break;
+						case SDL_USEREVENT:
+							quit = -1;
+							break;
+#if defined(VPNES_INTERACTIVE)
+						case SDL_SYSWMEVENT:
+							if (InteractiveDispatcher(event.syswm.msg))
+								quit = -1;
+							break;
 #endif
+					}
 				}
-			}
 #if !defined(VPNES_DISABLE_SYNC)
-			/* Синхронизация */
-			delta += *Tim;
-			delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
-			delta -= (Uint32) delta;
-			if (framejit > delaytime)
-				delaytime = 0;
-			else
-				delaytime = (Uint32) (delaytime - framejit);
-			if (delaytime > 0)
-				SDL_Delay(delaytime);
-			framestarttime = SDL_GetTicks();
-			framejit += (framestarttime - framecheck) - *Tim;
+				/* Синхронизация */
+				delta += *Tim;
+				delaytime = ((Uint32) delta) - (SDL_GetTicks() - framestarttime);
+				delta -= (Uint32) delta;
 #if !defined(VPNES_DISABLE_FSKIP)
-			if (vbuf.Skip) {
-				skip += (framestarttime - framecheck);
-				if (skip >= 50) {
-					framejit = 0;
-					if (CanLog) {
-						fputs("Warning: resetting sync\n", stderr);
-						fflush(stderr);
-					}
-				}
-				skipped++;
-				if (framejit < *Tim) {
-					vbuf.Skip = 0;
-					if (CanLog) {
-						fprintf(stderr, "Info: Skipped %d frames\n", skipped);
-						fflush(stderr);
-					}
-				}
-			} else if (framejit > *Tim) {
-				vbuf.Skip = -1;
-				skip = 0;
-				skipped = 0;
-				if (CanLog) {
-					fputs("Warning: frame skip\n", stderr);
-					fflush(stderr);
-				}
-			}
+				if (!vbuf.Skip) {
 #endif
-			if ((HideMouse >= 0) && ((framestarttime - HideMouse) >= 2000))
-				SDL_ShowCursor(SDL_DISABLE);
-			framecheck = framestarttime;
+					if (framejit > delaytime)
+						delaytime = 0;
+					else
+						delaytime = (Uint32) (delaytime - framejit);
+					if (delaytime > 0)
+						SDL_Delay(delaytime);
+#if !defined(VPNES_DISABLE_FSKIP)
+				}
+#endif
+				framestarttime = SDL_GetTicks();
+				framejit += (framestarttime - framecheck) - *Tim;
+#if !defined(VPNES_DISABLE_FSKIP)
+				if (vbuf.Skip) {
+					skip += (framestarttime - framecheck);
+					if (skip >= 50) {
+						framejit = 0;
+						if (CanLog) {
+							fputs("Warning: resetting sync\n", stderr);
+							fflush(stderr);
+						}
+					}
+					skipped++;
+					if (framejit < *Tim) {
+						vbuf.Skip = 0;
+						if (CanLog) {
+							fprintf(stderr, "Info: Skipped %d frames\n", skipped);
+							fflush(stderr);
+						}
+					}
+				} else if (framejit > *Tim) {
+					vbuf.Skip = -1;
+					skip = 0;
+					skipped = 0;
+					if (CanLog) {
+						fputs("Warning: frame skip\n", stderr);
+						fflush(stderr);
+					}
+				}
+#endif
+				if ((HideMouse >= 0) && ((framestarttime - HideMouse) >= 2000))
+					SDL_ShowCursor(SDL_DISABLE);
+				framecheck = framestarttime;
 #endif
 #if defined(VPNES_USE_TTF)
-			if ((quit < 0) && !draw_text && (WindowState != VPNES_QUIT)) {
-				draw_text = -1;
-				switch (WindowState) {
-					case VPNES_RESET:
-						text_string = "Software reset";
-						break;
-					case VPNES_SAVESTATE:
-						text_string = "Save state";
-						break;
-					case VPNES_LOADSTATE:
-						text_string = "Load state";
-						break;
-					default:
-						draw_text = 0;
+				if ((quit < 0) && !draw_text && (WindowState != VPNES_QUIT)) {
+					draw_text = -1;
+					switch (WindowState) {
+						case VPNES_SAVESTATE:
+							text_string = "Save state";
+							break;
+						case VPNES_LOADSTATE:
+							text_string = "Load state";
+							break;
+						case VPNES_RESET:
+							text_string = "Software reset";
+							break;
+						case VPNES_PAUSE:
+							text_string = "Pause";
+							quit = 0;
+							break;
+						case VPNES_RESUME:
+							text_string = "Resume";
+							quit = 0;
+							break;
+						case VPNES_STEP:
+							text_string = "Step";
+							break;
+						default:
+							draw_text = 0;
+					}
 				}
-			}
-			/* Тут уже должно быть отключено ожидание */
-			if (!Active)
-				Resume();
-			if ((text_surface != NULL) && (draw_text ||
-				((SDL_GetTicks() - text_timer) >= 4000))) {
-				SDL_FreeSurface(text_surface);
-				text_surface = NULL;
-			}
-			if (draw_text) {
-				SDL_Surface *temp_surface;
+				/* Тут уже должно быть отключено ожидание */
+				if (!Active)
+					Resume();
+				if ((text_surface != NULL) && (draw_text ||
+					((SDL_GetTicks() - text_timer) >= 4000))) {
+					SDL_FreeSurface(text_surface);
+					text_surface = NULL;
+				}
+				if (draw_text) {
+					SDL_Surface *temp_surface;
 
-				temp_surface = TTF_RenderUTF8_Shaded(font, text_string, text_color, bg_color);
-				text_surface = SDL_CreateRGBSurface(SDL_HWSURFACE,
-					temp_surface->w + text_in_rect.x * 2,
-					temp_surface->h + text_in_rect.y * 2,
-					screen->format->BitsPerPixel, screen->format->Rmask,
-					screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
-				SDL_FillRect(text_surface, NULL, SDL_MapRGB(text_surface->format,
-					border_color.r, border_color.g, border_color.b));
-				border_rect.w = text_surface->w - border_rect.x * 2;
-				border_rect.h = text_surface->h - border_rect.y * 2;
-				SDL_FillRect(text_surface, &border_rect, SDL_MapRGB(text_surface->format,
-					bg_color.r, bg_color.g, bg_color.b));
-				SDL_BlitSurface(temp_surface, NULL, text_surface, &text_in_rect);
-				SDL_FreeSurface(temp_surface);
-				text_timer = SDL_GetTicks();
-				draw_text = 0;
-			}
+					temp_surface = TTF_RenderUTF8_Shaded(font, text_string, text_color, bg_color);
+					text_surface = SDL_CreateRGBSurface(SDL_HWSURFACE,
+						temp_surface->w + text_in_rect.x * 2,
+						temp_surface->h + text_in_rect.y * 2,
+						screen->format->BitsPerPixel, screen->format->Rmask,
+						screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
+					SDL_FillRect(text_surface, NULL, SDL_MapRGB(text_surface->format,
+						border_color.r, border_color.g, border_color.b));
+					border_rect.w = text_surface->w - border_rect.x * 2;
+					border_rect.h = text_surface->h - border_rect.y * 2;
+					SDL_FillRect(text_surface, &border_rect, SDL_MapRGB(text_surface->format,
+						bg_color.r, bg_color.g, bg_color.b));
+					SDL_BlitSurface(temp_surface, NULL, text_surface, &text_in_rect);
+					SDL_FreeSurface(temp_surface);
+					text_timer = SDL_GetTicks();
+					draw_text = 0;
+				}
 #endif
+			} while (!quit && Stop);
 			return quit;
 		case VPNES_CALLBACK_CPUHALT:
 #if defined(VPNES_USE_TTF)

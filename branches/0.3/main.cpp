@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 	std::clog << "License: GPL v2" << std::endl;
 #endif
 #ifdef VPNES_INTERACTIVE
-	if ((argc < 2) || !InitLog())
+	if (!InitLog() || (argc < 2))
 		DisableInteractive = 0;
 	if (InitMainWindow(512, 448) < 0)
 		return 0;

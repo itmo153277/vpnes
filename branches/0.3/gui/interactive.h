@@ -44,6 +44,8 @@ int InteractiveGUI(char *Rom);
 void InitInteractive(void);
 /* Завершение интерактивного режима */
 void DestroyInteractive(void);
+/* Изменить состояние */
+void ChangeRenderState(int RenderState);
 #ifdef __cplusplus
 }
 #endif

@@ -46,6 +46,9 @@ extern "C" {
 #define VPNES_SAVESTATE  0x00000002
 #define VPNES_LOADSTATE  0x00000004
 #define VPNES_RESET      0x00000008
+#define VPNES_PAUSE      0x00000010
+#define VPNES_RESUME     0x00000020
+#define VPNES_STEP       0x00000040
 
 /* Обратная связь с главным циклом */
 extern int WindowState;
@@ -72,6 +75,7 @@ void AppQuit(void);
 /* Управление эмуляцией */
 void Pause(void);
 void StopRender(void);
+void ResumeRender(void);
 /* Callback-функция */
 int WindowCallback(uint32, void *);
 
