@@ -326,6 +326,9 @@ int SetMode(int Width, int Height, double FrameLength) {
 	Active = 0;
 	Run = -1;
 	Stop = 0;
+#if defined(VPNES_INTERACTIVE)
+	ChangeRenderState(0);
+#endif
 	Resume();
 	return 0;
 }
@@ -387,7 +390,7 @@ void StopRender(void) {
 	Stop = -1;
 	SDL_PauseAudio(-1);
 #if defined(VPNES_INTERACTIVE)
-	ChangeRenderState(Stop);
+	ChangeRenderState(-1);
 #endif
 }
 
@@ -401,7 +404,7 @@ void ResumeRender(void) {
 		SDL_PauseAudio(0);
 	SDL_UnlockAudio();
 #if defined(VPNES_INTERACTIVE)
-	ChangeRenderState(Stop);
+	ChangeRenderState(0);
 #endif
 }
 

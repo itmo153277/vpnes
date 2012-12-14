@@ -63,20 +63,23 @@
 /* Version number of package */
 #undef VERSION
 
-/* Disable frame skip */
+/* Define to local/global or full path to config file to use configurations */
+#undef VPNES_CONFIGFILE
+
+/* Define to 1 to disable frame skip */
 #undef VPNES_DISABLE_FSKIP
 
-/* Disable frame synchronization */
+/* Define to 1 to disable frame synchronization */
 #undef VPNES_DISABLE_SYNC
 
-/* Interactive mode */
+/* Define to 1 to enable interactive mode */
 #undef VPNES_INTERACTIVE
 
-/* Show frame number in window title */
+/* Define to 1 to show frame number in window title */
 #undef VPNES_SHOW_CURFRAME
 
-/* Show fps in window title */
+/* Define to 1 to show fps in window title */
 #undef VPNES_SHOW_FPS
 
-/* Enable TTF support */
+/* Define to 1 to enable TTF support */
 #undef VPNES_USE_TTF

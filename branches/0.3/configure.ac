@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev8])
+AC_REVISION([rev9])
 
 AC_CANONICAL_HOST
 
@@ -60,7 +60,7 @@ if test "x$sdl_ttf_use" = "xyes" ; then
 fi
 
 if test "x$sdl_ttf_use" = "xyes" ; then
-	AC_DEFINE([VPNES_USE_TTF], 1, [Enable TTF support])
+	AC_DEFINE([VPNES_USE_TTF], 1, [Define to 1 to enable TTF support])
 	LIBS="$SDL_ttf_LIBS $LIBS"
 	CFLAGS="$SDL_ttf_CFLAGS $CFLAGS"
 	CXXFLAGS="$SDL_ttf_CFLAGS $CXXFLAGS"
@@ -77,11 +77,18 @@ fi
 
 #Functions
 
+AC_ARG_WITH(configfile, AS_HELP_STRING([--with-configfile],
+	[use configfile (global/local or full path)]), [vpnes_configfile=$withval])
+AM_CONDITIONAL([VPNES_CONFIGFILE], test -n "$vpnes_configfile")
+if test -n "$vpnes_configfile" ; then
+	AC_DEFINE_UNQUOTED([VPNES_CONFIGFILE], ["$vpnes_configfile"],
+		[Define to local/global or full path to config file to use configurations])
+fi
 AC_ARG_ENABLE(interactive, AS_HELP_STRING([--enable-interactive], [interactive mode]),
               [vpnes_interactive=$enableval])
 AM_CONDITIONAL([VPNES_INTERACTIVE], test "x$vpnes_interactive" = "xyes")
 if test "x$vpnes_interactive" = "xyes" ; then
-	AC_DEFINE([VPNES_INTERACTIVE], 1, [Interactive mode])
+	AC_DEFINE([VPNES_INTERACTIVE], 1, [Define to 1 to enable interactive mode])
 	if test "x$host_os_windows" = "xyes" ; then
 		LIBS="-lcomctl32 $LIBS"
 		AC_CHECK_HEADERS([commdlg.h commctrl.h shellapi.h], [],
@@ -91,19 +98,19 @@ fi
 AC_ARG_ENABLE(showcurframe, AS_HELP_STRING([--enable-showcurframe], 
 	[show frame number in window title]),
 	[if test "x$enableval" = "xyes" ; then
-		AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Show frame number in window title])
+		AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Define to 1 to show frame number in window title])
 	fi])
 AC_ARG_ENABLE(showfps, AS_HELP_STRING([--enable-showfps], [show fps in window title]),
 	[if test "x$enableval" = "xyes" ; then
-		AC_DEFINE([VPNES_SHOW_FPS], 1, [Show fps in window title])
+		AC_DEFINE([VPNES_SHOW_FPS], 1, [Define to 1 to show fps in window title])
 	fi])
 AC_ARG_ENABLE(sync, AS_HELP_STRING([--disable-sync], [disable frame synchronization]),
 	[if test "x$enableval" = "xno" ; then
-		AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Disable frame synchronization])
+		AC_DEFINE([VPNES_DISABLE_SYNC], 1, [Define to 1 to disable frame synchronization])
 	fi])
 AC_ARG_ENABLE(fskip, AS_HELP_STRING([--disable-fskip], [disable frame skipping]),
 	[if test "x$enableval" = "xno" ; then
-		AC_DEFINE([VPNES_DISABLE_FSKIP], 1, [Disable frame skip])
+		AC_DEFINE([VPNES_DISABLE_FSKIP], 1, [Define to 1 to disable frame skip])
 	fi])
 
 AC_CONFIG_FILES([Makefile
