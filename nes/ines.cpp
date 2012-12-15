@@ -36,15 +36,24 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		return -1;
 	Data->Header.PRGSize = Header.PRGSize * 0x4000;
 	Data->Header.CHRSize = Header.CHRSize * 0x2000;
-	Data->Header.RAMSize = Header.RAMSize * 0x2000;
 	Data->Header.Mirroring = (SolderPad) (Header.Flags & 0x09);
 	Data->Header.HaveBattery = Header.Flags & 0x02;
 	Data->Header.Mapper = Header.Flags >> 4;
-	if (Header.BadROM)
+	if (Header.BadROM) {
 		Data->Header.TVSystem = 0;
-	else {
+		Data->Header.RAMSize = 0x2000;
+	} else {
 		Data->Header.Mapper |= Header.Flags_ex & 0xf0;
 		Data->Header.TVSystem = Header.TV_system;
+		if (Header.RAMSize == 0)
+			Data->Header.RAMSize = 0x2000;
+		else 
+			Data->Header.RAMSize = Header.RAMSize * 0x2000;
+		if ((((Header.Flags_unofficial >> 1) & 0x01) == Data->Header.TVSystem) ||
+			(Header.Flags_unofficial & 0x01)) { /* Можно использвать флаги */
+			if ((Header.RAMSize == 0) && (Header.Flags_unofficial & 0x10))
+				Data->Header.RAMSize = 0;
+		}
 	}
 	if (Header.Flags & 0x04) { /* Trainer */
 		Data->Trainer = new uint8[0x0200];
@@ -63,9 +72,7 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		Data->Header.CHRSize = 0x2000;
 	}
 	if (ROM.fail()) {
-		delete [] Data->PRG;
-		delete [] Data->CHR;
-		delete [] Data->Trainer;
+		FreeROMData(Data);
 		return -1;
 	}
 	return 0;

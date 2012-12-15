@@ -19,44 +19,35 @@
 
 \****************************************************************************/
 
+#ifndef __INTERACTIVE_H_
+#define __INTERACTIVE_H_
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <SDL.h>
-#include <iostream>
-#include "gui/window.h"
-#include "gui/gui.h"
+#include <SDL_syswm.h>
 
-#ifdef VPNES_INTERACTIVE
-#include "gui/interactive.h"
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#include "types.h"
+/* Не использовать интерактивнй режим */
+extern int DisableInteractive;
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-#ifdef BUILDNUM
-	std::clog << "VPNES " VERSION " Build " BUILDNUM
-#ifdef SVNREV
-		" (" SVNREV ")"
-#endif
-		<< std::endl;
-	std::clog << "License: GPL v2" << std::endl;
-#endif
-#ifdef VPNES_INTERACTIVE
-	if (!InitLog() || (argc < 2))
-		DisableInteractive = 0;
-	if (InitMainWindow(512, 448) < 0)
-		return 0;
-	if (DisableInteractive)
-		StartGUI(argv[1]);
-	else
-		InteractiveGUI((argc > 1) ? argv[1] : NULL);
-#else
-	if (argc != 2)
-		return 0;
-	InitLog();
-	if (InitMainWindow(512, 448) < 0)
-		return 0;
-	StartGUI(argv[1]);
-#endif
-	AppQuit();
-	return 0;
+/* Обработчик сообщений */
+int InteractiveDispatcher(SDL_SysWMmsg *Msg);
+/* Запуск GUI */
+int InteractiveGUI(char *Rom);
+/* Инициализация интерактивного режима */
+void InitInteractive(void);
+/* Завершение интерактивного режима */
+void DestroyInteractive(void);
+/* Изменить состояние */
+void ChangeRenderState(int RenderState);
+#ifdef __cplusplus
 }
+#endif
+
+#endif

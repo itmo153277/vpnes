@@ -1,3 +1,9 @@
+v0.3
+	New Core
+	New APU
+	New IRQ processing
+	CPU fixes
+
 v0.2
 	Added basic MMC1 support
 	New renderer

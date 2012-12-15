@@ -16,6 +16,7 @@
 @SET_MAKE@
 
 
+
 VPATH = @srcdir@
 am__make_dryrun = \
   { \
@@ -52,9 +53,11 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = nes
-DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in
+@VPNES_INTERACTIVE_TRUE@am__append_1 = interactive.c
+@VPNES_CONFIGFILE_TRUE@am__append_2 = configfile.cpp
+subdir = gui
+DIST_COMMON = $(dist_noinst_DATA) $(noinst_HEADERS) \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -66,26 +69,36 @@ CONFIG_CLEAN_VPATH_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 AR = ar
 ARFLAGS = cru
-libvpnes_a_AR = $(AR) $(ARFLAGS)
-libvpnes_a_LIBADD =
-am_libvpnes_a_OBJECTS = ines.$(OBJEXT) libvpnes.$(OBJEXT)
-libvpnes_a_OBJECTS = $(am_libvpnes_a_OBJECTS)
+libvpnes_gui_a_AR = $(AR) $(ARFLAGS)
+libvpnes_gui_a_LIBADD =
+am__libvpnes_gui_a_SOURCES_DIST = gui.cpp window.c interactive.c \
+	configfile.cpp
+@VPNES_INTERACTIVE_TRUE@am__objects_1 = interactive.$(OBJEXT)
+@VPNES_CONFIGFILE_TRUE@am__objects_2 = configfile.$(OBJEXT)
+am_libvpnes_gui_a_OBJECTS = gui.$(OBJEXT) window.$(OBJEXT) \
+	$(am__objects_1) $(am__objects_2)
+libvpnes_gui_a_OBJECTS = $(am_libvpnes_gui_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 CXXLD = $(CXX)
 CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
-SOURCES = $(libvpnes_a_SOURCES)
-DIST_SOURCES = $(libvpnes_a_SOURCES)
+SOURCES = $(libvpnes_gui_a_SOURCES)
+DIST_SOURCES = $(am__libvpnes_gui_a_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
+DATA = $(dist_noinst_DATA)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
@@ -202,15 +215,17 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-noinst_LIBRARIES = libvpnes.a
-libvpnes_a_SOURCES = ines.cpp libvpnes.cpp
-noinst_HEADERS = apu.h bus.h clock.h cpu.h ines.h libvpnes.h \
-                 manager.h mapper.h nes.h ppu.h
+noinst_LIBRARIES = libvpnes-gui.a
+libvpnes_gui_a_SOURCES = gui.cpp window.c $(am__append_1) \
+	$(am__append_2)
+noinst_HEADERS = gui.h configfile.h interactive.h window.h win32-res/win32-res.h
+dist_noinst_DATA = configfile.cpp interactive.c text.otf win32-res/icon.ico \
+                   win32-res/win32-res.rc
 
 all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .cpp .o .obj
+.SUFFIXES: .c .cpp .o .obj
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -220,9 +235,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu nes/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu gui/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu nes/Makefile
+	  $(AUTOMAKE) --gnu gui/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -244,10 +259,10 @@ $(am__aclocal_m4_deps):
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
-libvpnes.a: $(libvpnes_a_OBJECTS) $(libvpnes_a_DEPENDENCIES) $(EXTRA_libvpnes_a_DEPENDENCIES) 
-	-rm -f libvpnes.a
-	$(libvpnes_a_AR) libvpnes.a $(libvpnes_a_OBJECTS) $(libvpnes_a_LIBADD)
-	$(RANLIB) libvpnes.a
+libvpnes-gui.a: $(libvpnes_gui_a_OBJECTS) $(libvpnes_gui_a_DEPENDENCIES) $(EXTRA_libvpnes_gui_a_DEPENDENCIES) 
+	-rm -f libvpnes-gui.a
+	$(libvpnes_gui_a_AR) libvpnes-gui.a $(libvpnes_gui_a_OBJECTS) $(libvpnes_gui_a_LIBADD)
+	$(RANLIB) libvpnes-gui.a
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -255,8 +270,24 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ines.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libvpnes.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/configfile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gui.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/interactive.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/window.Po@am__quote@
+
+.c.o:
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(COMPILE) -c $<
+
+.c.obj:
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -356,7 +387,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LIBRARIES) $(HEADERS)
+all-am: Makefile $(LIBRARIES) $(DATA) $(HEADERS)
 installdirs:
 install: install-am
 install-exec: install-exec-am

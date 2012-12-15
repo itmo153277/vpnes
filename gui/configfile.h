@@ -19,8 +19,8 @@
 
 \****************************************************************************/
 
-#ifndef __WINDOW_H_
-#define __WINDOW_H_
+#ifndef __CONFIGFILE_H_
+#define __CONFIGFILE_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -29,15 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern const void *pal;
-
-/* Инициализация SDL */
-void *InitMainWindow(int Width, int Height);
-/* Выход */
-void AppQuit(void);
-/* Callback-функция */
-int WindowCallback(double Tim);
 
 #ifdef __cplusplus
 }

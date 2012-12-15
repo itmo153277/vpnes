@@ -81,6 +81,12 @@ struct NES_ROM_Data {
 
 /* Прочитать образ */
 int ReadROM(std::istream &ROM, ines::NES_ROM_Data *Data);
+/* Освободить память */
+inline void FreeROMData(ines::NES_ROM_Data *Data) {
+	delete [] Data->PRG;
+	delete [] Data->CHR;
+	delete [] Data->Trainer;
+}
 
 }
 

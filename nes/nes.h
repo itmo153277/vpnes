@@ -28,90 +28,169 @@
 
 #include "../types.h"
 
-#include "device.h"
-#include "clock.h"
+#include <iostream>
+#include "ines.h"
+#include "manager.h"
 
 namespace vpnes {
 
-/* Независимый интерфейс */
+/* Интерфейс для NES */
 class CBasicNES {
 protected:
-	int Width;
-	int Height;
+	/* Мендеджер памяти */
+	CMemoryManager Manager;
 public:
 	inline explicit CBasicNES() {}
-	inline virtual ~CBasicNES() {}
+	inline virtual ~CBasicNES() {
+		/* Удаляем всю динамическую память */
+		Manager.FreeMemory<DynamicGroupID>();
+	}
 
-	/* Запуск */
+	/* Запустить цикл эмуляции */
 	virtual int PowerOn() = 0;
-	/* Reset */
+	/* Программный сброс */
 	virtual int Reset() = 0;
-	/* Установить указатель на буфер */
-	virtual void SetBuf(uint32 *Buf) = 0;
-	/* Установить указатель на палитру */
-	virtual void SetPal(uint32 *Pal) = 0;
-	/* Размеры */
-	inline const int &GetWidth() const { return Width; }
-	inline const int &GetHeight() const { return Height; }
+	/* Обновить буферы (реинициализация) */
+	virtual int UpdateBuf() = 0;
+
+	/* Выключить приставку (сохранение памяти) */
+	inline int PowerOff(std::ostream &RamFile) {
+		Manager.SaveMemory<BatteryGroupID>(RamFile);
+		return 0;
+	}
+
+	/* Сохранить текущее состоянии приставки (сохранение */
+	/* всей динамической памяти) */
+	inline int SaveState(std::ostream &RamFile) {
+		Manager.SaveMemory<DynamicGroupID>(RamFile);
+		return 0;
+	}
+
+	/* Загрузить текущее состояние (загрузка всей динамической */
+	/* памяти в образе, т.е. можно использовть для загрузки */
+	/* PRG RAM питающейся от батареи */
+	inline int LoadState(std::istream &RamFile) {
+		Manager.LoadMemory<DynamicGroupID>(RamFile);
+		return 0;
+	}
 };
 
-/* Стандартный NES (NTSC) */
+/* Интерфейс для параметров NES */
+class CNESConfig {
+protected:
+	/* Длина */
+	int Width;
+	/* Высота */
+	int Height;
+	/* Время одного фрейма */
+	double Frame;
+public:
+	inline explicit CNESConfig() {}
+	inline virtual ~CNESConfig() {}
+
+	/* Длина экрана */
+	inline const int &GetWidth() const { return Width; }
+	/* Высота экрана */
+	inline const int &GetHeight() const { return Height; }
+	/* Время фрейма */
+	inline const double &GetFrameLength() const { return Frame; }
+	/* Получить приставку по нашим параметрам */
+	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback) = 0;
+};
+
+/* Стандартный шаблон для параметров NES */
+template <class _Nes, class _Settings>
+class CNESConfigTemplate: public CNESConfig {
+private:
+	const ines::NES_ROM_Data *Data;
+public:
+	inline explicit CNESConfigTemplate(const ines::NES_ROM_Data *ROM) {
+		Width = _Settings::Right - _Settings::Left;
+		Height = _Settings::Bottom - _Settings::Top;
+		Frame = _Settings::GetFreq() * _Settings::PPU_Divider *
+			(_Settings::ActiveScanlines + _Settings::PostRender +
+			_Settings::VBlank + 1) * 341;
+		Data = ROM;
+	}
+	inline ~CNESConfigTemplate() {}
+
+	/* Получить новенький NES */
+	CBasicNES *GetNES(VPNES_CALLBACK Callback) {
+		_Nes *NES;
+
+		NES = new _Nes(Callback);
+		NES->GetBus().GetROM() = new typename _Nes::BusClass::ROMClass(&NES->GetBus(),
+			Data);
+		return NES;
+	}
+};
+
+/* Стандартный NES */
 template <class _Bus>
 class CNES: public CBasicNES {
 public:
 	typedef _Bus BusClass;
-	typedef typename BusClass::CPUClass CPUClass;
-	typedef typename BusClass::APUClass APUClass;
-	typedef typename BusClass::PPUClass PPUClass;
-	typedef CClock<BusClass> ClockClass;
-
 private:
 	/* Шина */
 	BusClass Bus;
-	/* Тактовый генератор */
-	ClockClass Clock;
+	/* Генератор */
+	typename BusClass::ClockClass Clock;
 	/* CPU */
-	CPUClass CPU;
+	typename BusClass::CPUClass CPU;
 	/* APU */
-	APUClass APU;
+	typename BusClass::APUClass APU;
 	/* PPU */
-	PPUClass PPU;
+	typename BusClass::PPUClass PPU;
 public:
-	inline explicit CNES(CallbackFunc CallBack): Bus(),
-		Clock(&Bus, CallBack), CPU(&Bus), APU(&Bus), PPU(&Bus) {
-		Bus.GetDeviceList()[BusClass::CPU] = &CPU;
-		Bus.GetDeviceList()[BusClass::APU] = &APU;
-		Bus.GetDeviceList()[BusClass::PPU] = &PPU;
-		Width = 256;
-		Height = 224;
+	inline explicit CNES(VPNES_CALLBACK Callback):
+		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus) {
+		Bus.GetClock() = &Clock;
+		Bus.GetCPU() = &CPU;
+		Bus.GetAPU() = &APU;
+		Bus.GetPPU() = &PPU;
 	}
 	inline ~CNES() {
 		/* ROM добавляется маппером */
-		delete Bus.GetDeviceList()[BusClass::ROM];
+		delete Bus.GetROM();
 	}
 
-	/* Установить указатель на буфер */
-	inline void SetBuf(uint32 *Buf) {
-		PPU.GetBuf() = Buf;
-	}
-	/* Установить указатель на палитру */
-	inline void SetPal(uint32 *Pal) {
-		PPU.GetPalette() = Pal;
-	}
-	/* Запуск */
-	inline int PowerOn() {
-		Reset();
+	/* Запустить цикл эмуляции */
+	int PowerOn() {
+		VPNES_FRAME data;
+
+		APU.GetABuf()->Callback(VPNES_PCM_START, APU.GetABuf());
 		for (;;) {
-			if (Clock.Clock() < 0)
+			data = Clock.ProccessFrame();
+			APU.FlushBuffer();
+			if (Bus.GetCallback()(VPNES_CALLBACK_FRAME, (void *) &data) < 0)
 				break;
 		}
+		APU.GetABuf()->Callback(VPNES_PCM_STOP, APU.GetABuf());
 		return 0;
 	}
-	/* Reset */
-	inline int Reset() {
+
+	/* Программный сброс */
+	int Reset() {
 		CPU.Reset();
 		APU.Reset();
 		PPU.Reset();
+		APU.Clock(CPU.GetCycles());
+		PPU.Clock(CPU.GetCycles());
+		return 0;
+	}
+
+	/* Обновить буферы */
+	int UpdateBuf() {
+		VPNES_INPUT ibuf;
+		VPNES_PCM abuf;
+		VPNES_VIDEO vbuf;
+
+		Bus.GetCallback()(VPNES_CALLBACK_INPUT, (void *) &ibuf);
+		APU.GetIBuf() = ibuf;
+		Bus.GetCallback()(VPNES_CALLBACK_PCM, (void *) &abuf);
+		APU.GetABuf() = abuf;
+		Bus.GetCallback()(VPNES_CALLBACK_VIDEO, (void *) &vbuf);
+		PPU.GetBuf() = vbuf;
 		return 0;
 	}
 

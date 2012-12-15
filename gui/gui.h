@@ -19,23 +19,25 @@
 
 \****************************************************************************/
 
-#ifndef __VPNES_H_
-#define __VPNES_H_
+#ifndef __GUI_H_
+#define __GUI_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include "../types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include <istream>
-#include "nes.h"
+/* Информация об образе */
+extern const char *InfoText;
 
-namespace vpnes {
+/* Запуск GUI */
+int StartGUI(char*);
 
-/* Открыть картридж */
-CBasicNES *OpenROM(std::istream &ROM, CallbackFunc CallBack);
-
+#ifdef __cplusplus
 }
+#endif
 
 #endif
