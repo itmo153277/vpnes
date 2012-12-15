@@ -19,44 +19,22 @@
 
 \****************************************************************************/
 
-#include <SDL.h>
-#include <iostream>
-#include "gui/window.h"
-#include "gui/gui.h"
+#ifndef __LIBVPNES_H_
+#define __LIBVPNES_H_
 
-#ifdef VPNES_INTERACTIVE
-#include "gui/interactive.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
-#include "types.h"
+#include <istream>
+#include "ines.h"
+#include "nes.h"
 
-/* Точка входа в программу */
-int main(int argc, char *argv[]) {
-#ifdef BUILDNUM
-	std::clog << "VPNES " VERSION " Build " BUILDNUM
-#ifdef SVNREV
-		" (" SVNREV ")"
-#endif
-		<< std::endl;
-	std::clog << "License: GPL v2" << std::endl;
-#endif
-#ifdef VPNES_INTERACTIVE
-	if (!InitLog() || (argc < 2))
-		DisableInteractive = 0;
-	if (InitMainWindow(512, 448) < 0)
-		return 0;
-	if (DisableInteractive)
-		StartGUI(argv[1]);
-	else
-		InteractiveGUI((argc > 1) ? argv[1] : NULL);
-#else
-	if (argc != 2)
-		return 0;
-	InitLog();
-	if (InitMainWindow(512, 448) < 0)
-		return 0;
-	StartGUI(argv[1]);
-#endif
-	AppQuit();
-	return 0;
+namespace vpnes {
+
+/* Открыть картридж */
+CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data);
+
 }
+
+#endif

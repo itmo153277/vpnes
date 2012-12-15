@@ -28,49 +28,69 @@
 
 #include "../types.h"
 
-#include <algorithm>
-#include "device.h"
+#include "manager.h"
+#include "bus.h"
 
 namespace vpnes {
 
-/* Стандартный тактовой генератор */
-template <class _Bus>
-class CClock {
+namespace MiscID {
+
+
+}
+
+/* Генератор */
+template <class _Bus, class _Oscillator>
+class CStdClock {
 private:
-	/* Указатель на шину */
+	/* Шина */
 	_Bus *Bus;
-	/* Callback */
-	CallbackFunc CallBack;
-	/* Всего тактов */
-	int AllClocks;
+	/* Текущий такт */
+	int PreCycles;
 public:
-	inline explicit CClock(_Bus *pBus, CallbackFunc pCallBack): Bus(pBus),
-		CallBack(pCallBack), AllClocks(0) { }
-	inline ~CClock() {}
-
-	/* Выполнить такт */
-	inline int Clock() {
-		double Tim;
-		int Clocks;
-
-		/* Выполняем команду CPU */
-		Clocks = static_cast<typename _Bus::CPUClass *>(Bus->GetDeviceList()[_Bus::CPU])->Clock();
-		/* APU */
-		static_cast<typename _Bus::APUClass *>(Bus->GetDeviceList()[_Bus::APU])->Clock(Clocks);
-		/* PPU */
-		static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(Clocks * 3);
-		AllClocks += Clocks;
-		if (static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady()) {
-			static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->IsFrameReady() = false;
-			/* Довыполнить рендеринг */
-			static_cast<typename _Bus::PPUClass *>(Bus->GetDeviceList()[_Bus::PPU])->Clock(0);
-			Tim = 528.0 * AllClocks / 945000.0;
-			AllClocks = 0;
-			/* Рисуем */
-			return CallBack(Tim);
-		}
-		return 0;
+	inline explicit CStdClock(_Bus *pBus) {
+		Bus = pBus;
 	}
+	inline ~CStdClock() {}
+
+	/* Обработать кадр */
+	inline double ProccessFrame() {
+
+		do {
+			PreCycles = 0;
+			Bus->GetCPU()->Execute();
+			PreCycles = Bus->GetCPU()->GetCycles();
+			Bus->GetAPU()->Clock(PreCycles);
+			Bus->GetPPU()->Clock(PreCycles * _Bus::CPUClass::ClockDivider);
+		} while (!Bus->GetPPU()->IsFrameReady());
+		return Bus->GetPPU()->GetFrameCycles() * GetFix();
+	}
+
+	/* Точный сдвиг */
+	inline void Clock(int Cycles) {
+		PreCycles += Cycles;
+	}
+	/* Пауза */
+	inline void Pause(int Cycle) {
+		PreCycles = Cycle;
+	}
+
+	/* Получить точный сдвиг */
+	inline int GetPreCycles() const { return PreCycles *
+		_Bus::CPUClass::ClockDivider; }
+	inline int GetPreCPUCycles() const { return PreCycles; }
+	/* Получить точный коэф */
+	static inline const double GetFix() { return _Oscillator::GetFreq(); }
+};
+
+/* Стандартный генератор */
+template <class _Oscillator>
+struct StdClock {
+	template <class _Bus>
+	class CClock: public CStdClock<_Bus, _Oscillator> {
+	public:
+		inline explicit CClock(_Bus *pBus): CStdClock<_Bus, _Oscillator>(pBus) {}
+		inline ~CClock() {}
+	};
 };
 
 }
