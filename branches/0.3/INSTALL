@@ -1,5 +1,0 @@
-To install the package perform following commands in your shell:
-
-$ ./configure
-$ make
-# make install
