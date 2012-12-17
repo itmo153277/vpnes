@@ -12,6 +12,8 @@ if VPNES_CONFIGFILE
 libvpnes_gui_a_SOURCES += configfile.cpp
 endif
 
+if VPNES_USEFONT
+
 if WINDOWS
 FONT = 
 FONTFLAGS = 
@@ -22,3 +24,5 @@ endif
 
 data_DATA = $(FONT)
 AM_CPPFLAGS = $(FONTFLAGS)
+
+endif
