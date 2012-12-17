@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev9])
+AC_REVISION([rev10])
 
 AC_CANONICAL_HOST
 
@@ -77,18 +77,22 @@ fi
 
 #Functions
 
-AC_ARG_WITH(configfile, AS_HELP_STRING([--with-configfile],
-	[use configfile (global/local or full path)]), [vpnes_configfile=$withval])
-AM_CONDITIONAL([VPNES_CONFIGFILE], test -n "$vpnes_configfile")
-if test -n "$vpnes_configfile" ; then
+vpnes_configfile=yes
+AC_ARG_WITH(configfile, AS_HELP_STRING([--with-configfile=ARG],
+	[use configfile (global/local or full path) [default=local]]), [vpnes_configfile=$withval])
+if test "x$vpnes_configfile" = "xyes" ; then
+	vpnes_configfile=local
+fi
+AM_CONDITIONAL([VPNES_CONFIGFILE], test "x$vpnes_configfile" != "xno")
+if test "x$vpnes_configfile" != "xno" ; then
 	AC_DEFINE_UNQUOTED([VPNES_CONFIGFILE], ["$vpnes_configfile"],
 		[Define to local/global or full path to config file to use configurations])
 fi
-AC_ARG_ENABLE(interactive, AS_HELP_STRING([--enable-interactive], [interactive mode]),
+AC_ARG_ENABLE(interactive, AS_HELP_STRING([--enable-interactive], [interactive mode for GUI]),
               [vpnes_interactive=$enableval])
 AM_CONDITIONAL([VPNES_INTERACTIVE], test "x$vpnes_interactive" = "xyes")
 if test "x$vpnes_interactive" = "xyes" ; then
-	AC_DEFINE([VPNES_INTERACTIVE], 1, [Define to 1 to enable interactive mode])
+	AC_DEFINE([VPNES_INTERACTIVE], 1, [Define to 1 to enable interactive mode for GUI])
 	if test "x$host_os_windows" = "xyes" ; then
 		LIBS="-lcomctl32 $LIBS"
 		AC_CHECK_HEADERS([commdlg.h commctrl.h shellapi.h], [],

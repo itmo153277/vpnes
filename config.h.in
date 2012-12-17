@@ -72,7 +72,7 @@
 /* Define to 1 to disable frame synchronization */
 #undef VPNES_DISABLE_SYNC
 
-/* Define to 1 to enable interactive mode */
+/* Define to 1 to enable interactive mode for GUI */
 #undef VPNES_INTERACTIVE
 
 /* Define to 1 to show frame number in window title */

@@ -11,3 +11,14 @@ endif
 if VPNES_CONFIGFILE
 libvpnes_gui_a_SOURCES += configfile.cpp
 endif
+
+if WINDOWS
+FONT = 
+FONTFLAGS = 
+else
+FONT = text.otf
+FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'
+endif
+
+data_DATA = $(FONT)
+AM_CPPFLAGS = $(FONTFLAGS)
