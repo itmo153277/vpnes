@@ -43,13 +43,13 @@
 int DisableInteractive = -1;
 char ResFileName[VPNES_MAX_PATH];
 char FileName[VPNES_MAX_PATH];
-#ifdef _WIN32
+int opennew = 0;
+int quit = 0;
 const char DefaultInfoText[] = "No ROM";
+#ifdef _WIN32
 HMENU Menu = INVALID_HANDLE_VALUE;
 INITCOMMONCONTROLSEX icc;
 WNDPROC OldWndProc = NULL;
-int opennew = 0;
-int quit = 0;
 #endif
 
 #ifdef _WIN32

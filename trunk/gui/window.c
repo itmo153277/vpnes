@@ -222,7 +222,10 @@ int InitMainWindow(int Width, int Height) {
 	if (FontRW != NULL)
 		font = TTF_OpenFontRW(FontRW, -1, 22);
 #else
-	font = TTF_OpenFont("text.otf", 22);
+#ifndef VPNES_TTF_PATH
+#define VPNES_TTF_PATH "text.otf"
+#endif
+	font = TTF_OpenFont(VPNES_TTF_PATH, 22);
 #endif
 	if (font == NULL)
 		return -1;
@@ -301,7 +304,7 @@ int SetMode(int Width, int Height, double FrameLength) {
 	desired->freq = 44100;
 	desired->format = AUDIO_S16SYS;
 	desired->channels = 1;
-	desired->samples = (int) (FrameLength * 44.1 * 2); /* 2 кадра */
+	desired->samples = (int) (FrameLength * 44.1 * 3); /* 3 кадра */
 	desired->callback = AudioCallbackSDL;
 	desired->userdata = NULL;
 	if (SDL_OpenAudio(desired, obtained) < 0) {
@@ -773,7 +776,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 							break;
 #if !defined(VPNES_DISABLE_SYNC)
 						case VPNES_RATE:
-							sprintf(spstr, "Speed: x%1.1f", PlayRate);
+							snprintf(spstr, 20, "Speed: x%1.1f", PlayRate);
 							text_string = spstr;
 							quit = 0;
 							break;
