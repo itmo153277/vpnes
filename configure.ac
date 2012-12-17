@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev10])
+AC_REVISION([rev11])
 
 AC_CANONICAL_HOST
 
@@ -22,6 +22,15 @@ AM_CONDITIONAL([WINDOWS], [test "x$host_os_windows" = "xyes"])
 AC_PROG_RANLIB
 AC_PROG_CC
 AC_PROG_CXX
+
+dnl Should add -mwin32 to enable _WIN32 macro
+case ${host_os} in
+	*cygwin* )
+	CFLAGS="-mwin32 $CFLAGS"
+	CXXFLAGS="-mwin32 $CXXFLAGS"
+esac
+
+AC_HEADER_STDC
 
 AC_ARG_VAR([RCC], [resource compiler command])
 AC_ARG_VAR([RCFLAGS], [resource compiler flags])
@@ -48,17 +57,22 @@ if test -n "$sdl_ttf_prefix" ; then
 	SDL_ttf_CFLAGS="-I$sdl_ttf_prefix/include/SDL"
 	sdl_ttf_use="yes"
 else
-	PKG_CHECK_MODULES([SDL_ttf], [SDL_ttf], [sdl_ttf_use="yes"])
+	PKG_CHECK_MODULES([SDL_ttf], [SDL_ttf], [sdl_ttf_use="yes"],
+		[AC_MSG_WARN([SDL_ttf was not found: TTF support will be disabled])])
 fi
 
 if test "x$sdl_ttf_use" = "xyes" ; then
 	AC_CHECK_FT2([2.4.0], [], [PKG_CHECK_MODULES([FT2], [FreeType >= 15.0.0], [],
-	[sdl_ttf_use="no"])])
+	[
+		AC_MSG_WARN([couldn't find freetype2: TTF support will be disabled])
+		sdl_ttf_use="no"
+	])])
 	LIBS="$FT2_LIBS $LIBS"
 	CFLAGS="$FT2_CFLAGS $CFLAGS"
 	CXXFLAGS="$FT2_CFLAGS $CXXFLAGS"
 fi
 
+AM_CONDITIONAL([VPNES_USEFONT], [test "x$sdl_ttf_use" = "xyes"])
 if test "x$sdl_ttf_use" = "xyes" ; then
 	AC_DEFINE([VPNES_USE_TTF], 1, [Define to 1 to enable TTF support])
 	LIBS="$SDL_ttf_LIBS $LIBS"

@@ -27,6 +27,15 @@
 #endif
 
 #ifdef _WIN32
+/* Minimal version */
+#ifndef _WIN32_IE
+#define _WIN32_IE 0x0500
+#endif
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
 #endif
 

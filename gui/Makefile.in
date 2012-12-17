@@ -250,12 +250,12 @@ noinst_HEADERS = gui.h configfile.h interactive.h window.h win32-res/win32-res.h
 dist_noinst_DATA = configfile.cpp interactive.c text.otf win32-res/icon.ico \
                    win32-res/win32-res.rc
 
-@WINDOWS_FALSE@FONT = text.otf
-@WINDOWS_TRUE@FONT = 
-@WINDOWS_FALSE@FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'
-@WINDOWS_TRUE@FONTFLAGS = 
-data_DATA = $(FONT)
-AM_CPPFLAGS = $(FONTFLAGS)
+@VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONT = text.otf
+@VPNES_USEFONT_TRUE@@WINDOWS_TRUE@FONT = 
+@VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'
+@VPNES_USEFONT_TRUE@@WINDOWS_TRUE@FONTFLAGS = 
+@VPNES_USEFONT_TRUE@data_DATA = $(FONT)
+@VPNES_USEFONT_TRUE@AM_CPPFLAGS = $(FONTFLAGS)
 all: all-am
 
 .SUFFIXES:

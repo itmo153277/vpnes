@@ -495,7 +495,7 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 				passed = SDL_GetTicks() - fpst;
 				if (passed > 1000) {
 					fps = cur_frame * 1000.0 / passed;
-					snprintf(buf, 20, "%.3lf", fps);
+					snprintf(buf, 20, "%.3f", fps);
 					SDL_WM_SetCaption(buf, NULL);
 					fpst = SDL_GetTicks();
 					cur_frame = 0;
