@@ -33,11 +33,6 @@
 
 namespace vpnes {
 
-namespace MiscID {
-
-
-}
-
 /* Генератор */
 template <class _Bus, class _Oscillator>
 class CStdClock {

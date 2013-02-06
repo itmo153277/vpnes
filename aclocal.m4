@@ -14,8 +14,8 @@
 
 m4_ifndef([AC_AUTOCONF_VERSION],
   [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
-m4_if(m4_defn([AC_AUTOCONF_VERSION]), [2.68],,
-[m4_warning([this file was generated for autoconf 2.68.
+m4_if(m4_defn([AC_AUTOCONF_VERSION]), [2.69],,
+[m4_warning([this file was generated for autoconf 2.69.
 You have another version of autoconf.  It may work, but is not guaranteed to.
 If you have problems, you may need to regenerate the build system entirely.
 To do so, use the procedure documented by the package, typically `autoreconf'.])])
@@ -52,12 +52,11 @@ AC_DEFUN([AC_CHECK_FT2],
 	[ft_config_prefix="$withval"], [ft_config_prefix=""])
 
    AC_ARG_WITH([ft-exec-prefix], AS_HELP_STRING([--with-ft-exec-prefix=PREFIX],
-     [exec prefix where FreeType is installed (optional)]),
-     [ft_config_exec_prefix="$withval"],
-     [ft_config_exec_prefix=""])
+	[exec prefix where FreeType is installed (optional)]),
+	[ft_config_exec_prefix="$withval"], [ft_config_exec_prefix=""])
 
    AC_ARG_ENABLE([freetypetest], AS_HELP_STRING([--disable-freetypetest],
-     [do not try to compile and run a test FreeType program]),
+	[do not try to compile and run a test FreeType program]),
      [],
      [enable_fttest=yes])
 

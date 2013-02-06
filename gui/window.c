@@ -729,14 +729,14 @@ int WindowCallback(uint32 VPNES_CALLBACK_EVENT, void *Data) {
 						}
 					}
 					skipped++;
-					if (framejit < Tim) {
+					if (framejit < Tim * 2) {
 						vbuf.Skip = 0;
 						if (CanLog) {
 							fprintf(stderr, "Info: Skipped %d frames\n", skipped);
 							fflush(stderr);
 						}
 					}
-				} else if (framejit > Tim) {
+				} else if (framejit > Tim * 2) {
 					vbuf.Skip = -1;
 					skip = 0;
 					skipped = 0;
