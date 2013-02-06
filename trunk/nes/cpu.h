@@ -30,6 +30,7 @@
 
 #include <cstring>
 #include "manager.h"
+#include "frontend.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -813,17 +814,11 @@ void CCPU<_Bus, _Settings>::Execute() {
 /* Неизвестный опкод */
 template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::OpIllegal() {
-	VPNES_CPUHALT HaltData;
-
 	/* Зависание */
 	InternalData.Halt = true;
-	HaltData.PC = Registers.pc;
-	HaltData.A = Registers.a;
-	HaltData.X = Registers.x;
-	HaltData.Y = Registers.y;
-	HaltData.S = Registers.s;
-	HaltData.State = State.GetState();
-	Bus->GetCallback()(VPNES_CALLBACK_CPUHALT, (void *) &HaltData);
+	Bus->GetFrontend()->Panic();
+	Bus->GetFrontend()->CPUDebug(Registers.pc, Registers.a, Registers.x, Registers.y,
+		Registers.s, State.GetState());
 }
 
 /* Управление памятью */

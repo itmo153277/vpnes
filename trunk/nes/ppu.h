@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstring>
 #include "manager.h"
+#include "frontend.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -217,8 +218,6 @@ private:
 	uint8 *PalMem;
 	/* Спрайты */
 	uint8 *OAM;
-	/* Данные видеобуфера */
-	VPNES_VBUF *vbuf;
 
 	struct SInternalData: public ManagerID<PPUID::InternalDataID> {
 		/* Внутренний флаг */
@@ -247,11 +246,11 @@ private:
 	static const uint16 ColourTable[256];
 
 	/* Вывод точки */
-	inline void OutputPixel(int x, int y, int col, int tint) {
+	inline void OutputPixel(int x, int y, int Colour, int Tint) {
 		if ((x >= Screen::Left) && (y >= Screen::Top) &&
 			(x < Screen::Right) && (y < Screen::Bottom)) {
-			vbuf->Buf[(x - Screen::Left) + (y - Screen::Top) * 256] =
-				vbuf->Pal[col + (tint << 6)];
+			Bus->GetFrontend()->GetVideoFrontend()->PutPixel(x - Screen::Left,
+				y - Screen::Top, Colour, Tint);
 		}
 	}
 
@@ -488,8 +487,6 @@ public:
 		FrameReady = false;
 		return Res;
 	}
-	/* Буфер */
-	inline VPNES_VBUF *&GetBuf() { return vbuf; }
 };
 
 /* Выборка спрайтов */
@@ -671,8 +668,7 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 		col &= 0x30;
 	else
 		col &= 0x3f;
-	if (!vbuf->Skip)
-		OutputPixel(InternalData.x, InternalData.y, col, ControlRegisters.Tint);
+	OutputPixel(InternalData.x, InternalData.y, col, ControlRegisters.Tint);
 	InternalData.ShiftReg <<= 2;
 	if ((InternalData.x & 0x07) == Registers.FH)
 		Registers.AR >>= 2;

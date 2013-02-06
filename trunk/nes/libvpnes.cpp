@@ -150,6 +150,18 @@ struct Dendy_Settings {
 	static inline void SkipPPUClock(int &Clocks) { }
 };
 
+template <template<template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class> class _Bus,
+          template<class> class _ROM>
+struct Dendy_NES_Config {
+	typedef CNESConfigTemplate<CNES<_Bus<StdClock<Dendy_Settings>::CClock,
+		StdCPU<Dendy_Settings>::CPU, StdAPU<Dendy_Settings>::APU,
+		StdPPU<Dendy_Settings>::PPU, _ROM> >, Dendy_Settings> Config;
+};
+
 /* Открыть картридж */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
 	if (ReadROM(ROM, Data) < 0)

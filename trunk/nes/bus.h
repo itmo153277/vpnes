@@ -29,6 +29,7 @@
 #include "../types.h"
 
 #include "manager.h"
+#include "frontend.h"
 
 namespace vpnes {
 
@@ -59,8 +60,8 @@ public:
 	typedef _PPU PPUClass;
 	typedef _ROM ROMClass;
 private:
-	/* Обработчик событий */
-	VPNES_CALLBACK _Callback;
+	/* Интерфейс NES */
+	CNESFrontend *_Frontend;
 	/* Менеджер памяти */
 	CMemoryManager *_Manager;
 	/* Clock */
@@ -78,8 +79,8 @@ private:
 	/* PRG RW State */
 	bool PRGRW;
 public:
-	inline explicit CBus_Basic(VPNES_CALLBACK Callback, CMemoryManager *Manager):
-		_Callback(Callback), _Manager(Manager) {
+	inline explicit CBus_Basic(CNESFrontend *Frontend, CMemoryManager *Manager):
+		_Frontend(Frontend), _Manager(Manager) {
 		PRGRW = false;
 	}
 	inline ~CBus_Basic() {}
@@ -129,8 +130,8 @@ public:
 			SolderPad.WritePPUAddress(Address, Src);
 	}
 
-	/* Обработчик событий */
-	inline const VPNES_CALLBACK &GetCallback() const { return _Callback; }
+	/* Интерфейс NES */
+	inline CNESFrontend * const &GetFrontend() const { return _Frontend; }
 	/* Менеджер памяти */
 	inline CMemoryManager * const &GetManager() const { return _Manager; }
 	/* Clock */
@@ -159,9 +160,9 @@ class CBus: public CBus_Basic<_Clock<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
                               _PPU<CBus<_Clock, _CPU, _APU, _PPU, _ROM> >,
                               _ROM<CBus<_Clock, _CPU, _APU, _PPU, _ROM> > > {
 public:
-	inline explicit CBus(VPNES_CALLBACK Callback, CMemoryManager *Manager):
+	inline explicit CBus(CNESFrontend *Frontend, CMemoryManager *Manager):
 		CBus_Basic<_Clock<CBus>, _CPU<CBus>, _APU<CBus>, _PPU<CBus>,
-			_ROM<CBus> >(Callback, Manager) {}
+			_ROM<CBus> >(Frontend, Manager) {}
 };
 
 }

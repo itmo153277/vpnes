@@ -31,8 +31,16 @@
 #include <iostream>
 #include "ines.h"
 #include "manager.h"
+#include "frontend.h"
 
 namespace vpnes {
+
+namespace MiscID {
+
+typedef MiscGroup<1>::ID::NoBatteryID Controller1InternalDataID;
+typedef MiscGroup<2>::ID::NoBatteryID Controller2InternalDataID;
+
+}
 
 /* Интерфейс для NES */
 class CBasicNES {
@@ -50,8 +58,6 @@ public:
 	virtual int PowerOn() = 0;
 	/* Программный сброс */
 	virtual int Reset() = 0;
-	/* Обновить буферы (реинициализация) */
-	virtual int UpdateBuf() = 0;
 
 	/* Выключить приставку (сохранение памяти) */
 	inline int PowerOff(std::ostream &RamFile) {
@@ -95,7 +101,7 @@ public:
 	/* Время фрейма */
 	inline const double &GetFrameLength() const { return Frame; }
 	/* Получить приставку по нашим параметрам */
-	virtual CBasicNES *GetNES(VPNES_CALLBACK Callback) = 0;
+	virtual CBasicNES *GetNES(CNESFrontend *Frontend) = 0;
 };
 
 /* Стандартный шаблон для параметров NES */
@@ -115,12 +121,22 @@ public:
 	inline ~CNESConfigTemplate() {}
 
 	/* Получить новенький NES */
-	CBasicNES *GetNES(VPNES_CALLBACK Callback) {
+	CBasicNES *GetNES(CNESFrontend *Frontend) {
 		_Nes *NES;
+		const CInputFrontend::SInternalMemory *ControllerMemory;
 
-		NES = new _Nes(Callback);
+		NES = new _Nes(Frontend);
 		NES->GetBus().GetROM() = new typename _Nes::BusClass::ROMClass(&NES->GetBus(),
 			Data);
+		/* Регистрируем память контроллеров */
+		ControllerMemory = Frontend->GetInput1Frontend()->GetInternalMemory();
+		NES->GetBus().GetManager()->template SetPointer
+			<ManagerID<MiscID::Controller1InternalDataID> >(ControllerMemory->RAM,
+			ControllerMemory->Size);
+		ControllerMemory = Frontend->GetInput2Frontend()->GetInternalMemory();
+		NES->GetBus().GetManager()->template SetPointer
+			<ManagerID<MiscID::Controller2InternalDataID> >(ControllerMemory->RAM,
+			ControllerMemory->Size);
 		return NES;
 	}
 };
@@ -142,8 +158,8 @@ private:
 	/* PPU */
 	typename BusClass::PPUClass PPU;
 public:
-	inline explicit CNES(VPNES_CALLBACK Callback):
-		Bus(Callback, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus) {
+	inline explicit CNES(CNESFrontend *Frontend):
+		Bus(Frontend, &Manager), Clock(&Bus), CPU(&Bus), APU(&Bus), PPU(&Bus) {
 		Bus.GetClock() = &Clock;
 		Bus.GetCPU() = &CPU;
 		Bus.GetAPU() = &APU;
@@ -156,17 +172,17 @@ public:
 
 	/* Запустить цикл эмуляции */
 	int PowerOn() {
-		VPNES_FRAME data;
+		double FrameTime;
+		int Res = 0;
 
-		APU.GetABuf()->Callback(VPNES_PCM_START, APU.GetABuf());
-		for (;;) {
-			data = Clock.ProccessFrame();
+		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
+		do {
+			FrameTime = Clock.ProccessFrame();
 			APU.FlushBuffer();
-			if (Bus.GetCallback()(VPNES_CALLBACK_FRAME, (void *) &data) < 0)
-				break;
-		}
-		APU.GetABuf()->Callback(VPNES_PCM_STOP, APU.GetABuf());
-		return 0;
+			Res = Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(FrameTime);
+		} while (Res >= 0);
+		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
+		return Res;
 	}
 
 	/* Программный сброс */
@@ -176,21 +192,6 @@ public:
 		PPU.Reset();
 		APU.Clock(CPU.GetCycles());
 		PPU.Clock(CPU.GetCycles());
-		return 0;
-	}
-
-	/* Обновить буферы */
-	int UpdateBuf() {
-		VPNES_INPUT ibuf;
-		VPNES_PCM abuf;
-		VPNES_VIDEO vbuf;
-
-		Bus.GetCallback()(VPNES_CALLBACK_INPUT, (void *) &ibuf);
-		APU.GetIBuf() = ibuf;
-		Bus.GetCallback()(VPNES_CALLBACK_PCM, (void *) &abuf);
-		APU.GetABuf() = abuf;
-		Bus.GetCallback()(VPNES_CALLBACK_VIDEO, (void *) &vbuf);
-		PPU.GetBuf() = vbuf;
 		return 0;
 	}
 

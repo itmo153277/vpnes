@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstring>
 #include "manager.h"
+#include "frontend.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -65,9 +66,6 @@ private:
 
 	/* Внутренние данные */
 	struct SInternalData: public ManagerID<APUID::InternalDataID> {
-		uint8 Strobe;
-		int Counter_A;
-		int Counter_B;
 		uint8 bMode; /* Начальный режим */
 		int DMA;
 		int Odd;
@@ -85,50 +83,18 @@ private:
 		int LastCur;
 	} CycleData;
 
-	/* Аудио буфер */
-	VPNES_ABUF *abuf;
-
 	struct SChannels: public ManagerID<APUID::ChannelsID> {
 		int NextCycle; /* Следующее действие */
 		int CurCycle; /* Текущий такт */
-		struct SChannelData {
-			int UpdCycle; /* Число тактов с данным выходом */
-			double LastOutput; /* Текущий выход */
-			double Avr; /* Среднее */
-			double TimeDiff; /* Различие времени */
-			double Time; /* Время */
-			double Sum; /* Сумма */
-			/* Вывод семпла */
-			inline void OutputSample(double Sample, VPNES_ABUF *Buf) {
-				double Res = Avr + Sample;
+		int UpdCycle; /* Число тактов с данным выходом */
+		double LastOutput; /* Текущий выход */
 
-				Avr -= Res / 128 / Buf->Freq;
-				Buf->PCM[Buf->Pos] = (sint16) (Res * 37267.0);
-				Buf->Pos++;
-				if (Buf->Pos == Buf->Size) {
-					Buf->Pos = 0;
-					Buf->Callback(VPNES_PCM_UPDATE, Buf);
-				}
-			}
-			/* Дописать буфер */
-			inline void FlushBuffer(VPNES_ABUF *Buf) {
-				int i, num;
-
-				Time += UpdCycle * _Bus::ClockClass::GetFix() * ClockDivider * Buf->Freq;
-				num = (int) Time;
-				if (num > 0) {
-					Time -= num;
-					Sum += LastOutput * (1.0 - TimeDiff);
-					OutputSample(Sum, Buf);
-					for (i = 1; i < num; i++)
-						OutputSample(LastOutput, Buf);
-					Sum = LastOutput * Time;
-				} else
-					Sum += LastOutput * (Time - TimeDiff);
-				TimeDiff = Time;
-				UpdCycle = 0;
-			}
-		} ChannelData;
+		/* Дописать буфер */
+		inline void FlushBuffer(CAudioFrontend *Frontend) {
+			Frontend->PushSample(LastOutput, UpdCycle * _Bus::ClockClass::GetFix() *
+				ClockDivider);
+			UpdCycle = 0;
+		}
 
 		bool FrameInterrupt; /* Флаг прерывания счетчика кадров */
 		int InterruptInhibit; /* Подавление IRQ */
@@ -558,7 +524,7 @@ private:
 		} DMChannel;
 
 		/* Обновить выход */
-		inline void Update(VPNES_ABUF *Buf) {
+		inline void Update(CAudioFrontend *Frontend) {
 			int SqOut = 0, TNDOut = 0;
 			double NewOutput;
 
@@ -577,9 +543,9 @@ private:
 				NewOutput = Tables::TNDTable[TNDOut];
 			}
 			NewOutput += Tables::SquareTable[SqOut];
-			if (ChannelData.LastOutput != NewOutput) {
-				ChannelData.FlushBuffer(Buf);
-				ChannelData.LastOutput = NewOutput;
+			if (LastOutput != NewOutput) {
+				FlushBuffer(Frontend);
+				LastOutput = NewOutput;
 			}
 		}
 
@@ -615,14 +581,14 @@ private:
 			Sweep();
 		}
 		/* Таймер */
-		inline void Do_Timer(int Cycles, VPNES_ABUF *Buf) {
-			ChannelData.UpdCycle += Cycles;
+		inline void Do_Timer(int Cycles, CAudioFrontend *Frontend) {
+			UpdCycle += Cycles;
 			if (SquareChannel1.Do_Timer(Cycles) |
 				SquareChannel2.Do_Timer(Cycles) |
 				TriangleChannel.Do_Timer(Cycles) |
 				NoiseChannel.Do_Timer(Cycles) |
 				DMChannel.Do_Timer(Cycles)) {
-				Update(Buf);
+				Update(Frontend);
 			}
 			NextCycle -= Cycles;
 			if (NextCycle <= 0) {
@@ -637,8 +603,8 @@ private:
 			}
 		}
 		/* Выполнить таймиер */
-		inline void Timer(int Cycles, VPNES_ABUF *Buf) {
-			Do_Timer(Cycles - CurCycle, Buf);
+		inline void Timer(int Cycles, CAudioFrontend *Frontend) {
+			Do_Timer(Cycles - CurCycle, Frontend);
 			CurCycle = Cycles;
 		}
 
@@ -681,9 +647,6 @@ private:
 		}
 	} Channels;
 
-	/* Буфер */
-	VPNES_IBUF ibuf;
-
 	/* Обработка */
 	inline void Process(int Cycles);
 public:
@@ -693,7 +656,6 @@ public:
 		InternalData.bMode = 0x00;
 		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
 		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
-		memset(&Channels.ChannelData, 0, sizeof(typename SChannels::SChannelData));
 		Channels.TriangleChannel.Sequencer = 0;
 		Channels.TriangleChannel.ControlFlag = false;
 	}
@@ -705,7 +667,7 @@ public:
 		Process(Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles);
 		PreprocessedCycles = Bus->GetClock()->GetPreCPUCycles();
 		/* Обновляем состояние каналов */
-		Channels.Timer(CycleData.CyclesLeft, abuf);
+		Channels.Timer(CycleData.CyclesLeft, Bus->GetFrontend()->GetAudioFrontend());
 	}
 
 	/* Обработать такты */
@@ -718,15 +680,12 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
-		typename SChannels::SChannelData oldchn;
 		int oldout;
 		int oldcontr;
 
-		memcpy(&oldchn, &Channels.ChannelData, sizeof(typename SChannels::SChannelData));
 		oldout = Channels.TriangleChannel.Sequencer;
 		oldcontr = Channels.TriangleChannel.ControlFlag;
 		memset(&Channels, 0, sizeof(Channels));
-		memcpy(&Channels.ChannelData, &oldchn, sizeof(typename SChannels::SChannelData));
 		Channels.TriangleChannel.Sequencer = oldout;
 		Channels.TriangleChannel.Output = Tables::SeqTable[oldout];
 		Channels.TriangleChannel.ControlFlag = oldcontr;
@@ -735,7 +694,7 @@ public:
 		Channels.NoiseChannel.Shift = 13;
 		Channels.DMChannel.Timer = Tables::DMTable[0];
 		Channels.Write_4017(InternalData.bMode);
-		Channels.Update(abuf);
+		Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.NextCycle = Tables::StepCycles[0];
@@ -762,17 +721,9 @@ public:
 				}
 				return Res;
 			case 0x4016: /* Данные контроллера 1 */
-				if (InternalData.Counter_A < 4)
-					return 0x40 | ibuf[InternalData.Counter_A++];
-				if (InternalData.Counter_A < 8) {
-					Res = 0x40 | (ibuf[InternalData.Counter_A] &
-						~ibuf[Tables::ButtonsRemap[\
-						InternalData.Counter_A & 0x03]]);
-					InternalData.Counter_A++;
-					return Res;
-				}
-				return 0x41;
+				return Bus->GetFrontend()->GetInput1Frontend()->ReadState();
 			case 0x4017: /* Данные контроллера 2 */
+				return Bus->GetFrontend()->GetInput2Frontend()->ReadState();
 				break;
 		}
 		return 0x40;
@@ -781,11 +732,8 @@ public:
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address == 0x4016) { /* Стробирование контроллеров */
-			if ((~Src & 1) && (InternalData.Strobe & 1)) { /* Falling edge */
-				InternalData.Counter_A = 0;
-				InternalData.Counter_B = 0;
-			}
-			InternalData.Strobe = Src;
+			Bus->GetFrontend()->GetInput1Frontend()->InputSignal(Src);
+			Bus->GetFrontend()->GetInput2Frontend()->InputSignal(Src);
 			return;
 		} else /* Отрабатываем прошедшие такты */
 			Preprocess();
@@ -897,16 +845,13 @@ public:
 				CycleData.DebugTimer = 0;
 				break;
 		}
-		Channels.Update(abuf);
+		Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
 	}
 
-	/* Буфер */
-	inline VPNES_ABUF *&GetABuf() { return abuf; }
-	inline VPNES_IBUF &GetIBuf() { return ibuf; }
 	/* Дописать буфер */
 	inline void FlushBuffer() {
-		Channels.Timer(CycleData.CyclesLeft, abuf);
-		Channels.ChannelData.FlushBuffer(abuf);
+		Channels.Timer(CycleData.CyclesLeft, Bus->GetFrontend()->GetAudioFrontend());
+		Channels.FlushBuffer(Bus->GetFrontend()->GetAudioFrontend());
 	}
 	/* Текущий такт */
 	inline int GetCycles() {
@@ -932,7 +877,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
 		CycleData.DebugTimer += CycleData.CurCycle - CycleData.LastCur;
 		CycleData.LastCur = CycleData.CurCycle;
-		Channels.Timer(CycleData.CurCycle, abuf);
+		Channels.Timer(CycleData.CurCycle, Bus->GetFrontend()->GetAudioFrontend());
 		if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0)) {
 			if (Channels.DMChannel.Address < 0x8000)
 				Channels.DMChannel.Address |= 0x8000;
@@ -982,7 +927,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 					}
 					break;
 			}
-			Channels.Update(abuf);
+			Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
 			CycleData.Step++;
 			if (CycleData.Step != Channels.Mode)
 				CycleData.NextCycle = Tables::StepCycles[CycleData.Step];
@@ -1040,12 +985,6 @@ struct NTSC_Tables {
 
 /* Число тактов для каждого шага */
 const int NTSC_Tables::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
-
-/* Перекрываемые кнопки контроллера */
-const int NTSC_Tables::ButtonsRemap[4] = {
-	VPNES_INPUT_DOWN, VPNES_INPUT_UP,
-	VPNES_INPUT_RIGHT, VPNES_INPUT_LEFT
-};
 
 /* Таблица счетчика */
 const int NTSC_Tables::LengthCounterTable[32] = {
