@@ -19,4 +19,15 @@
 
 \****************************************************************************/
 
-#include "gui.h"
+#ifndef __INPUT_H_
+#define __INPUT_H_
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+namespace vpnes_gui {
+
+}
+
+#endif

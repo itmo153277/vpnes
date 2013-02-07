@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,18 +26,8 @@
 #include "config.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace vpnes_gui {
 
-/* Информация об образе */
-extern const char *InfoText;
-
-/* Запуск GUI */
-int StartGUI(char*);
-
-#ifdef __cplusplus
 }
-#endif
 
 #endif
