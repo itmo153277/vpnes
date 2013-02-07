@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,19 +19,4 @@
 
 \****************************************************************************/
 
-#ifndef __CONFIGFILE_H_
-#define __CONFIGFILE_H_
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif

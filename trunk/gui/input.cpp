@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,35 +19,4 @@
 
 \****************************************************************************/
 
-#ifndef __INTERACTIVE_H_
-#define __INTERACTIVE_H_
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <SDL.h>
-#include <SDL_syswm.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* Не использовать интерактивнй режим */
-extern int DisableInteractive;
-
-/* Обработчик сообщений */
-int InteractiveDispatcher(SDL_SysWMmsg *Msg);
-/* Запуск GUI */
-int InteractiveGUI(char *Rom);
-/* Инициализация интерактивного режима */
-void InitInteractive(void);
-/* Завершение интерактивного режима */
-void DestroyInteractive(void);
-/* Изменить состояние */
-void ChangeRenderState(int RenderState);
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#include "input.h"

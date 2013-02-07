@@ -4,8 +4,8 @@ AC_INIT([vpnes], [0.3], [viktprog@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
-AC_COPYRIGHT([Copyright (c) 2012 Ivanov Viktor])
-AC_REVISION([rev11])
+AC_COPYRIGHT([Copyright (c) 2012-2013 Ivanov Viktor])
+AC_REVISION([rev12])
 
 AC_CANONICAL_HOST
 
@@ -20,8 +20,10 @@ AM_CONDITIONAL([WINDOWS], [test "x$host_os_windows" = "xyes"])
 #Programs
 
 AC_PROG_RANLIB
-AC_PROG_CC
 AC_PROG_CXX
+
+dnl No C files
+AC_LANG([C++])
 
 dnl Should add -mwin32 to enable _WIN32 macro
 case ${host_os} in
@@ -29,8 +31,6 @@ case ${host_os} in
 	CFLAGS="-mwin32 $CFLAGS"
 	CXXFLAGS="-mwin32 $CXXFLAGS"
 esac
-
-AC_HEADER_STDC
 
 AC_ARG_VAR([RCC], [resource compiler command])
 AC_ARG_VAR([RCFLAGS], [resource compiler flags])
@@ -82,9 +82,15 @@ fi
 
 #Headers
 
+AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
+
+dnl C++ standards
+AC_CHECK_HEADERS([cstddef cstring cstdlib algorithm vector istream iostream], [],
+	[AC_MSG_ERROR([required headers not found])], [ ])
+
 if test "x$host_os_windows" = "xyes" ; then
 	LIBS="-luser32 $LIBS"
-	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])])
+	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])], [ ])
 fi
 
 #Compilator characterics
