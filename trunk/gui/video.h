@@ -26,7 +26,78 @@
 #include "config.h"
 #endif
 
+#include <SDL.h>
+#ifdef VPNES_USE_TTF
+#include <SDL_ttf.h>
+#endif
+#include "../nes/frontend.h"
+
 namespace vpnes_gui {
+
+/* Зависимости */
+class CVideoDependencies:
+	public vpnes::CVideoFrontend
+#if !defined(VPNES_DISABLE_SYNC)
+	, public CSyncManager
+#endif
+#if defined(VPNES_CONFIGFILE)
+	, public CConfigProcessor
+#endif
+	{};
+
+/* Обработчик видео */
+class CVideo: public CVideoDependencies {
+private:
+	/* Указатель на главное окно */
+	CWindow *Window;
+#if defined(VPNES_USE_TTF)
+	/* Используемый шрифт */
+	TTF_Font *Font;
+	/* Поверхность с текстом */
+	SDL_Surface *TextSurface;
+	/* Таймер текста */
+	Uint32 TextTimer;
+#endif
+#if !defined(VPNES_DISABLE_SYNC)
+	/* Отсчет времени кадра */
+	Uint32 FrameStart;
+	/* Контроль времени */
+	Uint32 FrameTimeCheck;
+	/* Накапливаемая ошибка */
+	double Delta;
+	/* Смещение */
+	double Jitter;
+#if !defined(VPNES_DISABLE_FSKIP)
+	/* Пропускаем фрейм */
+	bool SkipFrame;
+	/* Всего пропущенно */
+	int FramesSkipped;
+#endif
+#endif
+	/* Таймер указателя мыши */
+	Uint32 MouseTimer;
+	/* Текущее состояние мыши */
+	bool MouseState;
+
+	/* Обновить палитру */
+	void UpdatePalette();
+public:
+	CVideo();
+	~CVideo();
+
+	/* Обновляем кадр */
+	int UpdateFrame(double FrameTime);
+#if !defined(VPNES_DISABLE_SYNC)
+	/* Остановить синхронизацию */
+	void SyncStop();
+	/* Продолжить синхронизацию */
+	void SyncResume();
+	/* Сбросить синхронизацию */
+	void SyncReset();
+	/* Синхронизировать время */
+	void Sync(double PlayRate);
+#endif
+};
 
 }
 
