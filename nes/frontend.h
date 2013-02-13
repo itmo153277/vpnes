@@ -28,7 +28,7 @@
 
 #include "../types.h"
 
-#include <cstddef>
+#include <cstring>
 
 namespace vpnes {
 
