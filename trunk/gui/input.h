@@ -26,7 +26,52 @@
 #include "config.h"
 #endif
 
+#include <SDL.h>
+#include "../nes/frontend.h"
+#if defined(VPNES_CONFIGFILE)
+#include "configfile.h"
+#endif
+
 namespace vpnes_gui {
+
+/* Обработчик ввода */
+#if defined(VPNES_CONFIGFILE)
+class CInputConfigProcessor: public CConfigProcessor {
+#else
+class CInputConfigProcessor {
+#endif
+public:
+	CInputConfigProcessor();
+	~CInputConfigProcessor();
+
+	/* Регистрация карты */
+	void RegisterInputMap();
+	/* Обработать сообщение ввода */
+	int ProcessKeyboard(SDL_KeyboardEvent *Event);
+	int ProcessGamepadAxis(SDL_JoyAxisEvent *Event);
+	int ProcessGamepadHat(SDL_JoyHatEvent *Event);
+	int ProcessGamepadButton(SDL_JoyButtonEvent *Event);
+};
+
+/* Обработчик аудио */
+class CInput: public CInputConfigProcessor {
+private:
+	/* Контроллеры */
+	vpnes::CStdController Input1;
+	vpnes::CStdController Input2;
+public:
+	CInput();
+	~CInput();
+
+	/* Обработать сообщение ввода */
+	void ProcessKeyboard(SDL_KeyboardEvent *Event);
+	void ProcessGamepadAxis(SDL_JoyAxisEvent *Event);
+	void ProcessGamepadHat(SDL_JoyHatEvent *Event);
+	void ProcessGamepadButton(SDL_JoyButtonEvent *Event);
+	/* Интерфейсы к контроллерам */
+	inline vpnes::CInputFrontend *GetInput1Frontend() { return &Input1; }
+	inline vpnes::CInputFrontend *GetInput2Frontend() { return &Input1; }
+};
 
 }
 

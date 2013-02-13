@@ -53,6 +53,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@VPNES_CONFIGFILE_TRUE@am__append_1 = configfile.cpp
 subdir = gui
 DIST_COMMON = $(dist_noinst_DATA) $(noinst_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in
@@ -69,8 +70,12 @@ AR = ar
 ARFLAGS = cru
 libvpnes_gui_a_AR = $(AR) $(ARFLAGS)
 libvpnes_gui_a_LIBADD =
-am_libvpnes_gui_a_OBJECTS = audio.$(OBJEXT) config.$(OBJEXT) \
-	gui.$(OBJEXT) input.$(OBJEXT) video.$(OBJEXT) window.$(OBJEXT)
+am__libvpnes_gui_a_SOURCES_DIST = audio.cpp gui.cpp input.cpp \
+	video.cpp window.cpp configfile.cpp
+@VPNES_CONFIGFILE_TRUE@am__objects_1 = configfile.$(OBJEXT)
+am_libvpnes_gui_a_OBJECTS = audio.$(OBJEXT) gui.$(OBJEXT) \
+	input.$(OBJEXT) video.$(OBJEXT) window.$(OBJEXT) \
+	$(am__objects_1)
 libvpnes_gui_a_OBJECTS = $(am_libvpnes_gui_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -82,7 +87,7 @@ CXXLD = $(CXX)
 CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
 SOURCES = $(libvpnes_gui_a_SOURCES)
-DIST_SOURCES = $(libvpnes_gui_a_SOURCES)
+DIST_SOURCES = $(am__libvpnes_gui_a_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -227,13 +232,12 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes-gui.a
-libvpnes_gui_a_SOURCES = audio.cpp config.cpp gui.cpp input.cpp video.cpp \
-                         window.cpp
-
-noinst_HEADERS = audio.h config.h gui.h input.h video.h window.h \
+libvpnes_gui_a_SOURCES = audio.cpp gui.cpp input.cpp video.cpp \
+	window.cpp $(am__append_1)
+noinst_HEADERS = audio.h configfile.h gui.h input.h video.h window.h \
                  win32-res/win32-res.h
 
-dist_noinst_DATA = text.otf win32-res/icon.ico win32-res/win32-res.rc
+dist_noinst_DATA = configfile.cpp text.otf win32-res/icon.ico win32-res/win32-res.rc
 @VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONT = text.otf
 @VPNES_USEFONT_TRUE@@WINDOWS_TRUE@FONT = 
 @VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'
@@ -289,7 +293,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audio.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/config.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/configfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gui.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/input.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/video.Po@am__quote@

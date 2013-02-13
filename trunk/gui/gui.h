@@ -26,7 +26,32 @@
 #include "config.h"
 #endif
 
+#include "../nes/frontend.h"
+#include "window.h"
+#include "audio.h"
+#include "input.h"
+#include "video.h"
+#if defined(VPNES_CONFIGFILE)
+#include "configfile.h"
+#endif
+
 namespace vpnes_gui {
+
+/* Основной класс приложения */
+class CNESGUI: public vpnes::CNESFrontend {
+private:
+	/* Основное окно */
+	CWindow Window;
+	/* Обработчик аудио */
+	CAudio Audio;
+	/* Обработчик ввода */
+	CInput Input;
+	/* Обработчик видео */
+	CVideo Video;
+public:
+	CNESGUI(char *FileName);
+	~CNESGUI();
+};
 
 }
 

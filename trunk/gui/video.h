@@ -27,10 +27,14 @@
 #endif
 
 #include <SDL.h>
-#ifdef VPNES_USE_TTF
+#if defined(VPNES_USE_TTF)
 #include <SDL_ttf.h>
 #endif
 #include "../nes/frontend.h"
+#include "window.h"
+#if !defined(VPNES_CONFIGFILE)
+#include "configfile.h"
+#endif
 
 namespace vpnes_gui {
 
@@ -49,7 +53,9 @@ class CVideoDependencies:
 class CVideo: public CVideoDependencies {
 private:
 	/* Указатель на главное окно */
-	CWindow *Window;
+	CWindow *pWindow;
+	/* Внутренняя поверхность */
+	SDL_Surface *InternalSurface;
 #if defined(VPNES_USE_TTF)
 	/* Используемый шрифт */
 	TTF_Font *Font;
@@ -81,6 +87,8 @@ private:
 
 	/* Обновить палитру */
 	void UpdatePalette();
+	/* Обновить поверхность */
+	SDL_Surface *UpdateSurface();
 public:
 	CVideo();
 	~CVideo();
@@ -97,6 +105,14 @@ public:
 	/* Синхронизировать время */
 	void Sync(double PlayRate);
 #endif
+	/* Добавить окно */
+	inline void AttachWindow(CWindow *Window) {
+		if (pWindow != NULL)
+			return;
+		pWindow = Window;
+		InternalSurface = UpdateSurface();
+		UpdatePalette();
+	}
 };
 
 }

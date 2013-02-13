@@ -26,7 +26,36 @@
 #include "config.h"
 #endif
 
+#include <SDL.h>
+#include "../nes/frontend.h"
+#if defined(VPNES_CONFIGFILE)
+#include "configfile.h"
+#endif
+
 namespace vpnes_gui {
+
+/* Зависимости */
+class CAudioDependencies:
+	public vpnes::CAudioFrontend
+#if defined(VPNES_CONFIGFILE)
+	, public CConfigProcessor
+#endif
+	{};
+
+/* Обработчик аудио */
+class CAudio: public CAudioDependencies {
+protected:
+	/* Обновить буфер */
+	void UpdateBuffer();
+public:
+	CAudio();
+	~CAudio();
+
+	/* Остановить воспроизведение */
+	void StopAudio();
+	/* Продолжить воспроизведение */
+	void ResumeAudio();
+};
 
 }
 

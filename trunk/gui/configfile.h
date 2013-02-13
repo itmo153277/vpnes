@@ -28,6 +28,10 @@
 
 namespace vpnes_gui {
 
+/* Заглушка для интерфейса конфигуратора */
+struct CConfigProcessor {};
+struct CConfig {};
+
 }
 
 #endif
