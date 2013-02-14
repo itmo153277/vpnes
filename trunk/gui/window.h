@@ -78,8 +78,24 @@ public:
 		wsLoadState
 	};
 private:
+	/* События */
+	enum WindowActions {
+		waSoftReset,
+		waHardReset,
+		waSaveState,
+		waLoadState,
+		waChangeSlot,
+		waPause,
+		waStep,
+		waResume,
+		waSpeed
+	};
+
 	/* Поверхность окна */
 	SDL_Surface *Screen;
+	/* Размеры */
+	int _Width;
+	int _Height;
 	/* Текущее состояние окна */
 	WindowState CurState;
 	/* Имя файла */
@@ -87,6 +103,10 @@ private:
 #ifdef _WIN32
 	/* Экземпляр */
 	HINSTANCE Instance;
+	/* Дексриптор */
+	HWND Handle;
+	/* Иконка */
+	HICON Icon;
 #endif
 #if defined(VPNES_USE_TTF)
 	/* Текущее собщение */
@@ -110,28 +130,48 @@ private:
 	Uint32 MouseTimer;
 	/* Текущее состояние мыши */
 	bool MouseState;
+	/* Флаг паузы */
+	int PauseState;
+	/* Скорость эмуляции */
+	double PlayRate;
+
+	/* Обработка событий */
+	void ProcessAction(int Action);
+	/* Инициализация буфера */
+	void InitializeScreen();
 public:
 	CWindow(char *DefaultFileName, CAudio *Audio, CInput *Input);
 	~CWindow();
 
 	/* Выполнить обработку сообщений */
 	WindowState ProcessMessages();
+	/* Изменить размер */
+	void UpdateSizes(int Width, int Height);
 	/* Поверхность окна */
 	inline SDL_Surface * const &GetSurface() const { return Screen; }
 	/* Имя файла */
-	inline const char *GetFileName() const { return FileName; }
+#if defined(VPNES_INTERACTIVE)
+	const char *GetFileName();
+#else
+	inline const char *GetFileName() { return FileName; }
+#endif
 	/* Текущее состояние окна */
 	inline const WindowState &GetWindowState() const { return CurState; }
 #if defined(VPNES_USE_TTF)
 	/* Сообщение */
-	inline const char *GetWindowText() const { return WindowText; }
+	inline const char *GetText() const { return WindowText; }
 	/* Обновить текст */
 	inline bool &GetUpdateTextFlag() { return UpdateText; }
 	/* Установить сообщение */
-	inline void SetWindowText(const char *Text) { WindowText = Text; UpdateText = true; }
+	inline void SetText(const char *Text) { WindowText = Text; UpdateText = true; }
 #endif
+	/* Очистить окно */
+	void ClearWindow();
 #ifdef _WIN32
+	/* Экземпляр */
 	inline const HINSTANCE &GetInstance() const { return Instance; }
+	/* Дескриптор */
+	inline const HWND &GetWindowHandle() const { return Handle; }
 #endif
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Добавить обработчик синхронизации */
