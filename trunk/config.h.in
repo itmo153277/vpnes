@@ -9,14 +9,14 @@
 /* Define to 1 if you have the <commdlg.h> header file. */
 #undef HAVE_COMMDLG_H
 
-/* Define to 1 if you have the <cstddef> header file. */
-#undef HAVE_CSTDDEF
-
 /* Define to 1 if you have the <cstdlib> header file. */
 #undef HAVE_CSTDLIB
 
 /* Define to 1 if you have the <cstring> header file. */
 #undef HAVE_CSTRING
+
+/* Define to 1 if you have the <exception> header file. */
+#undef HAVE_EXCEPTION
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H

@@ -36,6 +36,10 @@
 #include "configfile.h"
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace vpnes_gui {
 
 /* Зависимости */
@@ -56,6 +60,9 @@ private:
 	CWindow *pWindow;
 	/* Внутренняя поверхность */
 	SDL_Surface *InternalSurface;
+	/* Размеры */
+	int _Width;
+	int _Height;
 #if defined(VPNES_USE_TTF)
 	/* Используемый шрифт */
 	TTF_Font *Font;
@@ -63,6 +70,11 @@ private:
 	SDL_Surface *TextSurface;
 	/* Таймер текста */
 	Uint32 TextTimer;
+#ifdef _WIN32
+	/* Шрифт в ресурсах */ 
+	HGLOBAL ResourceHandle;
+	HRSRC ResourceInfo;
+#endif
 #endif
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Отсчет времени кадра */
@@ -72,47 +84,41 @@ private:
 	/* Накапливаемая ошибка */
 	double Delta;
 	/* Смещение */
-	double Jitter;
+	Uint32 Jitter;
+	/* Время остановки */
+	Uint32 StopTime;
 #if !defined(VPNES_DISABLE_FSKIP)
 	/* Пропускаем фрейм */
 	bool SkipFrame;
 	/* Всего пропущенно */
 	int FramesSkipped;
+	/* Пропущено времени */
+	Uint32 SkippedTime;
 #endif
 #endif
-	/* Таймер указателя мыши */
-	Uint32 MouseTimer;
-	/* Текущее состояние мыши */
-	bool MouseState;
 
 	/* Обновить палитру */
 	void UpdatePalette();
 	/* Обновить поверхность */
 	SDL_Surface *UpdateSurface();
 public:
-	CVideo();
+	CVideo(CWindow *Window);
 	~CVideo();
 
+	/* Обновить размер */
+	void UpdateSizes(int Width, int Height);
 	/* Обновляем кадр */
-	int UpdateFrame(double FrameTime);
+	bool UpdateFrame(double FrameTime);
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Остановить синхронизацию */
 	void SyncStop();
 	/* Продолжить синхронизацию */
-	void SyncResume();
+	Uint32 SyncResume();
 	/* Сбросить синхронизацию */
 	void SyncReset();
 	/* Синхронизировать время */
 	void Sync(double PlayRate);
 #endif
-	/* Добавить окно */
-	inline void AttachWindow(CWindow *Window) {
-		if (pWindow != NULL)
-			return;
-		pWindow = Window;
-		InternalSurface = UpdateSurface();
-		UpdatePalette();
-	}
 };
 
 }

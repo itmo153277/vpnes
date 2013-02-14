@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012-2013 Ivanov Viktor])
-AC_REVISION([rev12])
+AC_REVISION([rev13])
 
 AC_CANONICAL_HOST
 
@@ -85,7 +85,7 @@ fi
 AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
 
 dnl C++ standards
-AC_CHECK_HEADERS([cstddef cstring cstdlib algorithm vector istream iostream], [],
+AC_CHECK_HEADERS([exception cstring cstdlib algorithm vector istream iostream], [],
 	[AC_MSG_ERROR([required headers not found])], [ ])
 
 if test "x$host_os_windows" = "xyes" ; then

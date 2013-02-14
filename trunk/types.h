@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -27,6 +27,19 @@
 #endif
 
 #ifdef __cplusplus
+
+#include <exception>
+
+/* Стандартный класс для исключений */
+class CGenericException: std::exception {
+private:
+	const char *str;
+public:
+	CGenericException(const char *Msg) throw(): str(Msg) {}
+	CGenericException(const CGenericException& Copy) throw(): str(Copy.str) {}
+	const char * what() const throw() { return str; }
+};
+
 extern "C" {
 #endif
 
