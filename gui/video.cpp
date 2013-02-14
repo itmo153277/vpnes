@@ -45,24 +45,25 @@ CVideo::CVideo(CWindow *Window) {
 	SDL_RWops *FontRW = NULL;
 
 	/* Используем ресурсы для получения шрифта */
-	ResourceInfo = FindResource(pWindow->GetInstance(), MAKEINTRESOURCE(IDR_MAINFONT),
+	ResourceInfo = ::FindResource(pWindow->GetInstance(), MAKEINTRESOURCE(IDR_MAINFONT),
 		RT_RCDATA);
-	ResourceHandle = LoadResource(pWindow->GetInstance(), ResourceInfo);
-	FontData = LockResource(ResourceHandle);
-	FontRW = SDL_RWFromConstMem(FontData, SizeofResource(pWindow->GetInstance(), ResourceInfo));
+	ResourceHandle = ::LoadResource(pWindow->GetInstance(), ResourceInfo);
+	FontData = ::LockResource(ResourceHandle);
+	FontRW = ::SDL_RWFromConstMem(FontData, ::SizeofResource(pWindow->GetInstance(),
+		ResourceInfo));
 	if (FontRW != NULL)
-		Font = TTF_OpenFontRW(FontRW, -1, 22);
+		Font = ::TTF_OpenFontRW(FontRW, -1, 22);
 #else
 #ifndef VPNES_TTF_PATH
 #define VPNES_TTF_PATH "text.otf"
 #endif
-	Font = TTF_OpenFont(VPNES_TTF_PATH, 22);
+	Font = ::TTF_OpenFont(VPNES_TTF_PATH, 22);
 #endif
 	if (Font == NULL)
 		throw CGenericException("Couldn't open a font file");
 	TextSurface = NULL;
 #if defined(VPNES_DISABLE_SYNC)
-	TextTimer = SDL_GetTicks();
+	TextTimer = ::SDL_GetTicks();
 #endif
 #endif
 }
@@ -70,16 +71,17 @@ CVideo::CVideo(CWindow *Window) {
 CVideo::~CVideo() {
 #if defined(VPNES_USE_TTF)
 	if (Font != NULL)
-		TTF_CloseFont(Font);
+		::TTF_CloseFont(Font);
 #ifdef _WIN32
 	UnlockResource(ResourceHandle);
-	FreeResource(ResourceHandle);
+	::FreeResource(ResourceHandle);
 #endif
 	if (TextSurface != NULL)
-		SDL_FreeSurface(TextSurface);
+		::SDL_FreeSurface(TextSurface);
+	::TTF_Quit();
 #endif
 	if (InternalSurface != NULL)
-		SDL_FreeSurface(InternalSurface);
+		::SDL_FreeSurface(InternalSurface);
 	delete [] Pal;
 }
 
@@ -109,7 +111,7 @@ void CVideo::UpdatePalette() {
 #define C_B(comp) (((comp) & 4) >> 2)
 	for (i = 0; i < 64; i++)
 		for (j = 0; j < 8; j++)
-			Pal[i + 64 * j] = SDL_MapRGB(pWindow->GetSurface()->format,
+			Pal[i + 64 * j] = ::SDL_MapRGB(pWindow->GetSurface()->format,
 				(int) (NES_Palette[i][0] * (6 - C_G(j) - C_B(j)) / 6.0),
 				(int) (NES_Palette[i][1] * (6 - C_R(j) - C_B(j)) / 6.0),
 				(int) (NES_Palette[i][2] * (6 - C_R(j) - C_G(j)) / 6.0));
@@ -123,7 +125,7 @@ SDL_Surface *CVideo::UpdateSurface() {
 	SDL_Surface *NewSurface, *Screen;
 
 	Screen = pWindow->GetSurface();
-	NewSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, _Width, _Height, 32,
+	NewSurface = ::SDL_CreateRGBSurface(SDL_SWSURFACE, _Width, _Height, 32,
 		Screen->format->Rmask, Screen->format->Gmask, Screen->format->Bmask,
 		Screen->format->Amask);
 	return NewSurface;
@@ -133,10 +135,10 @@ SDL_Surface *CVideo::UpdateSurface() {
 void CVideo::UpdateSizes(int Width, int Height) {
 #if defined(VPNES_USE_TTF)
 	if (TextSurface != NULL)
-		SDL_FreeSurface(TextSurface);
+		::SDL_FreeSurface(TextSurface);
 #endif
 	if (InternalSurface != NULL)
-		SDL_FreeSurface(InternalSurface);
+		::SDL_FreeSurface(InternalSurface);
 	_Width = Width;
 	_Height = Height;
 	InternalSurface = UpdateSurface();
@@ -155,9 +157,9 @@ bool CVideo::UpdateFrame(double FrameTime) {
 
 		/* Обновляем параметры экрана, если это необходимо */
 		UpdatePalette();
-		NewSurface = SDL_ConvertSurface(InternalSurface, pWindow->GetSurface()->format,
+		NewSurface = ::SDL_ConvertSurface(InternalSurface, pWindow->GetSurface()->format,
 			SDL_SWSURFACE);
-		SDL_FreeSurface(InternalSurface);
+		::SDL_FreeSurface(InternalSurface);
 		InternalSurface = NewSurface;
 		Buf = (uint32 *) InternalSurface->pixels;
 	}
@@ -165,7 +167,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #if defined(VPNES_USE_TTF)
 #if defined(VPNES_DISABLE_SYNC)
 	if ((TextSurface != NULL) && ((SDL_GetTicks() - TextTimer) >= 4000)) {
-		SDL_FreeSurface(TextSurface);
+		::SDL_FreeSurface(TextSurface);
 		TextSurface = NULL;
 	}
 #endif
@@ -178,25 +180,25 @@ bool CVideo::UpdateFrame(double FrameTime) {
 		const SDL_Color BGColour = {40, 40, 40};
 
 		if (TextSurface != NULL)
-			SDL_FreeSurface(TextSurface);
-		TempSurface = TTF_RenderUTF8_Shaded(Font, pWindow->GetWindowText(), TextColour,
+			::SDL_FreeSurface(TextSurface);
+		TempSurface = ::TTF_RenderUTF8_Shaded(Font, pWindow->GetText(), TextColour,
 			BGColour);
-		TextSurface = SDL_CreateRGBSurface(SDL_HWSURFACE,
+		TextSurface = ::SDL_CreateRGBSurface(SDL_HWSURFACE,
 			TempSurface->w + TextInRect.x * 2,
 			TempSurface->h + TextInRect.y * 2,
 			Screen->format->BitsPerPixel, Screen->format->Rmask,
 			Screen->format->Gmask, Screen->format->Bmask, Screen->format->Amask);
-		SDL_FillRect(TextSurface, NULL, SDL_MapRGB(TextSurface->format,
+		::SDL_FillRect(TextSurface, NULL, ::SDL_MapRGB(TextSurface->format,
 			BorderColour.r, BorderColour.g, BorderColour.b));
 		BorderRect.w = TextSurface->w - BorderRect.x * 2;
 		BorderRect.h = TextSurface->h - BorderRect.y * 2;
-		SDL_FillRect(TextSurface, &BorderRect, SDL_MapRGB(TextSurface->format,
+		::SDL_FillRect(TextSurface, &BorderRect, ::SDL_MapRGB(TextSurface->format,
 			BGColour.r, BGColour.g, BGColour.b));
-		SDL_BlitSurface(TempSurface, NULL, TextSurface, &TextInRect);
-		SDL_FreeSurface(TempSurface);
+		::SDL_BlitSurface(TempSurface, NULL, TextSurface, &TextInRect);
+		::SDL_FreeSurface(TempSurface);
 		pWindow->GetUpdateTextFlag() = false;
 #if defined(VPNES_DISABLE_SYNC)
-		TextTimer = SDL_GetTicks();
+		TextTimer = ::SDL_GetTicks();
 #endif
 	}
 #endif
@@ -205,17 +207,17 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #endif
 	/* Обновляем экран */
 	if (SDL_MUSTLOCK(Screen))
-		SDL_LockSurface(Screen);
-	SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
+		::SDL_LockSurface(Screen);
+	::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
 #if defined(VPNES_USE_TTF)
 	SDL_Rect TextRect = {10, 10};
 
 	if (TextSurface != NULL)
-		SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
+		::SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
 #endif
 	if (SDL_MUSTLOCK(Screen))
-		SDL_UnlockSurface(Screen);
-	SDL_Flip(Screen);
+		::SDL_UnlockSurface(Screen);
+	::SDL_Flip(Screen);
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
 	}
 #endif
@@ -226,7 +228,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 
 /* Остановить синхронизацию */
 void CVideo::SyncStop() {
-	StopTime = SDL_GetTicks();
+	StopTime = ::SDL_GetTicks();
 }
 
 /* Продолжить синхронизацию */
@@ -243,7 +245,7 @@ Uint32 CVideo::SyncResume() {
 
 /* Сбросить синхронизацию */
 void CVideo::SyncReset() {
-	FrameStart = SDL_GetTicks();
+	FrameStart = ::SDL_GetTicks();
 	FrameTimeCheck = FrameStart;
 	Jitter = 0;
 #if !defined(VPNES_DISABLE_FSKIP)
@@ -257,17 +259,17 @@ void CVideo::Sync(double PlayRate) {
 
 	/* Синхронизация */
 	FrameTime = (Uint32) (Delta / PlayRate);
-	DelayTime = FrameTime - (SDL_GetTicks() - FrameStart);
+	DelayTime = FrameTime - (::SDL_GetTicks() - FrameStart);
 	Delta -= (Uint32) Delta;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (!SkipFrame) {
 #endif
 	if (Jitter < DelayTime)
-		SDL_Delay(DelayTime - Jitter);
+		::SDL_Delay(DelayTime - Jitter);
 #if !defined(VPNES_DISABLE_FSKIP)
 	}
 #endif
-	FrameStart = SDL_GetTicks();
+	FrameStart = ::SDL_GetTicks();
 	Jitter += FrameStart - FrameTimeCheck - FrameTime;
 	FrameTimeCheck = FrameStart;
 #if !defined(VPNES_DISABLE_FSKIP)
@@ -291,7 +293,7 @@ void CVideo::Sync(double PlayRate) {
 #endif
 #if defined(VPNES_USE_TTF)
 	if ((TextSurface != NULL) && ((FrameStart - TextTimer) >= 4000)) {
-		SDL_FreeSurface(TextSurface);
+		::SDL_FreeSurface(TextSurface);
 		TextSurface = NULL;
 	}
 	if (pWindow->GetUpdateTextFlag()) {

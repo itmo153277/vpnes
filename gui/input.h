@@ -40,17 +40,15 @@ class CInputConfigProcessor: public CConfigProcessor {
 #else
 class CInputConfigProcessor {
 #endif
+protected:
+	/* Обработать сообщение ввода */
+	int GetKeyboardAction(SDL_keysym *Event);
+	int GetGamepadAxisAction(SDL_JoyAxisEvent *Event);
+	int GetGamepadHatAction(SDL_JoyHatEvent *Event);
+	int GetGamepadButtonAction(SDL_JoyButtonEvent *Event);
 public:
 	CInputConfigProcessor();
 	~CInputConfigProcessor();
-
-	/* Регистрация карты */
-	void RegisterInputMap();
-	/* Обработать сообщение ввода */
-	int ProcessKeyboard(SDL_KeyboardEvent *Event);
-	int ProcessGamepadAxis(SDL_JoyAxisEvent *Event);
-	int ProcessGamepadHat(SDL_JoyHatEvent *Event);
-	int ProcessGamepadButton(SDL_JoyButtonEvent *Event);
 };
 
 /* Обработчик аудио */
