@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -173,16 +173,14 @@ public:
 	/* Запустить цикл эмуляции */
 	int PowerOn() {
 		double FrameTime;
-		int Res = 0;
 
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
 		do {
 			FrameTime = Clock.ProccessFrame();
 			APU.FlushBuffer();
-			Res = Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(FrameTime);
-		} while (Res >= 0);
+		} while (Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(FrameTime));
 		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
-		return Res;
+		return 0;
 	}
 
 	/* Программный сброс */

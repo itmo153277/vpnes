@@ -31,9 +31,12 @@
 #include <SDL.h>
 #include "audio.h"
 #include "input.h"
-
 #if defined(VPNES_CONFIGFILE)
 #include "configfile.h"
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
 #endif
 
 namespace vpnes_gui {
@@ -53,7 +56,7 @@ public:
 	/* Остановить синхронизацию */
 	virtual void SyncStop() = 0;
 	/* Продолжить синхронизацию */
-	virtual void SyncResume() = 0;
+	virtual Uint32 SyncResume() = 0;
 	/* Сбросить синхронизацию */
 	virtual void SyncReset() = 0;
 	/* Синхронизировать время */
@@ -81,9 +84,15 @@ private:
 	WindowState CurState;
 	/* Имя файла */
 	char FileName[VPNES_MAX_PATH];
+#ifdef _WIN32
+	/* Экземпляр */
+	HINSTANCE Instance;
+#endif
 #if defined(VPNES_USE_TTF)
 	/* Текущее собщение */
-	char *WindowText;
+	const char *WindowText;
+	/* Обновить сообщение */
+	bool UpdateText;
 #endif
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Обраточик для синхронизации */
@@ -97,6 +106,10 @@ private:
 	CAudio *pAudio;
 	/* Обработчик ввода */
 	CInput *pInput;
+	/* Таймер указателя мыши */
+	Uint32 MouseTimer;
+	/* Текущее состояние мыши */
+	bool MouseState;
 public:
 	CWindow(char *DefaultFileName, CAudio *Audio, CInput *Input);
 	~CWindow();
@@ -111,7 +124,14 @@ public:
 	inline const WindowState &GetWindowState() const { return CurState; }
 #if defined(VPNES_USE_TTF)
 	/* Сообщение */
-	inline char *&GetWindowText() { return WindowText; }
+	inline const char *GetWindowText() const { return WindowText; }
+	/* Обновить текст */
+	inline bool &GetUpdateTextFlag() { return UpdateText; }
+	/* Установить сообщение */
+	inline void SetWindowText(const char *Text) { WindowText = Text; UpdateText = true; }
+#endif
+#ifdef _WIN32
+	inline const HINSTANCE &GetInstance() const { return Instance; }
 #endif
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Добавить обработчик синхронизации */
