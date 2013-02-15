@@ -44,8 +44,9 @@ int main(int argc, char *argv[]) {
 	try {
 		GUI = new vpnes_gui::CNESGUI(FileName);
 		GUI->Start();
-	} catch(std::exception e) {
-		std::clog << e.what() << std::endl;
+	} catch (std::exception &e) {
+		std::clog << "Fatal error: " << e.what() << std::endl;
+		return -1;
 	}
 	delete GUI;
 	return 0;

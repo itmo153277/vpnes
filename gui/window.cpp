@@ -170,11 +170,15 @@ CWindow::WindowState CWindow::ProcessMessages() {
 			}
 			if (Quit) {
 				/* Освобождаем очередь */
-				while (SDL_PollEvent(&Event));
+				while (::SDL_PollEvent(&Event));
 				return CurState;
 			}
 		}
 		pSyncManager->Sync(PlayRate);
+		if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 5000)) {
+			::SDL_ShowCursor(SDL_DISABLE);
+			MouseState = false;
+		}
 	} while (PauseState < 0);
 	if (PauseState > 0)
 		PauseState = -1;

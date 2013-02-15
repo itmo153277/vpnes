@@ -52,7 +52,8 @@ struct NTSC_Settings {
 	enum {
 		ActiveScanlines = 240, /* Продолжительность картинки */
 		PostRender = 1, /* Продолжительность между картинкой и VBlank */
-		VBlank = 20 /* Продолжительность VBlank */
+		VBlank = 20, /* Продолжительность VBlank */
+		OddSkip = 1 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
 	static inline void SkipPPUClock(int &Clocks) { Clocks++; }
@@ -98,7 +99,8 @@ struct PAL_Settings {
 	enum {
 		ActiveScanlines = 240, /* Продолжительность картинки */
 		PostRender = 1, /* Продолжительность между картинкой и VBlank */
-		VBlank = 70 /* Продолжительность VBlank */
+		VBlank = 70, /* Продолжительность VBlank */
+		OddSkip = 0 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
 	static inline void SkipPPUClock(int &Clocks) { }
@@ -144,7 +146,8 @@ struct Dendy_Settings {
 	enum {
 		ActiveScanlines = 240, /* Продолжительность картинки */
 		PostRender = 51, /* Продолжительность между картинкой и VBlank */
-		VBlank = 20 /* Продолжительность VBlank */
+		VBlank = 20, /* Продолжительность VBlank */
+		OddSkip = 0 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
 	static inline void SkipPPUClock(int &Clocks) { }

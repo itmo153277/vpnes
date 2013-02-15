@@ -62,7 +62,6 @@ public:
 		TimeDiff = 0.0;
 		Time = 0.0;
 		Sum = 0.0;
-		Pos = 0;
 		Volume = 1.0;
 	}
 	inline virtual ~CAudioFrontend() {}
@@ -150,7 +149,7 @@ public:
 	/* Чтение устройства */
 	inline uint8 ReadState() {
 		if (*Pos >= Length)
-			return 0x40 | OutputMask; /* Открытая шина */
+			return 0x40; /* Открытая шина */
 		return (0x40 & ~OutputMask) | (Buf[(*Pos)++] & OutputMask);
 	}
 	/* Параметры внутреннней памяти */
