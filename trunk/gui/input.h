@@ -42,13 +42,13 @@ class CInputConfigProcessor {
 #endif
 protected:
 	/* Обработать сообщение ввода */
-	int GetKeyboardAction(SDL_keysym *Event);
+	int GetKeyboardAction(SDL_keysym *Event) { return 0; }
 	int GetGamepadAxisAction(SDL_JoyAxisEvent *Event);
 	int GetGamepadHatAction(SDL_JoyHatEvent *Event);
 	int GetGamepadButtonAction(SDL_JoyButtonEvent *Event);
 public:
-	CInputConfigProcessor();
-	~CInputConfigProcessor();
+	CInputConfigProcessor() {}
+	~CInputConfigProcessor() {}
 };
 
 /* Обработчик аудио */
@@ -58,14 +58,14 @@ private:
 	vpnes::CStdController Input1;
 	vpnes::CStdController Input2;
 public:
-	CInput();
-	~CInput();
+	CInput() {}
+	~CInput() {}
 
 	/* Обработать сообщение ввода */
-	void ProcessKeyboard(SDL_KeyboardEvent *Event);
-	void ProcessGamepadAxis(SDL_JoyAxisEvent *Event);
-	void ProcessGamepadHat(SDL_JoyHatEvent *Event);
-	void ProcessGamepadButton(SDL_JoyButtonEvent *Event);
+	void ProcessKeyboard(SDL_KeyboardEvent *Event) {}
+	void ProcessGamepadAxis(SDL_JoyAxisEvent *Event) {}
+	void ProcessGamepadHat(SDL_JoyHatEvent *Event) {}
+	void ProcessGamepadButton(SDL_JoyButtonEvent *Event) {}
 	/* Интерфейсы к контроллерам */
 	inline vpnes::CInputFrontend *GetInput1Frontend() { return &Input1; }
 	inline vpnes::CInputFrontend *GetInput2Frontend() { return &Input1; }

@@ -20,3 +20,109 @@
 \****************************************************************************/
 
 #include "gui.h"
+
+#include "../types.h"
+
+#include "../nes/ines.h"
+#include "../nes/nes.h"
+#include "../nes/libvpnes.h"
+
+#include <exception>
+#include <fstream>
+#include <sstream>
+#include <string>
+
+namespace vpnes_gui {
+
+/* CNESGUI */
+
+CNESGUI::CNESGUI(const char *FileName) {
+	if (::SDL_Init(SDL_INIT_EVERYTHING) < 0)
+		throw CGenericException("SDL initilaization failure");
+	Audio = new CAudio();
+	Input = new CInput();
+	Window = new CWindow(FileName, Audio, Input);
+	Video = new CVideo(Window);
+#if !defined(VPNES_DISABLE_SYNC)
+	Window->AppendSyncManager(Video);
+#endif
+	AudioFrontend = Audio;
+	VideoFrontend = Video;
+	Input1Frontend = Input->GetInput1Frontend();
+	Input2Frontend = Input->GetInput2Frontend();
+}
+
+CNESGUI::~CNESGUI() {
+	delete Video;
+	delete Window;
+	delete Input;
+	delete Audio;
+	::SDL_Quit();
+}
+
+/* Запустить NES */
+void CNESGUI::Start() {
+	vpnes::ines::NES_ROM_Data Data;
+	vpnes::CNESConfig *NESConfig;
+	vpnes::CBasicNES *NES;
+	std::ifstream ROM;
+	std::fstream State;
+	std::basic_string<char> Name;
+	std::basic_string<char> RomName;
+
+	/* Открываем файл */
+	RomName = Window->GetFileName();
+	ROM.open(RomName.c_str(), std::ios_base::in | std::ios_base::binary);
+	if (ROM.fail())
+		throw CGenericException("Couldn't open ROM file");
+	NESConfig = vpnes::OpenROM(ROM, &Data);
+	ROM.close();
+	if (NESConfig == NULL)
+		throw CGenericException("ROM file is not supported");
+	Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+	Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+//	Audio->UpdateDevice(NESConfig->GetFrameLength());
+	NES = NESConfig->GetNES(this);
+	if (Data.Header.HaveBattery) {
+		Name = RomName;
+		Name += ".vpram";
+		State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
+		if (!State.fail()) {
+			NES->LoadState(State);
+			State.close();
+		}
+	}
+	Window->SetText("Hard Reset");
+	NES->Reset();
+	do {
+		NES->PowerOn();
+	} while (Window->GetWindowState() != CWindow::wsQuit);
+	if (Data.Header.HaveBattery) {
+		Name = RomName;
+		Name += ".vpram";
+		State.open(Name.c_str(), std::ios_base::out |
+			std::ios_base::binary | std::ios_base::trunc);
+		if (!State.fail()) {
+			NES->PowerOff(State);
+			State.close();
+		}
+	}
+	delete NES;
+	delete NESConfig;
+	vpnes::FreeROMData(&Data);
+}
+
+/* Отладочная информация ЦПУ */
+void CNESGUI::CPUDebug(uint16 PC, uint8 A, uint8 X, uint8 Y, uint8 S, uint8 P) {
+}
+
+/* Отладочная информация ГПУ */
+void CNESGUI::PPUDebug(int Frame, int Scanline, int Cycle, uint16 Reg1, uint16 Reg2,
+	uint16 Reg1Buf) {
+}
+
+/* Критическая ошибка */
+void CNESGUI::Panic() {
+}
+
+}

@@ -151,7 +151,7 @@ public:
 	inline uint8 ReadState() {
 		if (*Pos >= Length)
 			return 0x40 | OutputMask; /* Открытая шина */
-		return (0x40 & ~OutputMask) | (Buf[*Pos++] & OutputMask);
+		return (0x40 & ~OutputMask) | (Buf[(*Pos)++] & OutputMask);
 	}
 	/* Параметры внутреннней памяти */
 	inline const SInternalMemory * const GetInternalMemory() const { return &InternalMemory; }
