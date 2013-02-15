@@ -27,6 +27,8 @@
 #include "win32-res/win32-res.h"
 #endif
 
+#include <cstdio>
+
 namespace vpnes_gui {
 
 /* CVideo */
@@ -150,7 +152,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 	SDL_Surface *Screen;
 
 #if !defined(VPNES_DISABLE_SYNC)
-	Delta += FrameTime;
+	LastFrameTime = FrameTime;
 #endif
 	while (pWindow->ProcessMessages() == CWindow::wsUpdateBuffer) {
 		SDL_Surface *NewSurface;
@@ -221,7 +223,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
 	}
 #endif
-	return pWindow->GetWindowState() != CWindow::wsNormal;
+	return pWindow->GetWindowState() == CWindow::wsNormal;
 }
 
 #if !defined(VPNES_DISABLE_SYNC)
@@ -255,23 +257,25 @@ void CVideo::SyncReset() {
 
 /* Синхронизировать время */
 void CVideo::Sync(double PlayRate) {
-	Uint32 DelayTime, FrameTime;
+	Uint32 FrameTime;
+	Sint32 DelayTime;
 
 	/* Синхронизация */
+	Delta += LastFrameTime;
 	FrameTime = (Uint32) (Delta / PlayRate);
 	DelayTime = FrameTime - (::SDL_GetTicks() - FrameStart);
 	Delta -= (Uint32) Delta;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (!SkipFrame) {
 #endif
-	if (Jitter < DelayTime)
-		::SDL_Delay(DelayTime - Jitter);
+	DelayTime -= Jitter;
+	if (DelayTime > 0)
+		::SDL_Delay(DelayTime);
 #if !defined(VPNES_DISABLE_FSKIP)
 	}
 #endif
 	FrameStart = ::SDL_GetTicks();
 	Jitter += FrameStart - FrameTimeCheck - FrameTime;
-	FrameTimeCheck = FrameStart;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (SkipFrame) {
 		SkippedTime += FrameStart - FrameTimeCheck;
@@ -291,6 +295,7 @@ void CVideo::Sync(double PlayRate) {
 		/* log */
 	}
 #endif
+	FrameTimeCheck = FrameStart;
 #if defined(VPNES_USE_TTF)
 	if ((TextSurface != NULL) && ((FrameStart - TextTimer) >= 4000)) {
 		::SDL_FreeSurface(TextSurface);
@@ -299,6 +304,24 @@ void CVideo::Sync(double PlayRate) {
 	if (pWindow->GetUpdateTextFlag()) {
 		TextTimer = FrameStart;
 	}
+#endif
+#if defined(VPNES_SHOW_FPS)
+	static int cur_frame = 0;
+	char buf[20];
+	static Uint32 fpst = 0;
+	Sint32 passed;
+	double fps;
+
+	/* FPS */
+	passed = ::SDL_GetTicks() - fpst;
+	if (passed > 1000) {
+		fps = cur_frame * 1000.0 / passed;
+		snprintf(buf, 20, "%.3lf", fps);
+		::SDL_WM_SetCaption(buf, NULL);
+		fpst = ::SDL_GetTicks();
+		cur_frame = 0;
+	}
+	cur_frame++;
 #endif
 }
 

@@ -46,15 +46,15 @@ class CAudioDependencies:
 class CAudio: public CAudioDependencies {
 protected:
 	/* Обновить буфер */
-	void UpdateBuffer();
+	void UpdateBuffer() {}
 public:
-	CAudio();
-	~CAudio();
+	CAudio() {}
+	~CAudio() {}
 
 	/* Остановить воспроизведение */
-	void StopAudio();
+	void StopAudio() {}
 	/* Продолжить воспроизведение */
-	void ResumeAudio();
+	void ResumeAudio() {}
 };
 
 }

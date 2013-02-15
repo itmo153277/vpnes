@@ -140,7 +140,7 @@ private:
 	/* Инициализация буфера */
 	void InitializeScreen();
 public:
-	CWindow(char *DefaultFileName, CAudio *Audio, CInput *Input);
+	CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input);
 	~CWindow();
 
 	/* Выполнить обработку сообщений */

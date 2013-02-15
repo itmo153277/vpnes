@@ -33,7 +33,7 @@ namespace vpnes_gui {
 
 /* CWindow */
 
-CWindow::CWindow(char *DefaultFileName, CAudio *Audio, CInput *Input) {
+CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	if (DefaultFileName == NULL)
 		throw CGenericException("Nothing to run");
 	strcpy(FileName, DefaultFileName);
@@ -64,7 +64,7 @@ CWindow::CWindow(char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	Icon = ::LoadIcon(Instance, MAKEINTRESOURCE(IDI_MAINICON));
 	::SetClassLong(Handle, GCL_HICON, (LONG) Icon);
 #endif
-	::SDL_WM_SetCaption("VPNES" VERSION, NULL);
+	::SDL_WM_SetCaption("VPNES " VERSION, NULL);
 	Screen = ::SDL_SetVideoMode(512, 448, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (Screen == NULL)
 		throw CGenericException("Couldn't set up video mode");
@@ -171,7 +171,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 			if (Quit) {
 				/* Освобождаем очередь */
 				while (SDL_PollEvent(&Event));
-				break;
+				return CurState;
 			}
 		}
 		pSyncManager->Sync(PlayRate);

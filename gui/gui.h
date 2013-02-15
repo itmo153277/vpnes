@@ -41,16 +41,25 @@ namespace vpnes_gui {
 class CNESGUI: public vpnes::CNESFrontend {
 private:
 	/* Основное окно */
-	CWindow Window;
+	CWindow *Window;
 	/* Обработчик аудио */
-	CAudio Audio;
+	CAudio *Audio;
 	/* Обработчик ввода */
-	CInput Input;
+	CInput *Input;
 	/* Обработчик видео */
-	CVideo Video;
+	CVideo *Video;
 public:
-	CNESGUI(char *FileName);
+	CNESGUI(const char *FileName);
 	~CNESGUI();
+
+	/* Запустить NES */
+	void Start();
+	/* Отладочная информация ЦПУ */
+	void CPUDebug(uint16 PC, uint8 A, uint8 X, uint8 Y, uint8 S, uint8 P);
+	/* Отладочная информация ГПУ */
+	void PPUDebug(int Frame, int Scanline, int Cycle, uint16 Reg1, uint16 Reg2, uint16 Reg1Buf);
+	/* Критическая ошибка */
+	void Panic();
 };
 
 }

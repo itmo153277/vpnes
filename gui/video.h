@@ -77,6 +77,8 @@ private:
 #endif
 #endif
 #if !defined(VPNES_DISABLE_SYNC)
+	/* Время кадра */
+	double LastFrameTime;
 	/* Отсчет времени кадра */
 	Uint32 FrameStart;
 	/* Контроль времени */

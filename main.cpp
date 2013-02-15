@@ -20,11 +20,17 @@
 \****************************************************************************/
 
 #include <SDL.h>
+#include <exception>
 #include <iostream>
 #include "types.h"
 
+#include "gui/gui.h"
+
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
+	vpnes_gui::CNESGUI *GUI = NULL;
+	const char *FileName = NULL;
+
 #ifdef BUILDNUM
 	std::clog << "VPNES " VERSION " Build " BUILDNUM
 #ifdef SVNREV
@@ -33,5 +39,14 @@ int main(int argc, char *argv[]) {
 		<< std::endl;
 	std::clog << "License: GPL v2" << std::endl;
 #endif
+	if (argc == 2)
+		FileName = argv[1];
+	try {
+		GUI = new vpnes_gui::CNESGUI(FileName);
+		GUI->Start();
+	} catch(std::exception e) {
+		std::clog << e.what() << std::endl;
+	}
+	delete GUI;
 	return 0;
 }
