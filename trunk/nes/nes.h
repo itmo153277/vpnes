@@ -114,8 +114,8 @@ public:
 		Width = _Settings::Right - _Settings::Left;
 		Height = _Settings::Bottom - _Settings::Top;
 		Frame = _Settings::GetFreq() * _Settings::PPU_Divider *
-			(_Settings::ActiveScanlines + _Settings::PostRender +
-			_Settings::VBlank + 1) * 341;
+			((_Settings::ActiveScanlines + _Settings::PostRender +
+			_Settings::VBlank + 1) * 341 - _Settings::OddSkip * 0.5);
 		Data = ROM;
 	}
 	inline ~CNESConfigTemplate() {}

@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
 #include <SDL.h>
 #include "../nes/frontend.h"
 #if defined(VPNES_CONFIGFILE)
@@ -44,17 +46,33 @@ class CAudioDependencies:
 
 /* Обработчик аудио */
 class CAudio: public CAudioDependencies {
+private:
+	/* Параметры аудио */
+	SDL_AudioSpec *ObtainedAudio;
+	/* Массив буферов */
+	sint16 *PCMBuffers[2];
+	/* Текущий индекс */
+	int PCMIndex;
+	/* Флаг проигрывания */
+	bool PCMPlay;
+	/* Флаг заполнения буфера */
+	bool PCMReady;
+
+	/* Callback */
+	static void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len);
 protected:
 	/* Обновить буфер */
-	void UpdateBuffer() {}
+	void UpdateBuffer();
 public:
-	CAudio() {}
-	~CAudio() {}
+	CAudio();
+	~CAudio();
 
 	/* Остановить воспроизведение */
-	void StopAudio() {}
+	void StopAudio();
 	/* Продолжить воспроизведение */
-	void ResumeAudio() {}
+	void ResumeAudio();
+	/* Обновить устройство */
+	void UpdateDevice(double FrameLength);
 };
 
 }

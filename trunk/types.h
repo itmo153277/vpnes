@@ -31,7 +31,7 @@
 #include <exception>
 
 /* Стандартный класс для исключений */
-class CGenericException: std::exception {
+class CGenericException: public std::exception {
 private:
 	const char *str;
 public:
