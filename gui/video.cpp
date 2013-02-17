@@ -36,7 +36,7 @@ namespace vpnes_gui {
 CVideo::CVideo(CWindow *Window) {
 	pWindow = Window;
 	InternalSurface = NULL;
-	Pal = NULL;
+	Pal = new Uint32[64 * 8];
 	UpdatePalette();
 #if defined(VPNES_USE_TTF)
 	Font = NULL;
@@ -106,8 +106,6 @@ void CVideo::UpdatePalette() {
 	};
 	int i, j;
 
-	delete [] Pal;
-	Pal = new Uint32[64 * 8];
 #define C_R(comp) ((comp) & 1)
 #define C_G(comp) (((comp) & 2) >> 1)
 #define C_B(comp) (((comp) & 4) >> 2)

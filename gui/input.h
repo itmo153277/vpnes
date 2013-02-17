@@ -62,13 +62,48 @@ public:
 	~CInput() {}
 
 	/* Обработать сообщение ввода */
-	void ProcessKeyboard(SDL_KeyboardEvent *Event) {}
+	void ProcessKeyboard(SDL_KeyboardEvent *Event) {
+		vpnes::CStdController::ButtonName Res;
+
+		switch (Event->keysym.sym) {
+			case SDLK_c:
+				Res = vpnes::CStdController::ButtonA;
+				break;
+			case SDLK_x:
+				Res = vpnes::CStdController::ButtonB;
+				break;
+			case SDLK_a:
+				Res = vpnes::CStdController::ButtonSelect;
+				break;
+			case SDLK_s:
+				Res = vpnes::CStdController::ButtonStart;
+				break;
+			case SDLK_DOWN:
+				Res = vpnes::CStdController::ButtonDown;
+				break;
+			case SDLK_UP:
+				Res = vpnes::CStdController::ButtonUp;
+				break;
+			case SDLK_LEFT:
+				Res = vpnes::CStdController::ButtonLeft;
+				break;
+			case SDLK_RIGHT:
+				Res = vpnes::CStdController::ButtonRight;
+				break;
+			default:
+				return;
+		}
+		if (Event->type == SDL_KEYDOWN)
+			Input1.PushButton(Res);
+		else
+			Input1.PopButton(Res);
+	}
 	void ProcessGamepadAxis(SDL_JoyAxisEvent *Event) {}
 	void ProcessGamepadHat(SDL_JoyHatEvent *Event) {}
 	void ProcessGamepadButton(SDL_JoyButtonEvent *Event) {}
 	/* Интерфейсы к контроллерам */
 	inline vpnes::CInputFrontend *GetInput1Frontend() { return &Input1; }
-	inline vpnes::CInputFrontend *GetInput2Frontend() { return &Input1; }
+	inline vpnes::CInputFrontend *GetInput2Frontend() { return &Input2; }
 };
 
 }

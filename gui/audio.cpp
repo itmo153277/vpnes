@@ -29,37 +29,49 @@ namespace vpnes_gui {
 
 CAudio::CAudio() {
 	ObtainedAudio = NULL;
-	PCMBuffers[0] = NULL;
-	PCMBuffers[1] = NULL;
+	memset(PCMBuffers, 0, sizeof(sint16 *) * 4);
 	PCMPlay = false;
-	PCMReady = false;
 }
 
 CAudio::~CAudio() {
+	int i;
+
 	if (ObtainedAudio != NULL) {
 		::SDL_CloseAudio();
 		delete ObtainedAudio;
 	}
-	delete [] PCMBuffers[0];
-	delete [] PCMBuffers[1];
+	for (i = 0; i < 4; i++)
+		delete [] PCMBuffers[i];
 }
 
 /* Callback */
 void CAudio::AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	CAudio *Audio = (CAudio *) Data;
 
-	Audio->PCMReady = false;
-	if (Audio->PCMPlay)
+	if (Audio->PCMPlay && Audio->BuffersFull[Audio->PCMIndex]) {
+		Audio->BuffersFull[Audio->PCMIndex] = false;
 		memcpy(Stream, Audio->PCMBuffers[Audio->PCMIndex], Len);
+		memcpy(Audio->PCMBuffers[3], Audio->PCMBuffers[Audio->PCMIndex], Audio->Length *
+			sizeof(sint16));
+		Audio->PCMIndex++;
+		if (Audio->PCMIndex > 2)
+			Audio->PCMIndex = 0;
+	} else
+		memcpy(Stream, Audio->PCMBuffers[3], Len);
 }
 
 /* Обновить буфер */
 void CAudio::UpdateBuffer() {
+	int NextIndex;
+
 	::SDL_LockAudio();
-	if (!PCMReady) {
-		Buf = PCMBuffers[PCMIndex];
-		PCMIndex ^= 1;
-		PCMReady = true;
+	NextIndex = CurIndex + 1;
+	if (NextIndex > 2)
+		NextIndex = 0;
+	if (!BuffersFull[NextIndex]) {
+		BuffersFull[CurIndex] = true;
+		CurIndex = NextIndex;
+		Buf = PCMBuffers[CurIndex];
 	}
 	if (!PCMPlay) {
 		::SDL_PauseAudio(0);
@@ -79,7 +91,7 @@ void CAudio::StopAudio() {
 /* Продолжить воспроизведение */
 void CAudio::ResumeAudio() {
 	::SDL_LockAudio();
-	if (!PCMPlay && PCMReady) {
+	if (!PCMPlay && BuffersFull[PCMIndex]) {
 		PCMPlay = true;
 		::SDL_PauseAudio(0);
 	}
@@ -89,6 +101,7 @@ void CAudio::ResumeAudio() {
 /* Обновить устройство */
 void CAudio::UpdateDevice(double FrameLength) {
 	SDL_AudioSpec DesiredAudio;
+	int i;
 
 	if (ObtainedAudio != NULL) {
 		::SDL_CloseAudio();
@@ -105,16 +118,16 @@ void CAudio::UpdateDevice(double FrameLength) {
 		delete ObtainedAudio;
 		throw CGenericException("Audio initializtion failure");
 	}
-	delete [] PCMBuffers[0];
-	delete [] PCMBuffers[1];
 	Length = ObtainedAudio->size / sizeof(sint16);
 	Pos = 0;
-	PCMBuffers[0] = new sint16[Length];
-	memset(PCMBuffers[0], ObtainedAudio->silence, ObtainedAudio->size);
-	PCMBuffers[1] = new sint16[Length];
-	memset(PCMBuffers[1], ObtainedAudio->silence, ObtainedAudio->size);
-	PCMIndex = 1;
-	PCMReady = false;
+	for (i = 0; i < 4; i++) {
+		delete [] PCMBuffers[i];
+		PCMBuffers[i] = new sint16[Length];
+		BuffersFull[i] = false;
+		memset(PCMBuffers[i], ObtainedAudio->silence, ObtainedAudio->size);
+	}
+	PCMIndex = 0;
+	CurIndex = 0;
 	PCMPlay = false;
 	Frequency = 44.1;
 	Buf = PCMBuffers[0];

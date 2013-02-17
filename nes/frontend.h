@@ -149,7 +149,7 @@ public:
 	/* Чтение устройства */
 	inline uint8 ReadState() {
 		if (*Pos >= Length)
-			return 0x40; /* Открытая шина */
+			return 0x40 | OutputMask; /* Открытая шина */
 		return (0x40 & ~OutputMask) | (Buf[(*Pos)++] & OutputMask);
 	}
 	/* Параметры внутреннней памяти */
@@ -214,7 +214,7 @@ public:
 		}
 	}
 	inline void PopButton(ButtonName Button) {
-		InternalData.Buf[Button] &= 0xfe;
+		InternalData.Buf[Button] &= 0xfc;
 		switch (Button) {
 			case ButtonUp:
 				InternalData.Buf[ButtonDown] >>= 1;

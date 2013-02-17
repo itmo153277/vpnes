@@ -50,13 +50,15 @@ private:
 	/* Параметры аудио */
 	SDL_AudioSpec *ObtainedAudio;
 	/* Массив буферов */
-	sint16 *PCMBuffers[2];
+	sint16 *PCMBuffers[4];
+	/* Флаги заполненности буферов */
+	bool BuffersFull[3];
 	/* Текущий индекс */
 	int PCMIndex;
+	/* Заполняемый индекс */
+	int CurIndex;
 	/* Флаг проигрывания */
 	bool PCMPlay;
-	/* Флаг заполнения буфера */
-	bool PCMReady;
 
 	/* Callback */
 	static void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len);
