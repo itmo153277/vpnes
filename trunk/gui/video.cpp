@@ -252,6 +252,7 @@ Uint32 CVideo::SyncResume() {
 /* Сбросить синхронизацию */
 void CVideo::SyncReset() {
 	FrameStart = ::SDL_GetTicks();
+	Delta = 0.0;
 	FrameTimeCheck = FrameStart;
 	Jitter = 0;
 #if !defined(VPNES_DISABLE_FSKIP)
