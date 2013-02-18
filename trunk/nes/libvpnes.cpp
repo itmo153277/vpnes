@@ -71,12 +71,6 @@ struct NTSC_NES_Config {
 		StdPPU<NTSC_Settings>::PPU, _ROM> >, NTSC_Settings> Config;
 };
 
-typedef NTSC_NES_Config<CBus, CNROM>::Config NROM_NTSC_Config;
-typedef NTSC_NES_Config<CBus, CMMC1>::Config MMC1_NTSC_Config;
-typedef NTSC_NES_Config<CBus, CUxROM>::Config UxROM_NTSC_Config;
-typedef NTSC_NES_Config<CBus, CMMC3>::Config MMC3_NTSC_Config;
-typedef NTSC_NES_Config<CBus, CAxROM>::Config AxROM_NTSC_Config;
-
 /* PAL NES */
 struct PAL_Settings {
 	/* Таблицы для APU */
@@ -117,12 +111,6 @@ struct PAL_NES_Config {
 		StdCPU<PAL_Settings>::CPU, StdAPU<PAL_Settings>::APU,
 		StdPPU<PAL_Settings>::PPU, _ROM> >, PAL_Settings> Config;
 };
-
-typedef PAL_NES_Config<CBus, CNROM>::Config NROM_PAL_Config;
-typedef PAL_NES_Config<CBus, CMMC1>::Config MMC1_PAL_Config;
-typedef PAL_NES_Config<CBus, CUxROM>::Config UxROM_PAL_Config;
-typedef PAL_NES_Config<CBus, CMMC3>::Config MMC3_PAL_Config;
-typedef PAL_NES_Config<CBus, CAxROM>::Config AxROM_PAL_Config;
 
 /* Dendy */
 struct Dendy_Settings {
@@ -165,12 +153,39 @@ struct Dendy_NES_Config {
 		StdPPU<Dendy_Settings>::PPU, _ROM> >, Dendy_Settings> Config;
 };
 
+typedef NTSC_NES_Config <CBus, CNROM>::Config NROM_NTSC_Config;
+typedef PAL_NES_Config  <CBus, CNROM>::Config NROM_PAL_Config;
+typedef Dendy_NES_Config<CBus, CNROM>::Config NROM_Dendy_Config;
+
+typedef NTSC_NES_Config <CBus, CMMC1>::Config MMC1_NTSC_Config;
+typedef PAL_NES_Config  <CBus, CMMC1>::Config MMC1_PAL_Config;
+typedef Dendy_NES_Config<CBus, CMMC1>::Config MMC1_Dendy_Config;
+
+typedef NTSC_NES_Config <CBus, CUxROM>::Config UxROM_NTSC_Config;
+typedef PAL_NES_Config  <CBus, CUxROM>::Config UxROM_PAL_Config;
+typedef Dendy_NES_Config<CBus, CUxROM>::Config UxROM_Dendy_Config;
+
+typedef NTSC_NES_Config <CBus, CAxROM>::Config AxROM_NTSC_Config;
+typedef PAL_NES_Config  <CBus, CAxROM>::Config AxROM_PAL_Config;
+typedef Dendy_NES_Config<CBus, CAxROM>::Config AxROM_Dendy_Config;
+
+typedef NTSC_NES_Config <CBus, CMMC3>::Config MMC3_NTSC_Config;
+typedef PAL_NES_Config  <CBus, CMMC3>::Config MMC3_PAL_Config;
+typedef Dendy_NES_Config<CBus, CMMC3>::Config MMC3_Dendy_Config;
+
 /* Открыть картридж */
-CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
+CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {
+	ines::NES_Type Cfg = Type;
+
 	if (ReadROM(ROM, Data) < 0)
 		return NULL;
-	switch (Data->Header.TVSystem) {
-		case 0:
+	if (Type == ines::NES_Auto)
+		if (Data->Header.TVSystem)
+			Cfg = ines::NES_PAL;
+		else
+			Cfg = ines::NES_NTSC;
+	switch (Cfg) {
+		case ines::NES_NTSC:
 			switch (Data->Header.Mapper) {
 				case 0:
 					return new NROM_NTSC_Config(Data);
@@ -183,7 +198,7 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
 				case 7:
 					return new AxROM_NTSC_Config(Data);
 			}
-		case 1:
+		case ines::NES_PAL:
 			switch (Data->Header.Mapper) {
 				case 0:
 					return new NROM_PAL_Config(Data);
@@ -196,6 +211,21 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data) {
 				case 7:
 					return new AxROM_PAL_Config(Data);
 			}
+		case ines::NES_Dendy:
+			switch (Data->Header.Mapper) {
+				case 0:
+					return new NROM_Dendy_Config(Data);
+				case 1:
+					return new MMC1_Dendy_Config(Data);
+				case 2:
+					return new UxROM_Dendy_Config(Data);
+				case 4:
+					return new MMC3_Dendy_Config(Data);
+				case 7:
+					return new AxROM_Dendy_Config(Data);
+			}
+		default:
+			break;
 	}
 	FreeROMData(Data);
 	return NULL;

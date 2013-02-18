@@ -33,7 +33,7 @@
 namespace vpnes {
 
 /* Открыть картридж */
-CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data);
+CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type);
 
 }
 
