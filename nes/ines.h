@@ -58,6 +58,14 @@ enum SolderPad {
 	SingleScreen_2 = 0x09
 };
 
+/* NES_Type */
+enum NES_Type {
+	NES_Auto = 0x00,
+	NES_NTSC = 0x01,
+	NES_PAL = 0x02,
+	NES_Dendy = 0x03
+};
+
 /* Header Data */
 struct NES_Header_Data {
 	int PRGSize; /* Размер PRG ROM */

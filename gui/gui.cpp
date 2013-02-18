@@ -74,7 +74,7 @@ void CNESGUI::Start() {
 	std::fstream State;
 	std::basic_string<char> Name;
 	std::basic_string<char> RomName;
-	bool Quit = false;
+	bool Quit;
 	int SaveState = 0;
 
 	NESConfig = NULL;
@@ -85,7 +85,7 @@ void CNESGUI::Start() {
 		ROM.open(RomName.c_str(), std::ios_base::in | std::ios_base::binary);
 		if (ROM.fail())
 			throw CGenericException("Couldn't open ROM file");
-		NESConfig = vpnes::OpenROM(ROM, &Data);
+		NESConfig = vpnes::OpenROM(ROM, &Data, vpnes::ines::NES_Auto);
 		ROM.close();
 		if (NESConfig == NULL)
 			throw CGenericException("Couldn't find any compatible NES configuration "
@@ -108,6 +108,7 @@ void CNESGUI::Start() {
 			Window->SetText("Hard reset");
 #endif
 			NES->Reset();
+			Quit = false;
 			do {
 				NES->PowerOn();
 				switch (Window->GetWindowState()) {
