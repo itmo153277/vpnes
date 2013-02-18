@@ -179,11 +179,12 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Typ
 
 	if (ReadROM(ROM, Data) < 0)
 		return NULL;
-	if (Type == ines::NES_Auto)
+	if (Type == ines::NES_Auto) {
 		if (Data->Header.TVSystem)
 			Cfg = ines::NES_PAL;
 		else
 			Cfg = ines::NES_NTSC;
+	}
 	switch (Cfg) {
 		case ines::NES_NTSC:
 			switch (Data->Header.Mapper) {
@@ -198,6 +199,7 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Typ
 				case 7:
 					return new AxROM_NTSC_Config(Data);
 			}
+			break;
 		case ines::NES_PAL:
 			switch (Data->Header.Mapper) {
 				case 0:
@@ -211,6 +213,7 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Typ
 				case 7:
 					return new AxROM_PAL_Config(Data);
 			}
+			break;
 		case ines::NES_Dendy:
 			switch (Data->Header.Mapper) {
 				case 0:
@@ -224,6 +227,7 @@ CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Typ
 				case 7:
 					return new AxROM_Dendy_Config(Data);
 			}
+			break;
 		default:
 			break;
 	}
