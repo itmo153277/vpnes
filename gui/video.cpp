@@ -134,8 +134,10 @@ SDL_Surface *CVideo::UpdateSurface() {
 /* Обновить размер */
 void CVideo::UpdateSizes(int Width, int Height) {
 #if defined(VPNES_USE_TTF)
-	if (TextSurface != NULL)
+	if (TextSurface != NULL) {
 		::SDL_FreeSurface(TextSurface);
+		TextSurface = NULL;
+	}
 #endif
 	if (InternalSurface != NULL)
 		::SDL_FreeSurface(InternalSurface);
@@ -147,80 +149,84 @@ void CVideo::UpdateSizes(int Width, int Height) {
 
 /* Обновить кадр */
 bool CVideo::UpdateFrame(double FrameTime) {
-	SDL_Surface *Screen;
+	SDL_Surface *Screen, *NewSurface;
+	CWindow::WindowState RetState;
 
 #if !defined(VPNES_DISABLE_SYNC)
 	LastFrameTime = FrameTime;
 #endif
-	while (pWindow->ProcessMessages() == CWindow::wsUpdateBuffer) {
-		SDL_Surface *NewSurface;
-
-		/* Обновляем параметры экрана, если это необходимо */
-		UpdatePalette();
-		NewSurface = ::SDL_ConvertSurface(InternalSurface, pWindow->GetSurface()->format,
-			SDL_SWSURFACE);
-		::SDL_FreeSurface(InternalSurface);
-		InternalSurface = NewSurface;
-		Buf = (uint32 *) InternalSurface->pixels;
-	}
-	Screen = pWindow->GetSurface();
+	do {
+		for (;;) {
+			RetState = pWindow->ProcessMessages();
+			if (RetState != CWindow::wsUpdateBuffer)
+				break;
+			/* Обновляем параметры экрана, если это необходимо */
+			UpdatePalette();
+			NewSurface = ::SDL_ConvertSurface(InternalSurface, pWindow->GetSurface()->format,
+				SDL_SWSURFACE);
+			::SDL_FreeSurface(InternalSurface);
+			InternalSurface = NewSurface;
+			Buf = (uint32 *) InternalSurface->pixels;
+		}
+		Screen = pWindow->GetSurface();
 #if defined(VPNES_USE_TTF)
 #if defined(VPNES_DISABLE_SYNC)
-	if ((TextSurface != NULL) && ((SDL_GetTicks() - TextTimer) >= 4000)) {
-		::SDL_FreeSurface(TextSurface);
-		TextSurface = NULL;
-	}
+		if ((TextSurface != NULL) && ((SDL_GetTicks() - TextTimer) >= 4000)) {
+			::SDL_FreeSurface(TextSurface);
+			TextSurface = NULL;
+		}
 #endif
-	if (pWindow->GetUpdateTextFlag()) {
-		SDL_Surface *TempSurface;
-		SDL_Rect TextInRect = {7, 7};
-		SDL_Rect BorderRect = {1, 1};
-		const SDL_Color TextColour = {224, 224, 224};
-		const SDL_Color BorderColour = {56, 56, 56};
-		const SDL_Color BGColour = {40, 40, 40};
+		if (pWindow->GetUpdateTextFlag()) {
+			SDL_Surface *TempSurface;
+			SDL_Rect TextInRect = {7, 7};
+			SDL_Rect BorderRect = {1, 1};
+			const SDL_Color TextColour = {224, 224, 224};
+			const SDL_Color BorderColour = {56, 56, 56};
+			const SDL_Color BGColour = {40, 40, 40};
+
+			if (TextSurface != NULL)
+				::SDL_FreeSurface(TextSurface);
+			TempSurface = ::TTF_RenderUTF8_Shaded(Font, pWindow->GetText(), TextColour,
+				BGColour);
+			TextSurface = ::SDL_CreateRGBSurface(SDL_HWSURFACE,
+				TempSurface->w + TextInRect.x * 2,
+				TempSurface->h + TextInRect.y * 2,
+				Screen->format->BitsPerPixel, Screen->format->Rmask,
+				Screen->format->Gmask, Screen->format->Bmask, Screen->format->Amask);
+			::SDL_FillRect(TextSurface, NULL, ::SDL_MapRGB(TextSurface->format,
+				BorderColour.r, BorderColour.g, BorderColour.b));
+			BorderRect.w = TextSurface->w - BorderRect.x * 2;
+			BorderRect.h = TextSurface->h - BorderRect.y * 2;
+			::SDL_FillRect(TextSurface, &BorderRect, ::SDL_MapRGB(TextSurface->format,
+				BGColour.r, BGColour.g, BGColour.b));
+			::SDL_BlitSurface(TempSurface, NULL, TextSurface, &TextInRect);
+			::SDL_FreeSurface(TempSurface);
+			pWindow->GetUpdateTextFlag() = false;
+#if defined(VPNES_DISABLE_SYNC)
+			TextTimer = ::SDL_GetTicks();
+#endif
+		}
+#endif
+#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
+		if (!SkipFrame) {
+#endif
+		/* Обновляем экран */
+		if (SDL_MUSTLOCK(Screen))
+			::SDL_LockSurface(Screen);
+		::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
+#if defined(VPNES_USE_TTF)
+		SDL_Rect TextRect = {10, 10};
 
 		if (TextSurface != NULL)
-			::SDL_FreeSurface(TextSurface);
-		TempSurface = ::TTF_RenderUTF8_Shaded(Font, pWindow->GetText(), TextColour,
-			BGColour);
-		TextSurface = ::SDL_CreateRGBSurface(SDL_HWSURFACE,
-			TempSurface->w + TextInRect.x * 2,
-			TempSurface->h + TextInRect.y * 2,
-			Screen->format->BitsPerPixel, Screen->format->Rmask,
-			Screen->format->Gmask, Screen->format->Bmask, Screen->format->Amask);
-		::SDL_FillRect(TextSurface, NULL, ::SDL_MapRGB(TextSurface->format,
-			BorderColour.r, BorderColour.g, BorderColour.b));
-		BorderRect.w = TextSurface->w - BorderRect.x * 2;
-		BorderRect.h = TextSurface->h - BorderRect.y * 2;
-		::SDL_FillRect(TextSurface, &BorderRect, ::SDL_MapRGB(TextSurface->format,
-			BGColour.r, BGColour.g, BGColour.b));
-		::SDL_BlitSurface(TempSurface, NULL, TextSurface, &TextInRect);
-		::SDL_FreeSurface(TempSurface);
-		pWindow->GetUpdateTextFlag() = false;
-#if defined(VPNES_DISABLE_SYNC)
-		TextTimer = ::SDL_GetTicks();
+			::SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
 #endif
-	}
-#endif
+		if (SDL_MUSTLOCK(Screen))
+			::SDL_UnlockSurface(Screen);
+		::SDL_Flip(Screen);
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-	if (!SkipFrame) {
+		}
 #endif
-	/* Обновляем экран */
-	if (SDL_MUSTLOCK(Screen))
-		::SDL_LockSurface(Screen);
-	::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
-#if defined(VPNES_USE_TTF)
-	SDL_Rect TextRect = {10, 10};
-
-	if (TextSurface != NULL)
-		::SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
-#endif
-	if (SDL_MUSTLOCK(Screen))
-		::SDL_UnlockSurface(Screen);
-	::SDL_Flip(Screen);
-#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-	}
-#endif
+	} while (RetState == CWindow::wsPause);
 	return pWindow->GetWindowState() == CWindow::wsNormal;
 }
 
@@ -259,10 +265,10 @@ void CVideo::Sync(double PlayRate) {
 	Sint32 DelayTime;
 
 	/* Синхронизация */
-	Delta += LastFrameTime;
-	FrameTime = (Uint32) (Delta / PlayRate);
+	Delta += LastFrameTime / PlayRate;
+	FrameTime = (Uint32) Delta;
 	DelayTime = FrameTime - (::SDL_GetTicks() - FrameStart);
-	Delta -= (Uint32) Delta;
+	Delta -= FrameTime;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (!SkipFrame) {
 #endif
@@ -302,24 +308,6 @@ void CVideo::Sync(double PlayRate) {
 	if (pWindow->GetUpdateTextFlag()) {
 		TextTimer = FrameStart;
 	}
-#endif
-#if defined(VPNES_SHOW_FPS)
-	static int cur_frame = 0;
-	char buf[20];
-	static Uint32 fpst = 0;
-	Sint32 passed;
-	double fps;
-
-	/* FPS */
-	passed = ::SDL_GetTicks() - fpst;
-	if (passed > 1000) {
-		fps = cur_frame * 1000.0 / passed;
-		snprintf(buf, 20, "%.3lf", fps);
-		::SDL_WM_SetCaption(buf, NULL);
-		fpst = ::SDL_GetTicks();
-		cur_frame = 0;
-	}
-	cur_frame++;
 #endif
 }
 

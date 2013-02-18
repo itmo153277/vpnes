@@ -5,7 +5,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012-2013 Ivanov Viktor])
-AC_REVISION([rev13])
+AC_REVISION([rev14])
 
 AC_CANONICAL_HOST
 
@@ -39,6 +39,10 @@ if test "x$host_os_windows" = "xyes" ; then
 fi
 
 #Libraries
+
+dnl Проверки не работают с C++
+
+AC_LANG_PUSH([C])
 
 AM_PATH_SDL([1.2.14], [], [PKG_CHECK_MODULES([SDL], [SDL >= 1.2.14], [],
 	[AC_MSG_ERROR([SDL >= 1.2.14 required])])])
@@ -80,12 +84,14 @@ if test "x$sdl_ttf_use" = "xyes" ; then
 	CXXFLAGS="$SDL_ttf_CFLAGS $CXXFLAGS"
 fi
 
+AC_LANG_POP
+
 #Headers
 
 AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
 
 dnl C++ standards
-AC_CHECK_HEADERS([exception cstring cstdlib algorithm vector istream iostream], [],
+AC_CHECK_HEADERS([exception cstring cstdio cstdlib algorithm vector istream iostream], [],
 	[AC_MSG_ERROR([required headers not found])], [ ])
 
 if test "x$host_os_windows" = "xyes" ; then
