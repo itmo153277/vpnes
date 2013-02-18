@@ -31,6 +31,7 @@ CAudio::CAudio() {
 	ObtainedAudio = NULL;
 	memset(PCMBuffers, 0, sizeof(sint16 *) * 4);
 	PCMPlay = false;
+	Stop = false;
 }
 
 CAudio::~CAudio() {
@@ -73,7 +74,7 @@ void CAudio::UpdateBuffer() {
 		CurIndex = NextIndex;
 		Buf = PCMBuffers[CurIndex];
 	}
-	if (!PCMPlay) {
+	if (!PCMPlay && !Stop) {
 		::SDL_PauseAudio(0);
 		PCMPlay = true;
 	}
@@ -83,6 +84,7 @@ void CAudio::UpdateBuffer() {
 /* Остановить воспроизведение */
 void CAudio::StopAudio() {
 	::SDL_LockAudio();
+	Stop = true;
 	PCMPlay = false;
 	::SDL_PauseAudio(-1);
 	::SDL_UnlockAudio();
@@ -91,6 +93,7 @@ void CAudio::StopAudio() {
 /* Продолжить воспроизведение */
 void CAudio::ResumeAudio() {
 	::SDL_LockAudio();
+	Stop = false;
 	if (!PCMPlay && BuffersFull[PCMIndex]) {
 		PCMPlay = true;
 		::SDL_PauseAudio(0);
@@ -111,7 +114,7 @@ void CAudio::UpdateDevice(double FrameLength) {
 	DesiredAudio.freq = 44100;
 	DesiredAudio.format = AUDIO_S16SYS;
 	DesiredAudio.channels = 1;
-	DesiredAudio.samples = (int) (FrameLength * 44.1 * 4); /* 4 кадра */
+	DesiredAudio.samples = (int) (FrameLength * 44.1 * 2); /* 2 кадра */
 	DesiredAudio.callback = AudioCallbackSDL;
 	DesiredAudio.userdata = (void *) this;
 	if (::SDL_OpenAudio(&DesiredAudio, ObtainedAudio) < 0) {
@@ -129,6 +132,7 @@ void CAudio::UpdateDevice(double FrameLength) {
 	PCMIndex = 0;
 	CurIndex = 0;
 	PCMPlay = false;
+	Stop = false;
 	Frequency = 44.1;
 	Buf = PCMBuffers[0];
 }

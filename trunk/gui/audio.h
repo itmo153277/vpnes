@@ -59,6 +59,8 @@ private:
 	int CurIndex;
 	/* Флаг проигрывания */
 	bool PCMPlay;
+	/* Флаг работы */
+	bool Stop;
 
 	/* Callback */
 	static void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len);
@@ -75,6 +77,10 @@ public:
 	void ResumeAudio();
 	/* Обновить устройство */
 	void UpdateDevice(double FrameLength);
+	/* Изменить внутреннюю скорость */
+	inline void ChangeSpeed(double Rate) {
+		Frequency = 44.1 / Rate;
+	}
 };
 
 }

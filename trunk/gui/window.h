@@ -72,6 +72,7 @@ public:
 		wsNormal,
 		wsQuit,
 		wsUpdateBuffer,
+		wsPause,
 		wsSoftReset,
 		wsHardReset,
 		wsSaveState,
@@ -80,6 +81,7 @@ public:
 private:
 	/* События */
 	enum WindowActions {
+		waNone,
 		waSoftReset,
 		waHardReset,
 		waSaveState,
@@ -109,6 +111,8 @@ private:
 	HICON Icon;
 #endif
 #if defined(VPNES_USE_TTF)
+	/* Буфер для сообщений */
+	char sbuf[20];
 	/* Текущее собщение */
 	const char *WindowText;
 	/* Обновить сообщение */
@@ -131,12 +135,16 @@ private:
 	/* Текущее состояние мыши */
 	bool MouseState;
 	/* Флаг паузы */
-	int PauseState;
+	enum {
+		psPlay,
+		psPaused,
+		psStep
+	} PauseState;
 	/* Скорость эмуляции */
 	double PlayRate;
 
 	/* Обработка событий */
-	void ProcessAction(int Action);
+	void ProcessAction(WindowActions Action);
 	/* Инициализация буфера */
 	void InitializeScreen();
 public:

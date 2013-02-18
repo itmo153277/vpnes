@@ -27,6 +27,7 @@
 #include "win32-res/win32-res.h"
 #endif
 
+#include <cstdio>
 #include <cstring>
 
 namespace vpnes_gui {
@@ -46,7 +47,6 @@ CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	pConfig = NULL;
 #endif
 	CurState = wsNormal;
-	PauseState = 0;
 #if defined(VPNES_USE_TTF)
 	WindowText = NULL;
 	UpdateText = false;
@@ -77,7 +77,7 @@ CWindow::~CWindow() {
 }
 
 /* Обработка событий */
-void CWindow::ProcessAction(int Action) {
+void CWindow::ProcessAction(WindowActions Action) {
 	switch (Action) {
 		case waSoftReset:
 			CurState = wsSoftReset;
@@ -94,21 +94,37 @@ void CWindow::ProcessAction(int Action) {
 		case waChangeSlot:
 			break;
 		case waPause:
+#if defined(VPNES_USE_TTF)
 			SetText("Pause");
-			PauseState = -1;
+#endif
+			pAudio->StopAudio();
+			PauseState = psPaused;
 			break;
 		case waStep:
+#if defined(VPNES_USE_TTF)
 			SetText("Step");
-			PauseState = -2;
+#endif
+			pAudio->StopAudio();
+			PauseState = psStep;
 			break;
 		case waResume:
+#if defined(VPNES_USE_TTF)
 			SetText("Resume");
-			PauseState = 0;
+#endif
+			pAudio->ResumeAudio();
+			PauseState = psPlay;
 			break;
 		case waSpeed:
 			PlayRate = PlayRate * 2;
 			if (PlayRate > 4)
 				PlayRate = 0.5;
+#if defined(VPNES_USE_TTF)
+			sprintf(sbuf, "Speed: x%.1f", PlayRate);
+			SetText(sbuf);
+#endif
+			pAudio->ChangeSpeed(PlayRate);
+			break;
+		default:
 			break;
 	}
 }
@@ -117,71 +133,116 @@ void CWindow::ProcessAction(int Action) {
 CWindow::WindowState CWindow::ProcessMessages() {
 	SDL_Event Event;
 	bool Quit = false;
-	int Action;
+	WindowActions Action;
 	
-	do {
-		CurState = wsNormal;
-		while (::SDL_PollEvent(&Event)) {
-			if (CurState == wsUpdateBuffer) {
-				/* Возвращаем событие в очередь */
-				SDL_PushEvent(&Event);
-				/* Реинициализация */
-				InitializeScreen();
-				CurState = wsNormal;
-				/* Принуждаем к реинициализации CVideo */
-				return wsUpdateBuffer;
-			}
-			Action = 0;
-			switch(Event.type) {
-				case SDL_QUIT:
-					CurState = wsQuit;
-				case SDL_USEREVENT:
-					Quit = true;
-					break;
-				case SDL_MOUSEMOTION:
-					::SDL_ShowCursor(SDL_ENABLE);
-					MouseTimer = SDL_GetTicks();
-					MouseState = true;
-					break;
-				case SDL_KEYDOWN:
-					pInput->ProcessKeyboard(&Event.key);
-					break;
-				case SDL_KEYUP:
-					pInput->ProcessKeyboard(&Event.key);
-					Action = GetKeyboardAction(&Event.key.keysym);
-					if ((Action == (waPause - 1)) && (PauseState < 0))
-						Action = waResume + 1;
-					break;
-				case SDL_JOYAXISMOTION:
-					pInput->ProcessGamepadAxis(&Event.jaxis);
-					break;
-				case SDL_JOYBUTTONDOWN:
-				case SDL_JOYBUTTONUP:
-					pInput->ProcessGamepadButton(&Event.jbutton);
-					break;
-				case SDL_JOYHATMOTION:
-					pInput->ProcessGamepadHat(&Event.jhat);
-					break;
-			}
-			if (Action > 0) {
-				ProcessAction(Action - 1);
-				if (CurState != wsNormal)
-					Quit = true;
-			}
-			if (Quit) {
-				/* Освобождаем очередь */
-				while (::SDL_PollEvent(&Event));
-				return CurState;
-			}
+	CurState = wsNormal;
+	while (::SDL_PollEvent(&Event)) {
+		if (CurState == wsUpdateBuffer) {
+			/* Возвращаем событие в очередь */
+			SDL_PushEvent(&Event);
+			/* Реинициализация */
+			InitializeScreen();
+			CurState = wsNormal;
+			/* Принуждаем к реинициализации CVideo */
+			return wsUpdateBuffer;
 		}
-		pSyncManager->Sync(PlayRate);
-		if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 5000)) {
-			::SDL_ShowCursor(SDL_DISABLE);
-			MouseState = false;
+		Action = waNone;
+		switch(Event.type) {
+			case SDL_QUIT:
+				CurState = wsQuit;
+			case SDL_USEREVENT:
+				Quit = true;
+				break;
+			case SDL_MOUSEMOTION:
+				::SDL_ShowCursor(SDL_ENABLE);
+				MouseTimer = SDL_GetTicks();
+				MouseState = true;
+				break;
+			case SDL_KEYDOWN:
+				pInput->ProcessKeyboard(&Event.key);
+				break;
+			case SDL_KEYUP:
+				pInput->ProcessKeyboard(&Event.key);
+				switch (Event.key.keysym.sym) {
+					case SDLK_F1:
+						Action = waSoftReset;
+						break;
+					case SDLK_F2:
+						Action = waHardReset;
+						break;
+					case SDLK_F5:
+						Action = waSaveState;
+						break;
+					case SDLK_F7:
+						Action = waLoadState;
+						break;
+					case SDLK_PAUSE:
+						Action = waPause;
+						break;
+					case SDLK_SPACE:
+						Action = waStep;
+						break;
+					case SDLK_TAB:
+						Action = waSpeed;
+						break;
+					default:
+						break;
+				}
+//					Action = GetKeyboardAction(&Event.key.keysym);
+				if ((Action == waPause) && (PauseState == psPaused))
+					Action = waResume;
+				break;
+			case SDL_JOYAXISMOTION:
+				pInput->ProcessGamepadAxis(&Event.jaxis);
+				break;
+			case SDL_JOYBUTTONDOWN:
+			case SDL_JOYBUTTONUP:
+				pInput->ProcessGamepadButton(&Event.jbutton);
+				break;
+			case SDL_JOYHATMOTION:
+				pInput->ProcessGamepadHat(&Event.jhat);
+				break;
 		}
-	} while (PauseState < 0);
-	if (PauseState > 0)
-		PauseState = -1;
+		if (Action != waNone) {
+			ProcessAction(Action);
+			if (CurState != wsNormal)
+				Quit = true;
+		}
+		if (Quit) {
+			/* Освобождаем очередь */
+			while (::SDL_PollEvent(&Event));
+			return CurState;
+		}
+	}
+#if !defined(VPNES_DISABLE_SYNC)
+	pSyncManager->Sync(PlayRate);
+#endif
+#if defined(VPNES_SHOW_FPS)
+	static int cur_frame = 0;
+	char buf[20];
+	static Uint32 fpst = 0;
+	Sint32 passed;
+	double fps;
+
+	/* FPS */
+	passed = ::SDL_GetTicks() - fpst;
+	if (passed > 1000) {
+		fps = cur_frame * 1000.0 / passed;
+		snprintf(buf, 20, "%.3lf", fps);
+		::SDL_WM_SetCaption(buf, NULL);
+		fpst = ::SDL_GetTicks();
+		cur_frame = 0;
+	}
+	cur_frame++;
+#endif
+	if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 5000)) {
+		::SDL_ShowCursor(SDL_DISABLE);
+		MouseState = false;
+	}
+	if (PauseState == psPaused)
+		return wsPause;
+	if (PauseState == psStep)
+		PauseState = psPaused;
 	return CurState;
 }
 
@@ -190,6 +251,7 @@ void CWindow::UpdateSizes(int Width, int Height) {
 	_Width = Width;
 	_Height = Height;
 	PlayRate = 1.0;
+	PauseState = psPlay;
 	InitializeScreen();
 }
 
@@ -198,7 +260,9 @@ void CWindow::InitializeScreen() {
 	Screen = SDL_SetVideoMode(_Width * 2, _Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (Screen == NULL)
 		throw CGenericException("Couldn't reinitialize video");
+#if !defined(VPNES_DISABLE_SYNC)
 	pSyncManager->SyncReset();
+#endif
 }
 
 /* Очистить окно */

@@ -9,6 +9,9 @@
 /* Define to 1 if you have the <commdlg.h> header file. */
 #undef HAVE_COMMDLG_H
 
+/* Define to 1 if you have the <cstdio> header file. */
+#undef HAVE_CSTDIO
+
 /* Define to 1 if you have the <cstdlib> header file. */
 #undef HAVE_CSTDLIB
 
