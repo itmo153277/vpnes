@@ -39,11 +39,12 @@ int main(int argc, char *argv[]) {
 		<< std::endl;
 	std::clog << "License: GPL v2" << std::endl;
 #endif
-	if (argc == 2)
+	std::clog << std::internal << std::hex << std::showbase;
+	if (argc >= 2)
 		FileName = argv[1];
 	try {
 		GUI = new vpnes_gui::CNESGUI(FileName);
-		GUI->Start();
+		GUI->Start(argc == 3);
 	} catch (std::exception &e) {
 		std::clog << "Fatal error: " << e.what() << std::endl;
 		return -1;

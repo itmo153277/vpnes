@@ -64,9 +64,6 @@ CVideo::CVideo(CWindow *Window) {
 	if (Font == NULL)
 		throw CGenericException("Couldn't open a font file");
 	TextSurface = NULL;
-#if defined(VPNES_DISABLE_SYNC)
-	TextTimer = ::SDL_GetTicks();
-#endif
 #endif
 }
 
@@ -138,6 +135,9 @@ void CVideo::UpdateSizes(int Width, int Height) {
 		::SDL_FreeSurface(TextSurface);
 		TextSurface = NULL;
 	}
+#if defined(VPNES_DISABLE_SYNC)
+	TextTimer = ::SDL_GetTicks();
+#endif
 #endif
 	if (InternalSurface != NULL)
 		::SDL_FreeSurface(InternalSurface);
@@ -171,7 +171,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 		Screen = pWindow->GetSurface();
 #if defined(VPNES_USE_TTF)
 #if defined(VPNES_DISABLE_SYNC)
-		if ((TextSurface != NULL) && ((SDL_GetTicks() - TextTimer) >= 4000)) {
+		if ((TextSurface != NULL) && ((::SDL_GetTicks() - TextTimer) >= 4000)) {
 			::SDL_FreeSurface(TextSurface);
 			TextSurface = NULL;
 		}
@@ -215,10 +215,11 @@ bool CVideo::UpdateFrame(double FrameTime) {
 			::SDL_LockSurface(Screen);
 		::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
 #if defined(VPNES_USE_TTF)
-		SDL_Rect TextRect = {10, 10};
+		if (TextSurface != NULL) {
+			SDL_Rect TextRect = {10, 10};
 
-		if (TextSurface != NULL)
 			::SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
+		}
 #endif
 		if (SDL_MUSTLOCK(Screen))
 			::SDL_UnlockSurface(Screen);
@@ -234,13 +235,18 @@ bool CVideo::UpdateFrame(double FrameTime) {
 
 /* Остановить синхронизацию */
 void CVideo::SyncStop() {
+	if (PausedSync)
+		return;
 	StopTime = ::SDL_GetTicks();
+	PausedSync = true;
 }
 
 /* Продолжить синхронизацию */
 Uint32 CVideo::SyncResume() {
 	Uint32 TimeDiff;
 
+	if (!PausedSync)
+		return 0;
 	SyncReset();
 	TimeDiff = FrameStart - StopTime;
 #if defined(VPNES_USE_TTF)
@@ -258,6 +264,7 @@ void CVideo::SyncReset() {
 #if !defined(VPNES_DISABLE_FSKIP)
 	SkipFrame = false;
 #endif
+	PausedSync = false;
 }
 
 /* Синхронизировать время */

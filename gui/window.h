@@ -36,6 +36,15 @@
 #endif
 
 #ifdef _WIN32
+/* Minimal version */
+#ifndef _WIN32_IE
+#define _WIN32_IE 0x0500
+#endif
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
 #endif
 
@@ -142,6 +151,34 @@ private:
 	} PauseState;
 	/* Скорость эмуляции */
 	double PlayRate;
+#if defined(VPNES_INTERACTIVE)
+	/* Информация о файле */
+	const char *InfoText;
+	/* Режим отладки */
+	bool DebugMode;
+	/* Флаг открытия файла */
+	bool OpenFile;
+	/* Флаг готовности файла */
+	bool FileReady;
+	/* Буфер для имени файла */
+	char FileNameBuf[VPNES_MAX_PATH];
+#ifdef _WIN32
+	/* Дескриптор меню */
+	HMENU Menu;
+	/* Обработчик сообщений */
+	WNDPROC OldWndProc;
+
+	/* Обработчик сообщений */
+	static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	/* Диалоговое окно «О программе» */
+	static BOOL CALLBACK AboutProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif
+
+	/* Смена состояния */
+	void UpdateState(bool Run);
+	/* Обработчик сообщений */
+	bool InteractiveDispatch(SDL_SysWMmsg *Msg);
+#endif
 
 	/* Обработка событий */
 	void ProcessAction(WindowActions Action);
@@ -157,10 +194,15 @@ public:
 	void UpdateSizes(int Width, int Height);
 	/* Поверхность окна */
 	inline SDL_Surface * const &GetSurface() const { return Screen; }
-	/* Имя файла */
 #if defined(VPNES_INTERACTIVE)
+	/* Имя файла */
 	const char *GetFileName();
+	/* Флаг открытия нового файла */
+	inline const bool &CanOpenFile() const { return OpenFile; }
+	/* Информация о файле */
+	inline const char *&GetInfoText() { return InfoText; }
 #else
+	/* Имя файла */
 	inline const char *GetFileName() { return FileName; }
 #endif
 	/* Текущее состояние окна */
@@ -181,6 +223,8 @@ public:
 	/* Дескриптор */
 	inline const HWND &GetWindowHandle() const { return Handle; }
 #endif
+	/* Вывести сообщение об ошибке */
+	void PrintErrorMsg(const char *Msg);
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Добавить обработчик синхронизации */
 	inline void AppendSyncManager(CSyncManager *SyncManager) {

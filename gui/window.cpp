@@ -24,20 +24,41 @@
 #include <SDL_syswm.h>
 
 #ifdef _WIN32
+#if defined(VPNES_INTERACTIVE)
+#include <commdlg.h>
+#include <commctrl.h>
+#include <shellapi.h>
+#endif
 #include "win32-res/win32-res.h"
 #endif
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 
 namespace vpnes_gui {
 
 /* CWindow */
 
 CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
+	FileName[VPNES_MAX_PATH - 1] = '\0';
+#if !defined(VPNES_INTERACTIVE)
 	if (DefaultFileName == NULL)
 		throw CGenericException("Nothing to run");
-	strcpy(FileName, DefaultFileName);
+	strncpy(FileName, DefaultFileName, VPNES_MAX_PATH - 1);
+#else
+	FileNameBuf[VPNES_MAX_PATH - 1] = '\0';
+	DebugMode = false;
+	if (DefaultFileName != NULL) {
+		if (!std::clog.fail())
+			DebugMode = true;
+		FileReady = true;
+		strncpy(FileNameBuf, DefaultFileName, VPNES_MAX_PATH - 1);
+	} else {
+		FileReady = false;
+		FileNameBuf[0] = '\0';
+	}
+#endif
 	pAudio = Audio;
 	pInput = Input;
 #if !defined(VPNES_DISABLE_SYNC)
@@ -63,6 +84,27 @@ CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	Instance = ::GetModuleHandle(NULL);
 	Icon = ::LoadIcon(Instance, MAKEINTRESOURCE(IDI_MAINICON));
 	::SetClassLong(Handle, GCL_HICON, (LONG) Icon);
+#if defined(VPNES_INTERACTIVE)
+	if (!DebugMode) {
+		INITCOMMONCONTROLSEX icc;
+
+		/* Инициализация контролов */
+		memset(&icc, 0, sizeof(INITCOMMONCONTROLSEX));
+		icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
+		icc.dwICC = ICC_WIN95_CLASSES;
+		::InitCommonControlsEx(&icc);
+		/* Меню */
+		Menu = ::LoadMenu(Instance, MAKEINTRESOURCE(IDM_MAINMENU));
+		::SetMenu(Handle, Menu);
+		::SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+		/* Использовать Drag'n'Drop */
+		::DragAcceptFiles(Handle, 1);
+		/* Перехватчик сообщений */
+		OldWndProc = (WNDPROC) ::SetWindowLongPtr(Handle, GWL_WNDPROC, (LONG_PTR) WndProc);
+		/* Ассоциируем указатель и дескриптор */
+		::SetWindowLongPtr(Handle, GWL_USERDATA, (LONG_PTR) this);
+	}
+#endif
 #endif
 	::SDL_WM_SetCaption("VPNES " VERSION, NULL);
 	Screen = ::SDL_SetVideoMode(512, 448, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
@@ -72,6 +114,13 @@ CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 
 CWindow::~CWindow() {
 #ifdef _WIN32
+#if defined(VPNES_INTERACTIVE)
+	if (!DebugMode) {
+		::DestroyMenu(Menu);
+		/* Удаляем обработчик */
+		::SetWindowLongPtr(Handle, GWL_WNDPROC, (LONG_PTR) OldWndProc);
+	}
+#endif
 	::DestroyIcon(Icon);
 #endif
 }
@@ -99,6 +148,9 @@ void CWindow::ProcessAction(WindowActions Action) {
 #endif
 			pAudio->StopAudio();
 			PauseState = psPaused;
+#if defined(VPNES_INTERACTIVE)
+			UpdateState(true);
+#endif
 			break;
 		case waStep:
 #if defined(VPNES_USE_TTF)
@@ -106,6 +158,9 @@ void CWindow::ProcessAction(WindowActions Action) {
 #endif
 			pAudio->StopAudio();
 			PauseState = psStep;
+#if defined(VPNES_INTERACTIVE)
+			UpdateState(true);
+#endif
 			break;
 		case waResume:
 #if defined(VPNES_USE_TTF)
@@ -113,13 +168,16 @@ void CWindow::ProcessAction(WindowActions Action) {
 #endif
 			pAudio->ResumeAudio();
 			PauseState = psPlay;
+#if defined(VPNES_INTERACTIVE)
+			UpdateState(true);
+#endif
 			break;
 		case waSpeed:
 			PlayRate = PlayRate * 2;
 			if (PlayRate > 4)
 				PlayRate = 0.5;
 #if defined(VPNES_USE_TTF)
-			sprintf(sbuf, "Speed: x%.1f", PlayRate);
+			snprintf(sbuf, 20, "Speed: x%.1lf", PlayRate);
 			SetText(sbuf);
 #endif
 			pAudio->ChangeSpeed(PlayRate);
@@ -153,9 +211,14 @@ CWindow::WindowState CWindow::ProcessMessages() {
 			case SDL_USEREVENT:
 				Quit = true;
 				break;
+#if defined(VPNES_INTERACTIVE)
+			case SDL_SYSWMEVENT:
+				Quit = InteractiveDispatch(Event.syswm.msg);
+				break;
+#endif
 			case SDL_MOUSEMOTION:
 				::SDL_ShowCursor(SDL_ENABLE);
-				MouseTimer = SDL_GetTicks();
+				MouseTimer = ::SDL_GetTicks();
 				MouseState = true;
 				break;
 			case SDL_KEYDOWN:
@@ -208,15 +271,20 @@ CWindow::WindowState CWindow::ProcessMessages() {
 			if (CurState != wsNormal)
 				Quit = true;
 		}
-		if (Quit) {
-			/* Освобождаем очередь */
-			while (::SDL_PollEvent(&Event));
-			return CurState;
-		}
+		if (Quit)
+			break;
 	}
+	if (PauseState == psPlay)
+		pAudio->ResumeAudio();
 #if !defined(VPNES_DISABLE_SYNC)
+	MouseTimer += pSyncManager->SyncResume();
 	pSyncManager->Sync(PlayRate);
 #endif
+	if (Quit) {
+		/* Освобождаем очередь */
+		while (::SDL_PollEvent(&Event));
+		return CurState;
+	}
 #if defined(VPNES_SHOW_FPS)
 	static int cur_frame = 0;
 	char buf[20];
@@ -235,7 +303,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 	}
 	cur_frame++;
 #endif
-	if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 5000)) {
+	if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 3000)) {
 		::SDL_ShowCursor(SDL_DISABLE);
 		MouseState = false;
 	}
@@ -252,6 +320,9 @@ void CWindow::UpdateSizes(int Width, int Height) {
 	_Height = Height;
 	PlayRate = 1.0;
 	PauseState = psPlay;
+#if defined(VPNES_INTERACTIVE)
+	UpdateState(true);
+#endif
 	InitializeScreen();
 }
 
@@ -274,5 +345,223 @@ void CWindow::ClearWindow() {
 		::SDL_UnlockSurface(Screen);
 	::SDL_Flip(Screen);
 }
+
+/* Вывести сообщение об ошибке */
+void CWindow::PrintErrorMsg(const char *Msg) {
+#ifdef _WIN32
+	MessageBox(Handle, Msg, "Error", MB_ICONHAND);
+#else
+	std::clog << Msg << std::endl;
+#endif
+#if defined(VPNES_INTERACTIVE)
+	OpenFile = true;
+#endif
+}
+
+#if defined(VPNES_INTERACTIVE)
+
+#ifdef _WIN32
+/* Обработчик сообщений */
+LRESULT CALLBACK CWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	SDL_SysWMmsg Msg;
+	SDL_Event Event;
+	CWindow *Window;
+
+	switch (msg) {
+		case WM_SYSKEYUP:
+		case WM_SYSKEYDOWN:
+			return ::DefWindowProc(hwnd, msg, wParam, lParam);
+		default:
+			Msg.msg = msg;
+			Msg.wParam = wParam;
+			Msg.lParam = lParam;
+			Window = (CWindow *) ::GetWindowLongPtr(hwnd, GWL_USERDATA);
+			if (Window->InteractiveDispatch(&Msg)) {
+				Event.type = SDL_USEREVENT;
+				SDL_PushEvent(&Event);
+			}
+			return ::CallWindowProc(Window->OldWndProc, hwnd, msg, wParam, lParam);
+	}
+}
+
+/* О программе */
+BOOL CALLBACK CWindow::AboutProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+		case WM_INITDIALOG:
+			SetDlgItemText(hwnd, IDC_STATICINFO, (const char *) lParam);
+			return TRUE;
+		case WM_COMMAND:
+			if (wParam == IDCANCEL) {
+				EndDialog(hwnd, wParam);
+				return TRUE;
+			}
+			break;
+	}
+	return FALSE;
+}
+#endif
+
+/* Обработчик сообщений */
+bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
+#ifdef _WIN32
+	OPENFILENAME ofn;
+	HDROP hDrop;
+
+	switch (Msg->msg) {
+		case WM_DROPFILES:
+			hDrop = (HDROP) Msg->wParam;
+			::DragQueryFile(hDrop, 0, FileNameBuf, VPNES_MAX_PATH);
+			::DragFinish(hDrop);
+			OpenFile = true;
+			FileReady = true;
+			CurState = wsQuit;
+			return true;
+		case WM_ENTERSIZEMOVE:
+		case WM_ENTERMENULOOP:
+		case WM_NCLBUTTONDOWN:
+		case WM_NCRBUTTONDOWN:
+		case WM_SIZING:
+		case WM_MOVING:
+#if !defined(VPNES_DISABLE_SYNC)
+			pSyncManager->SyncStop();
+#endif
+			pAudio->StopAudio();
+			break;
+		case WM_COMMAND:
+			switch (Msg->wParam) {
+				case ID_FILE_OPEN:
+#if !defined(VPNES_DISABLE_SYNC)
+					pSyncManager->SyncStop();
+#endif
+					pAudio->StopAudio();
+					memset(&ofn, 0, sizeof(OPENFILENAME));
+					ofn.lStructSize = sizeof(OPENFILENAME);
+					ofn.hwndOwner = Handle;
+					ofn.hInstance = Instance;
+					ofn.lpstrFilter = "iNES 1.0 Files (*.nes)\0*.nes\0"
+						"All Files (*.*)\0*.*\0";
+					ofn.lpstrFile = FileNameBuf;
+					ofn.nMaxFile = VPNES_MAX_PATH;
+					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY |
+						OFN_ALLOWMULTISELECT;
+					ofn.lpstrDefExt = "nes";
+					if (::GetOpenFileName(&ofn)) {
+						OpenFile = true;
+						FileReady = true;
+						CurState = wsQuit;
+						return true;
+					}
+					break;
+				case ID_FILE_CLOSE:
+					OpenFile = true;
+					FileReady = false;
+					CurState = wsQuit;
+					return true;
+				case ID_FILE_EXIT:
+					OpenFile = false;
+					CurState = wsQuit;
+					return true;
+				case ID_CPU_SOFTWARERESET:
+					ProcessAction(waSoftReset);
+					return true;
+				case ID_CPU_HARDWARERESET:
+					ProcessAction(waHardReset);
+					return true;
+				case ID_CPU_PAUSE:
+					ProcessAction(waPause);
+					return true;
+				case ID_CPU_RESUME:
+					ProcessAction(waResume);
+					return true;
+				case ID_CPU_STEP:
+					ProcessAction(waStep);
+					return true;
+				case ID_CPU_SAVESTATE:
+					ProcessAction(waSaveState);
+					return true;
+				case ID_CPU_LOADSTATE:
+					ProcessAction(waLoadState);
+					return true;
+				case ID_CPU_ABOUT:
+#if !defined(VPNES_DISABLE_SYNC)
+					pSyncManager->SyncStop();
+#endif
+					pAudio->StopAudio();
+					::DialogBoxParam(Instance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), Handle,
+						(DLGPROC) AboutProc, (LPARAM) InfoText);
+					break;
+			}
+			break;
+	}
+#endif
+	return false;
+}
+
+/* Получить имя файла */
+const char *CWindow::GetFileName() {
+	if (!FileReady) {
+		const char DefaultInfoText[] = "No ROM";
+		SDL_Event Event;
+
+		UpdateState(false);
+		/* Курсор мыши должен отображаться всегда */
+		::SDL_ShowCursor(SDL_ENABLE);
+		CurState = wsNormal;
+		InfoText = DefaultInfoText;
+		do {
+			::SDL_WaitEvent(&Event);
+			switch (Event.type) {
+				case SDL_QUIT:
+					CurState = wsQuit;
+					break;
+				case SDL_SYSWMEVENT:
+					InteractiveDispatch(Event.syswm.msg);
+					break;
+			}
+		} while (CurState != wsQuit);
+		/* Освобождаем очередь */
+		while (::SDL_PollEvent(&Event));
+		if (!FileReady)
+			return NULL;
+	}
+	FileReady = false;
+	OpenFile = false;
+	strncpy(FileName, FileNameBuf, VPNES_MAX_PATH - 1);
+	return FileName;
+}
+
+/* Смена состояния */
+void CWindow::UpdateState(bool Run) {
+#ifdef _WIN32
+	if (Run) {
+		::EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
+		::EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
+		::EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
+		if (PauseState == psPlay) {
+			::EnableMenuItem(Menu, ID_CPU_PAUSE, MF_ENABLED);
+			::EnableMenuItem(Menu, ID_CPU_RESUME, MF_GRAYED);
+		} else {
+			::EnableMenuItem(Menu, ID_CPU_PAUSE, MF_GRAYED);
+			::EnableMenuItem(Menu, ID_CPU_RESUME, MF_ENABLED);
+		}
+		::EnableMenuItem(Menu, ID_CPU_STEP, MF_ENABLED);
+		::EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_ENABLED);
+		::EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
+	} else {
+		::EnableMenuItem(Menu, ID_FILE_CLOSE, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_PAUSE, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_RESUME, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_STEP, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_SAVESTATE, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_GRAYED);
+	}
+#endif
+}
+
+#endif
 
 }
