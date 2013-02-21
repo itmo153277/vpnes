@@ -53,7 +53,7 @@ public:
 	~CNESGUI();
 
 	/* Запустить NES */
-	void Start();
+	void Start(bool ForceDendyMode);
 	/* Отладочная информация ЦПУ */
 	void CPUDebug(uint16 PC, uint8 A, uint8 X, uint8 Y, uint8 S, uint8 P);
 	/* Отладочная информация ГПУ */

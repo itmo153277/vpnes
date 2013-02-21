@@ -27,12 +27,9 @@
 #include "../nes/nes.h"
 #include "../nes/libvpnes.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <exception>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -66,125 +63,151 @@ CNESGUI::~CNESGUI() {
 }
 
 /* Запустить NES */
-void CNESGUI::Start() {
+void CNESGUI::Start(bool ForceDendyMode) {
 	vpnes::ines::NES_ROM_Data Data;
 	vpnes::CNESConfig *NESConfig;
 	vpnes::CBasicNES *NES;
 	std::ifstream ROM;
 	std::fstream State;
 	std::basic_string<char> Name;
-	std::basic_string<char> RomName;
+	std::basic_string<char> InfoString;
+	const char *RomName;
 	bool Quit;
 	int SaveState = 0;
 
-	NESConfig = NULL;
-	NES = NULL;
-	try {
-		/* Открываем файл */
-		RomName = Window->GetFileName();
-		ROM.open(RomName.c_str(), std::ios_base::in | std::ios_base::binary);
-		if (ROM.fail())
-			throw CGenericException("Couldn't open ROM file");
-		NESConfig = vpnes::OpenROM(ROM, &Data, vpnes::ines::NES_Auto);
-		ROM.close();
-		if (NESConfig == NULL)
-			throw CGenericException("Couldn't find any compatible NES configuration "
-				"(unsupported file)");
-		do {
-			Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
-			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
-			Audio->UpdateDevice(NESConfig->GetFrameLength());
-			NES = NESConfig->GetNES(this);
-			if (Data.Header.HaveBattery) {
-				Name = RomName;
-				Name += ".vpram";
-				State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
-				if (!State.fail()) {
-					NES->LoadState(State);
-					State.close();
-				}
-			}
-#if defined(VPNES_USE_TTF)
-			Window->SetText("Hard reset");
+#if defined(VPNES_INTERACTIVE)
+	do {
 #endif
-			NES->Reset();
-			Quit = false;
+		NESConfig = NULL;
+		NES = NULL;
+		try {
+			Window->ClearWindow();
+			/* Открываем файл */
+			RomName = Window->GetFileName();
+			if (RomName == NULL)
+				break;
+			ROM.open(RomName, std::ios_base::in | std::ios_base::binary);
+			if (ROM.fail())
+				throw CGenericException("Couldn't open ROM file");
+			NESConfig = vpnes::OpenROM(ROM, &Data, ForceDendyMode ? vpnes::ines::NES_Dendy :
+				vpnes::ines::NES_Auto);
+			ROM.close();
+			if (NESConfig == NULL)
+				throw CGenericException("Couldn't find any compatible NES configuration "
+					"(unsupported file)");
+			std::stringstream InfoStr;
+			InfoStr << "ROM: " << Data.Header.Mapper << " mapper, PRG " <<
+				Data.Header.PRGSize << ", W-RAM " << Data.Header.RAMSize <<
+				(Data.Header.HaveBattery ? " (battery backed), CHR " :
+				" (no battery), CHR " ) << Data.Header.CHRSize << ((Data.CHR == NULL) ?
+				" RAM, System " : ", System ") << Data.Header.TVSystem <<
+				", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
+				", no trainer" : ", have trainer");
+			InfoString = InfoStr.str();
+			std::clog << InfoString << std::endl;
+#if defined(VPNES_INTERACTIVE)
+			Window->GetInfoText() = InfoString.c_str();
+#endif
 			do {
-				NES->PowerOn();
-				switch (Window->GetWindowState()) {
-					case CWindow::wsQuit:
-					case CWindow::wsHardReset:
-						Quit = true;
-						break;
-					case CWindow::wsSoftReset:
-#if defined(VPNES_USE_TTF)
-						Window->SetText("Soft reset");
-#endif
-						NES->Reset();
-						break;
-					case CWindow::wsSaveState:
-						Name = RomName;
-						Name += '.';
-						Name += '0' + SaveState;
-						State.open(Name.c_str(), std::ios_base::out |
-							std::ios_base::binary | std::ios_base::trunc);
-						if (!State.fail()) {
-							NES->SaveState(State);
-							State.close();
-#if defined(VPNES_USE_TTF)
-							Window->SetText("Save state");
-						} else
-							Window->SetText("Save state error");
-#else
-						}
-#endif
-						break;
-					case CWindow::wsLoadState:
-						Name = RomName;
-						Name += '.';
-						Name += '0' + SaveState;
-						State.open(Name.c_str(), std::ios_base::in |
-							std::ios_base::binary);
-						if (!State.fail()) {
-							NES->LoadState(State);
-							State.close();
-#if defined(VPNES_USE_TTF)
-							Window->SetText("Load state");
-						} else
-							Window->SetText("Load state error");
-#else
-						}
-#endif
-						break;
-					default:
-						break;
+				Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+				Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+				Audio->UpdateDevice(NESConfig->GetFrameLength());
+				NES = NESConfig->GetNES(this);
+				if (Data.Header.HaveBattery) {
+					Name = RomName;
+					Name += ".vpram";
+					State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
+					if (!State.fail()) {
+						NES->LoadState(State);
+						State.close();
+					}
 				}
-			} while (!Quit);
-			if (Data.Header.HaveBattery) {
-				Name = RomName;
-				Name += ".vpram";
-				State.open(Name.c_str(), std::ios_base::out |
-					std::ios_base::binary | std::ios_base::trunc);
-				if (!State.fail()) {
-					NES->PowerOff(State);
-					State.close();
+#if defined(VPNES_USE_TTF)
+				Window->SetText("Hard reset");
+#endif
+				NES->Reset();
+				Quit = false;
+				do {
+					NES->PowerOn();
+					switch (Window->GetWindowState()) {
+						case CWindow::wsQuit:
+						case CWindow::wsHardReset:
+							Quit = true;
+							break;
+						case CWindow::wsSoftReset:
+#if defined(VPNES_USE_TTF)
+							Window->SetText("Soft reset");
+#endif
+							NES->Reset();
+							break;
+						case CWindow::wsSaveState:
+							Name = RomName;
+							Name += '.';
+							Name += '0' + SaveState;
+							State.open(Name.c_str(), std::ios_base::out |
+								std::ios_base::binary | std::ios_base::trunc);
+							if (!State.fail()) {
+								NES->SaveState(State);
+								State.close();
+#if defined(VPNES_USE_TTF)
+								Window->SetText("Save state");
+							} else
+								Window->SetText("Save state error");
+#else
+							}
+#endif
+							break;
+						case CWindow::wsLoadState:
+							Name = RomName;
+							Name += '.';
+							Name += '0' + SaveState;
+							State.open(Name.c_str(), std::ios_base::in |
+								std::ios_base::binary);
+							if (!State.fail()) {
+								NES->LoadState(State);
+								State.close();
+#if defined(VPNES_USE_TTF)
+								Window->SetText("Load state");
+							} else
+								Window->SetText("Load state error");
+#else
+							}
+#endif
+							break;
+						default:
+							break;
+					}
+				} while (!Quit);
+				if (Data.Header.HaveBattery) {
+					Name = RomName;
+					Name += ".vpram";
+					State.open(Name.c_str(), std::ios_base::out |
+						std::ios_base::binary | std::ios_base::trunc);
+					if (!State.fail()) {
+						NES->PowerOff(State);
+						State.close();
+					}
 				}
-			}
+				delete NES;
+			} while (Window->GetWindowState() == CWindow::wsHardReset);
+		} catch (CGenericException &e) {
+			Window->PrintErrorMsg(e.what());
 			delete NES;
-		} while (Window->GetWindowState() == CWindow::wsHardReset);
-	} catch (CGenericException &e) {
-#ifdef _WIN32
-		MessageBox(Window->GetWindowHandle(), e.what(), "Error", MB_ICONHAND);
-#else
-		std::clog << e.what() << std::endl;
+		}
+		delete NESConfig;
+#if defined(VPNES_INTERACTIVE)
+	} while (Window->CanOpenFile());
 #endif
-		delete NES;
-	}
-	delete NESConfig;
 }
 
 /* Отладочная информация ЦПУ */
 void CNESGUI::CPUDebug(uint16 PC, uint8 A, uint8 X, uint8 Y, uint8 S, uint8 P) {
+	std::clog << "PC: " << std::setw(6) << std::setfill('0') << PC << std::endl;
+	std::clog << "A: " << std::setw(4) << std::setfill('0') << (int) A << std::endl;
+	std::clog << "X: " << std::setw(4) << std::setfill('0') << (int) X << std::endl;
+	std::clog << "Y: " << std::setw(4) << std::setfill('0') << (int) Y << std::endl;
+	std::clog << "S: " << std::setw(4) << std::setfill('0') << (int) S << std::endl;
+	std::clog << "P: " << std::setw(4) << std::setfill('0') << (int) P << std::endl;
 }
 
 /* Отладочная информация ГПУ */
@@ -194,6 +217,10 @@ void CNESGUI::PPUDebug(int Frame, int Scanline, int Cycle, uint16 Reg1, uint16 R
 
 /* Критическая ошибка */
 void CNESGUI::Panic() {
+#if defined(VPNES_USE_TTF)
+	Window->SetText("NES CPU Panic");
+#endif
+	std::clog << "Fatal error: CPU Panic" << std::endl;
 }
 
 }

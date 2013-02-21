@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -289,13 +289,13 @@ private:
 			}
 			inline void Write_2(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x0700) | Src;
-				if (Timer == 0)
+				if (Timer < 2)
 					TimerCounter = 0;
 				UpdateCycles(Cycle);
 			}
 			inline void Write_3(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
-				if (Timer == 0)
+				if (Timer < 2)
 					TimerCounter = 0;
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
@@ -340,13 +340,13 @@ private:
 			}
 			/* На высокой частоте используем приближенное значение */
 			inline bool HighFreq() {
-				return (Timer == 0) && (LinearCounter > 0) && (LengthCounter > 0);
+				return (Timer < 2) && (LinearCounter > 0) && (LengthCounter > 0);
 			}
 			/* Обновить такты */
 			inline void UpdateCycles(int &Cycle) {
 				int RestCycles;
 
-				if (Timer > 0) {
+				if (Timer > 1) {
 					RestCycles = Timer - TimerCounter;
 					if (RestCycles <= 0)
 						RestCycles = 1;
