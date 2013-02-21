@@ -354,7 +354,8 @@ void CWindow::PrintErrorMsg(const char *Msg) {
 	std::clog << Msg << std::endl;
 #endif
 #if defined(VPNES_INTERACTIVE)
-	OpenFile = true;
+	if (!DebugMode)
+		OpenFile = true;
 #endif
 }
 
