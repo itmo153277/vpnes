@@ -33,6 +33,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 namespace vpnes_gui {
 
@@ -80,6 +81,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 #endif
 		NESConfig = NULL;
 		NES = NULL;
+		memset(&Data, 0, sizeof(vpnes::ines::NES_ROM_Data));
 		try {
 			Window->ClearWindow();
 			/* Открываем файл */
@@ -189,12 +191,14 @@ void CNESGUI::Start(bool ForceDendyMode) {
 					}
 				}
 				delete NES;
+				NES = NULL;
 			} while (Window->GetWindowState() == CWindow::wsHardReset);
 		} catch (CGenericException &e) {
 			Window->PrintErrorMsg(e.what());
 			delete NES;
 		}
 		delete NESConfig;
+		vpnes::FreeROMData(&Data);
 #if defined(VPNES_INTERACTIVE)
 	} while (Window->CanOpenFile());
 #endif

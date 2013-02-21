@@ -92,8 +92,11 @@ int ReadROM(std::istream &ROM, ines::NES_ROM_Data *Data);
 /* Освободить память */
 inline void FreeROMData(ines::NES_ROM_Data *Data) {
 	delete [] Data->PRG;
+	Data->PRG = NULL;
 	delete [] Data->CHR;
+	Data->CHR = NULL;
 	delete [] Data->Trainer;
+	Data->Trainer = NULL;
 }
 
 }
