@@ -97,7 +97,12 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			if (NESConfig == NULL)
 				throw CGenericException("Couldn't find any compatible NES configuration "
 					"(unsupported file)");
+			Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
+			Audio->UpdateDevice(NESConfig->GetFrameLength());
+
 			std::stringstream InfoStr;
+
 			InfoStr << "ROM: " << Data.Header.Mapper << " mapper, PRG " <<
 				Data.Header.PRGSize << ", W-RAM " << Data.Header.RAMSize <<
 				(Data.Header.HaveBattery ? " (battery backed), CHR " :
@@ -111,9 +116,6 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->GetInfoText() = InfoString.c_str();
 #endif
 			do {
-				Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
-				Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
-				Audio->UpdateDevice(NESConfig->GetFrameLength());
 				NES = NESConfig->GetNES(this);
 				if (Data.Header.HaveBattery) {
 					Name = RomName;

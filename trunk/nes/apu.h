@@ -1093,17 +1093,6 @@ const int PAL_Tables::DMTable[16] = {
 
 }
 
-/* Стандартный АПУ */
-template <class _Settings>
-struct StdAPU {
-	template <class _Bus>
-	class APU: public CAPU<_Bus, _Settings> {
-	public:
-		inline explicit APU(_Bus *pBus): CAPU<_Bus, _Settings>(pBus) {}
-		inline ~APU() {}
-	};
-};
-
 }
 
 #endif

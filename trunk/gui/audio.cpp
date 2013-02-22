@@ -84,7 +84,6 @@ void CAudio::UpdateBuffer() {
 /* Остановить воспроизведение */
 void CAudio::StopAudio() {
 	::SDL_LockAudio();
-	Stop = true;
 	PCMPlay = false;
 	::SDL_PauseAudio(-1);
 	::SDL_UnlockAudio();
@@ -92,13 +91,30 @@ void CAudio::StopAudio() {
 
 /* Продолжить воспроизведение */
 void CAudio::ResumeAudio() {
+	if (Stop)
+		return;
 	::SDL_LockAudio();
-	Stop = false;
 	if (!PCMPlay && BuffersFull[PCMIndex]) {
 		PCMPlay = true;
 		::SDL_PauseAudio(0);
 	}
 	::SDL_UnlockAudio();
+}
+
+/* Остановить устройство */
+void CAudio::StopDevice() {
+	if (Stop)
+		return;
+	Stop = true;
+	StopAudio();
+}
+
+/* Возобновить устройство */
+void CAudio::ResumeDevice() {
+	if (!Stop)
+		return;
+	Stop = false;
+	ResumeAudio();
 }
 
 /* Обновить устройство */

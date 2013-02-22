@@ -173,15 +173,14 @@ public:
 private:
 	struct SInternalData {
 		int Pos;
-		uint8 Buf[8];
 		uint8 Strobe;
 	} InternalData;
 public:
 	inline explicit CStdController() {
 		InternalMemory.RAM = &InternalData;
 		InternalMemory.Size = sizeof(SInternalData);
-		Buf = InternalData.Buf;
-		memset(InternalData.Buf, 0x00, 8 * sizeof(uint8));
+		Buf = new uint8[8];
+		memset(Buf, 0x00, 8 * sizeof(uint8));
 		Pos = &InternalData.Pos;
 		InternalData.Pos = 0;
 		Length = 8;
@@ -189,6 +188,7 @@ public:
 		InternalData.Strobe = 0x00;
 	}
 	inline ~CStdController() {
+		delete [] Buf;
 	}
 
 	/* Стробирующий сигнал */
@@ -200,33 +200,33 @@ public:
 
 	/* Управление кнопками */
 	inline void PushButton(ButtonName Button) {
-		InternalData.Buf[Button] |= 0x01;
+		Buf[Button] |= 0x01;
 		if (Button >= ButtonUp) {
 			/* Запрещаем нажимать на весь крестик */
-			if (InternalData.Buf[ButtonUp] && InternalData.Buf[ButtonDown]) {
-				InternalData.Buf[ButtonUp] = 0x02;
-				InternalData.Buf[ButtonDown] = 0x02;
+			if (Buf[ButtonUp] && Buf[ButtonDown]) {
+				Buf[ButtonUp] = 0x02;
+				Buf[ButtonDown] = 0x02;
 			}
-			if (InternalData.Buf[ButtonLeft] && InternalData.Buf[ButtonRight]) {
-				InternalData.Buf[ButtonLeft] = 0x02;
-				InternalData.Buf[ButtonRight] = 0x02;
+			if (Buf[ButtonLeft] && Buf[ButtonRight]) {
+				Buf[ButtonLeft] = 0x02;
+				Buf[ButtonRight] = 0x02;
 			}
 		}
 	}
 	inline void PopButton(ButtonName Button) {
-		InternalData.Buf[Button] &= 0xfc;
+		Buf[Button] &= 0xfc;
 		switch (Button) {
 			case ButtonUp:
-				InternalData.Buf[ButtonDown] >>= 1;
+				Buf[ButtonDown] >>= 1;
 				break;
 			case ButtonDown:
-				InternalData.Buf[ButtonUp] >>= 1;
+				Buf[ButtonUp] >>= 1;
 				break;
 			case ButtonLeft:
-				InternalData.Buf[ButtonRight] >>= 1;
+				Buf[ButtonRight] >>= 1;
 				break;
 			case ButtonRight:
-				InternalData.Buf[ButtonLeft] >>= 1;
+				Buf[ButtonLeft] >>= 1;
 				break;
 			default:
 				break;

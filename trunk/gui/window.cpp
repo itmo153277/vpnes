@@ -72,8 +72,6 @@ CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	WindowText = NULL;
 	UpdateText = false;
 #endif
-	MouseState = true;
-	MouseTimer = ::SDL_GetTicks();
 #ifdef _WIN32
 	SDL_SysWMinfo WMInfo;
 
@@ -146,7 +144,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 #if defined(VPNES_USE_TTF)
 			SetText("Pause");
 #endif
-			pAudio->StopAudio();
+			pAudio->StopDevice();
 			PauseState = psPaused;
 #if defined(VPNES_INTERACTIVE)
 			UpdateState(true);
@@ -156,7 +154,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 #if defined(VPNES_USE_TTF)
 			SetText("Step");
 #endif
-			pAudio->StopAudio();
+			pAudio->StopDevice();
 			PauseState = psStep;
 #if defined(VPNES_INTERACTIVE)
 			UpdateState(true);
@@ -166,7 +164,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 #if defined(VPNES_USE_TTF)
 			SetText("Resume");
 #endif
-			pAudio->ResumeAudio();
+			pAudio->ResumeDevice();
 			PauseState = psPlay;
 #if defined(VPNES_INTERACTIVE)
 			UpdateState(true);
@@ -275,7 +273,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 			break;
 	}
 	if (PauseState == psPlay)
-		pAudio->ResumeAudio();
+		pAudio->ResumeDevice();
 #if !defined(VPNES_DISABLE_SYNC)
 	MouseTimer += pSyncManager->SyncResume();
 	pSyncManager->Sync(PlayRate);
@@ -320,6 +318,8 @@ void CWindow::UpdateSizes(int Width, int Height) {
 	_Height = Height;
 	PlayRate = 1.0;
 	PauseState = psPlay;
+	MouseState = true;
+	MouseTimer = ::SDL_GetTicks();
 #if defined(VPNES_INTERACTIVE)
 	UpdateState(true);
 #endif
@@ -348,6 +348,7 @@ void CWindow::ClearWindow() {
 
 /* Вывести сообщение об ошибке */
 void CWindow::PrintErrorMsg(const char *Msg) {
+	pAudio->StopDevice();
 #ifdef _WIN32
 	MessageBox(Handle, Msg, "Error", MB_ICONHAND);
 #else
@@ -426,7 +427,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 #if !defined(VPNES_DISABLE_SYNC)
 			pSyncManager->SyncStop();
 #endif
-			pAudio->StopAudio();
+			pAudio->StopDevice();
 			break;
 		case WM_COMMAND:
 			switch (Msg->wParam) {
@@ -434,7 +435,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 #if !defined(VPNES_DISABLE_SYNC)
 					pSyncManager->SyncStop();
 #endif
-					pAudio->StopAudio();
+					pAudio->StopDevice();
 					memset(&ofn, 0, sizeof(OPENFILENAME));
 					ofn.lStructSize = sizeof(OPENFILENAME);
 					ofn.hwndOwner = Handle;
@@ -443,8 +444,8 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 						"All Files (*.*)\0*.*\0";
 					ofn.lpstrFile = FileNameBuf;
 					ofn.nMaxFile = VPNES_MAX_PATH;
-					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY |
-						OFN_ALLOWMULTISELECT;
+					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_LONGNAMES |
+						OFN_HIDEREADONLY;
 					ofn.lpstrDefExt = "nes";
 					if (::GetOpenFileName(&ofn)) {
 						OpenFile = true;
@@ -487,7 +488,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 #if !defined(VPNES_DISABLE_SYNC)
 					pSyncManager->SyncStop();
 #endif
-					pAudio->StopAudio();
+					pAudio->StopDevice();
 					::DialogBoxParam(Instance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), Handle,
 						(DLGPROC) AboutProc, (LPARAM) InfoText);
 					break;
@@ -528,6 +529,7 @@ const char *CWindow::GetFileName() {
 	FileReady = false;
 	OpenFile = false;
 	strncpy(FileName, FileNameBuf, VPNES_MAX_PATH - 1);
+	FileNameBuf[0] = '\0';
 	return FileName;
 }
 
