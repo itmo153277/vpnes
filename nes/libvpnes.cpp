@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,6 +30,51 @@
 using namespace std;
 using namespace vpnes;
 
+/* Шаблон для конфигураций NES */
+template <template<template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class,
+                   template<class> class> class _Bus,
+          template<class> class _ROM, class _Settings>
+struct Std_NES_Config {
+
+	/* Стандартный генератор */
+	template <class BusClass>
+	class CClock: public CStdClock<BusClass, _Settings> {
+	public:
+		inline explicit CClock(BusClass *pBus): CStdClock<BusClass, _Settings>(pBus) {}
+		inline ~CClock() {}
+	};
+
+	/* Стандартный ЦПУ */
+	template <class BusClass>
+	class CPU: public CCPU<BusClass, _Settings> {
+	public:
+		inline explicit CPU(BusClass *pBus): CCPU<BusClass, _Settings>(pBus) {}
+		inline ~CPU() {}
+	};
+
+	/* Стандартный АПУ */
+	template <class BusClass>
+	class APU: public CAPU<BusClass, _Settings> {
+	public:
+		inline explicit APU(BusClass *pBus): CAPU<BusClass, _Settings>(pBus) {}
+		inline ~APU() {}
+	};
+
+	/* Стандартный ГПУ */
+	template <class BusClass>
+	class PPU: public CPPU<BusClass, _Settings> {
+	public:
+		inline explicit PPU(BusClass *pBus): CPPU<BusClass, _Settings>(pBus) {}
+		inline ~PPU() {}
+	};
+
+	/* Конфигурация */
+	typedef CNESConfigTemplate<CNES<_Bus<CClock, CPU, APU, PPU, _ROM> >, _Settings> Config;
+};
+
 /* NTSC NES */
 struct NTSC_Settings {
 	/* Таблицы для APU */
@@ -57,18 +102,6 @@ struct NTSC_Settings {
 	};
 	/* Обработка 337 такта на пре-сканлайне */
 	static inline void SkipPPUClock(int &Clocks) { Clocks++; }
-};
-
-template <template<template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class> class _Bus,
-          template<class> class _ROM>
-struct NTSC_NES_Config {
-	typedef CNESConfigTemplate<CNES<_Bus<StdClock<NTSC_Settings>::CClock,
-		StdCPU<NTSC_Settings>::CPU, StdAPU<NTSC_Settings>::APU,
-		StdPPU<NTSC_Settings>::PPU, _ROM> >, NTSC_Settings> Config;
 };
 
 /* PAL NES */
@@ -100,18 +133,6 @@ struct PAL_Settings {
 	static inline void SkipPPUClock(int &Clocks) { }
 };
 
-template <template<template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class> class _Bus,
-          template<class> class _ROM>
-struct PAL_NES_Config {
-	typedef CNESConfigTemplate<CNES<_Bus<StdClock<PAL_Settings>::CClock,
-		StdCPU<PAL_Settings>::CPU, StdAPU<PAL_Settings>::APU,
-		StdPPU<PAL_Settings>::PPU, _ROM> >, PAL_Settings> Config;
-};
-
 /* Dendy */
 struct Dendy_Settings {
 	/* Таблицы для APU */
@@ -141,37 +162,25 @@ struct Dendy_Settings {
 	static inline void SkipPPUClock(int &Clocks) { }
 };
 
-template <template<template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class,
-                   template<class> class> class _Bus,
-          template<class> class _ROM>
-struct Dendy_NES_Config {
-	typedef CNESConfigTemplate<CNES<_Bus<StdClock<Dendy_Settings>::CClock,
-		StdCPU<Dendy_Settings>::CPU, StdAPU<Dendy_Settings>::APU,
-		StdPPU<Dendy_Settings>::PPU, _ROM> >, Dendy_Settings> Config;
-};
+typedef Std_NES_Config<CBus, CNROM, NTSC_Settings >::Config NROM_NTSC_Config;
+typedef Std_NES_Config<CBus, CNROM, PAL_Settings  >::Config NROM_PAL_Config;
+typedef Std_NES_Config<CBus, CNROM, Dendy_Settings>::Config NROM_Dendy_Config;
 
-typedef NTSC_NES_Config <CBus, CNROM>::Config NROM_NTSC_Config;
-typedef PAL_NES_Config  <CBus, CNROM>::Config NROM_PAL_Config;
-typedef Dendy_NES_Config<CBus, CNROM>::Config NROM_Dendy_Config;
+typedef Std_NES_Config<CBus, CMMC1, NTSC_Settings >::Config MMC1_NTSC_Config;
+typedef Std_NES_Config<CBus, CMMC1, PAL_Settings  >::Config MMC1_PAL_Config;
+typedef Std_NES_Config<CBus, CMMC1, Dendy_Settings>::Config MMC1_Dendy_Config;
 
-typedef NTSC_NES_Config <CBus, CMMC1>::Config MMC1_NTSC_Config;
-typedef PAL_NES_Config  <CBus, CMMC1>::Config MMC1_PAL_Config;
-typedef Dendy_NES_Config<CBus, CMMC1>::Config MMC1_Dendy_Config;
+typedef Std_NES_Config<CBus, CUxROM, NTSC_Settings >::Config UxROM_NTSC_Config;
+typedef Std_NES_Config<CBus, CUxROM, PAL_Settings  >::Config UxROM_PAL_Config;
+typedef Std_NES_Config<CBus, CUxROM, Dendy_Settings>::Config UxROM_Dendy_Config;
 
-typedef NTSC_NES_Config <CBus, CUxROM>::Config UxROM_NTSC_Config;
-typedef PAL_NES_Config  <CBus, CUxROM>::Config UxROM_PAL_Config;
-typedef Dendy_NES_Config<CBus, CUxROM>::Config UxROM_Dendy_Config;
+typedef Std_NES_Config<CBus, CAxROM, NTSC_Settings >::Config AxROM_NTSC_Config;
+typedef Std_NES_Config<CBus, CAxROM, PAL_Settings  >::Config AxROM_PAL_Config;
+typedef Std_NES_Config<CBus, CAxROM, Dendy_Settings>::Config AxROM_Dendy_Config;
 
-typedef NTSC_NES_Config <CBus, CAxROM>::Config AxROM_NTSC_Config;
-typedef PAL_NES_Config  <CBus, CAxROM>::Config AxROM_PAL_Config;
-typedef Dendy_NES_Config<CBus, CAxROM>::Config AxROM_Dendy_Config;
-
-typedef NTSC_NES_Config <CBus, CMMC3>::Config MMC3_NTSC_Config;
-typedef PAL_NES_Config  <CBus, CMMC3>::Config MMC3_PAL_Config;
-typedef Dendy_NES_Config<CBus, CMMC3>::Config MMC3_Dendy_Config;
+typedef Std_NES_Config<CBus, CMMC3, NTSC_Settings >::Config MMC3_NTSC_Config;
+typedef Std_NES_Config<CBus, CMMC3, PAL_Settings  >::Config MMC3_PAL_Config;
+typedef Std_NES_Config<CBus, CMMC3, Dendy_Settings>::Config MMC3_Dendy_Config;
 
 /* Открыть картридж */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {

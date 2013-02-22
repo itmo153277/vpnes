@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -75,17 +75,6 @@ public:
 	inline int GetPreCPUCycles() const { return PreCycles; }
 	/* Получить точный коэф */
 	static inline const double GetFix() { return _Oscillator::GetFreq(); }
-};
-
-/* Стандартный генератор */
-template <class _Oscillator>
-struct StdClock {
-	template <class _Bus>
-	class CClock: public CStdClock<_Bus, _Oscillator> {
-	public:
-		inline explicit CClock(_Bus *pBus): CStdClock<_Bus, _Oscillator>(pBus) {}
-		inline ~CClock() {}
-	};
 };
 
 }

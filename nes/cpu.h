@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1665,17 +1665,6 @@ const typename CCPU<_Bus, _Settings>::SOpcode CCPU<_Bus, _Settings>::Opcodes[256
 	{4, 3, &CCPU<_Bus, _Settings>::OpSBC<CCPU<_Bus, _Settings>::AbsoluteX>},    /* 0xfd */ /* SBC */
 	{7, 3, &CCPU<_Bus, _Settings>::OpINC<CCPU<_Bus, _Settings>::AbsoluteX>},    /* 0xfe */ /* INC */
 	{1, 0, &CCPU<_Bus, _Settings>::OpIllegal}                                   /* 0xff */
-};
-
-/* Стандартный ЦПУ */
-template <class _Settings>
-struct StdCPU {
-	template <class _Bus>
-	class CPU: public CCPU<_Bus, _Settings> {
-	public:
-		inline explicit CPU(_Bus *pBus): CCPU<_Bus, _Settings>(pBus) {}
-		inline ~CPU() {}
-	};
 };
 
 }

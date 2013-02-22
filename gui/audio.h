@@ -75,6 +75,10 @@ public:
 	void StopAudio();
 	/* Продолжить воспроизведение */
 	void ResumeAudio();
+	/* Остановить устройство */
+	void StopDevice();
+	/* Возобновить устройство */
+	void ResumeDevice();
 	/* Обновить устройство */
 	void UpdateDevice(double FrameLength);
 	/* Изменить внутреннюю скорость */

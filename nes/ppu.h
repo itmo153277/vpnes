@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2013  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -922,17 +922,6 @@ const uint16 CPPU<_Bus, _Settings>::ColourTable[256] = {
 	0x5414, 0x5415, 0x5440, 0x5441, 0x5444, 0x5445, 0x5450, 0x5451, 0x5454, 0x5455,
 	0x5500, 0x5501, 0x5504, 0x5505, 0x5510, 0x5511, 0x5514, 0x5515, 0x5540, 0x5541,
 	0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555
-};
-
-/* Стандартный ГПУ */
-template <class _Settings>
-struct StdPPU {
-	template <class _Bus>
-	class PPU: public CPPU<_Bus, _Settings> {
-	public:
-		inline explicit PPU(_Bus *pBus): CPPU<_Bus, _Settings>(pBus) {}
-		inline ~PPU() {}
-	};
 };
 
 }
