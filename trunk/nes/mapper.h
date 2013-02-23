@@ -676,6 +676,7 @@ public:
 				InternalData.EnableRAM = Src & 0x80;
 				InternalData.EnableWrite = ~Src & 0x40;
 			} else { /* Mirroring */
+				Bus->GetPPU()->PreRender();
 				if (Src & 0x01)
 					Bus->GetSolderPad()->Mirroring = ines::Horizontal;
 				else

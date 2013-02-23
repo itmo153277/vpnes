@@ -87,6 +87,10 @@ private:
 		int Scanline; /* Текущий сканлайн */
 		bool ShortFrame; /* Короткий фрейм */
 		int DebugTimer;
+		/* Происходит рендер */
+		inline bool IsInRender() {
+			return Scanline < _Settings::ActiveScanlines;
+		}
 	} CycleData;
 
 	/* Данные для обработки DMA */
@@ -151,25 +155,29 @@ private:
 		inline void Write2005_1(uint8 Src) { FH = ~Src & 0x07;
 			BigReg1 = (BigReg1 & 0xffe0) | (Src >> 3); }
 		/* Запись в 0x2005/2 */
-		inline void Write2005_2(uint8 Src) { BigReg1 = (BigReg1 & 0x8c1f) | ((Src & 0x07) << 12) |
-			((Src & 0xf8) << 2); }
+		inline void Write2005_2(uint8 Src) { BigReg1 = (BigReg1 & 0x8c1f) |
+			((Src & 0x07) << 12) | ((Src & 0xf8) << 2); }
 		/* Запись в 0x2006/1 */
-		inline void Write2006_1(uint8 Src) { BigReg1 = (BigReg1 & 0x00ff) | ((Src & 0x3f) << 8); }
+		inline void Write2006_1(uint8 Src) { BigReg1 = (BigReg1 & 0x00ff) |
+			((Src & 0x3f) << 8); }
 		/* Запись в 0x2006/2 */
-		inline void Write2006_2(uint8 Src) { BigReg1 = (BigReg1 & 0xff00) | Src; RealReg1 = BigReg1; }
+		inline void Write2006_2(uint8 Src) { BigReg1 = (BigReg1 & 0xff00) | Src;
+			RealReg1 = BigReg1; }
 		/* Прочитали NameTable */
 		inline void ReadNT(uint8 Src) { BigReg2 = (BigReg2 & 0x1000) | (Src << 4); }
 		/* Прочитали AttributeTable */
 		inline void ReadAT(uint8 Src) { TempAR = ((Src >> (((RealReg1 >> 4) & 0x004) |
 			(RealReg1 & 0x0002))) & 0x03) << 2; }
 		/* Инкременты */
-		inline void Increment2007(int VerticalIncrement) { if (VerticalIncrement)
-			RealReg1 += 0x0020; else RealReg1++; }
-		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++; RealReg1 = (RealReg1 & 0xffe0)
-			| (Src & 0x001f); RealReg1 ^= (Src & 0x0020) << 5; }
+		inline void Increment2007(int VerticalIncrement, bool IsInRender) {
+			if (VerticalIncrement) { if (IsInRender) IncrementY(); else RealReg1 += 0x0020;
+			} else { if (IsInRender) IncrementX(); else RealReg1++; } }
+		inline void IncrementX() { uint16 Src = (RealReg1 & 0x001f); Src++;
+			RealReg1 = (RealReg1 & 0xffe0) | (Src & 0x001f);
+			RealReg1 ^= (Src & 0x0020) << 5; }
 		inline void IncrementY() { uint8 Src = (RealReg1 >> 12) | ((RealReg1 & 0x03e0) >> 2);
-			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++; RealReg1 = (RealReg1 & 0x8c1f) |
-			((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
+			if (Src == 239) { Src = 0; RealReg1 ^= 0x0800; } else Src++;
+			RealReg1 = (RealReg1 & 0x8c1f) | ((Src & 0x0007) << 12) | ((Src & 0x00f8) << 2); }
 		/* Обновление скроллинга */
 		inline void UpdateScroll() { RealReg1 = (RealReg1 & 0xfbe0) | (BigReg1 & 0x041f); }
 	} Registers;
@@ -201,7 +209,7 @@ private:
 	} ControlRegisters;
 
 	/* Данные спрайтов */
-	struct SSprites: public ManagerID<PPUID::SpritesID> {
+	struct SSprites {
 		int x; /* Координаты */
 		int y;
 		int cx; /* Текущая x */
@@ -304,7 +312,7 @@ public:
 		memset(&State, 0x00, sizeof(State));
 		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
 		Bus->GetManager()->template SetPointer<SControlRegisters>(&ControlRegisters);
-		Bus->GetManager()->template SetPointer<SSprites>(\
+		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
 			Sprites, sizeof(SSprites) * 8);
 		PalMem = (uint8 *)
 			Bus->GetManager()->template GetPointer<ManagerID<PPUID::PalMemID> >(\
@@ -316,6 +324,10 @@ public:
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 	}
 	inline ~CPPU() {}
+
+	inline int PrintDebug() {
+		return CycleData.Scanline;
+	}
 
 	/* Обработать такты */
 	inline void Clock(int Cycles) {
@@ -363,7 +375,7 @@ public:
 				State.ClearVBlank();
 				return Res;
 			case 0x2004: /* Взять байт из памяти SPR */
-				if (ControlRegisters.ShowSprites && (CycleData.Scanline < 240)
+				if (ControlRegisters.RenderingEnabled() && CycleData.IsInRender()
 					&& (CycleData.CurCycle < 256))
 					return 0xff;
 				return OAM[InternalData.OAM_addr];
@@ -372,7 +384,8 @@ public:
 				t = Registers.Get2007Address();
 				Res = InternalData.Buf_B;
 				InternalData.Buf_B = Bus->ReadPPUMemory(t);
-				Registers.Increment2007(ControlRegisters.VerticalIncrement);
+				Registers.Increment2007(ControlRegisters.VerticalIncrement, 
+					ControlRegisters.RenderingEnabled() && CycleData.IsInRender());
 				Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
 				if (t >= 0x3f00)
 					Res = ReadPalette(t);
@@ -434,7 +447,8 @@ public:
 					Bus->WritePPUMemory(t, Src);
 				else
 					WritePalette(t, Src);
-				Registers.Increment2007(ControlRegisters.VerticalIncrement);
+				Registers.Increment2007(ControlRegisters.VerticalIncrement, 
+					ControlRegisters.RenderingEnabled() && CycleData.IsInRender());
 				Bus->GetROM()->UpdatePPUAddress(Registers.Get2007Address());
 				break;
 		}
@@ -494,22 +508,22 @@ template <class _Bus, class _Settings>
 inline void CPPU<_Bus, _Settings>::EvaluateSprites() {
 	int i = 0; /* Всего найдено */
 	int n = 0; /* Текущий спрайт в буфере */
-	uint8 *pOAM = OAM; /* Указатель на SPR */
+	uint8 pOAM = InternalData.OAM_addr & 0xf8; /* Указатель на SPR */
 
 	InternalData.SpriteAddr = 0;
 	Sprites[0].x = -1;
 	for (;;) {
-		if ((((uint8) (InternalData.y - *pOAM)) <
-			ControlRegisters.Size) && (*pOAM  < 0xf0)) {
+		if ((((uint8) (InternalData.y - OAM[pOAM])) <
+			ControlRegisters.Size) && (OAM[pOAM]  < 0xf0)) {
 			/* Спрайт попал в диапазон */
 			/* Заполняем данные */
-			Sprites[i].y = *(pOAM++);
-			Sprites[i].Tile = *(pOAM++);
-			Sprites[i].Attrib = *(pOAM++);
+			Sprites[i].y = OAM[pOAM++];
+			Sprites[i].Tile = OAM[pOAM++];
+			Sprites[i].Attrib = OAM[pOAM++];
 			Sprites[i].HFlip = Sprites[i].Attrib & 0x40;
 			Sprites[i].VFlip = Sprites[i].Attrib & 0x80;
 			Sprites[i].Top = ~Sprites[i].Attrib & 0x20;
-			Sprites[i].x = *(pOAM++);
+			Sprites[i].x = OAM[pOAM++];
 			Sprites[i].cx = 8;
 			Sprites[i].prim = n == 0;
 			i++;
@@ -753,10 +767,10 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 			if (ControlRegisters.RenderingEnabled()) {
 				if (CycleData.CurCycle == 256)
 					Registers.UpdateScroll();
-				else if ((CycleData.CurCycle == 316) &&
-					(CycleData.Scanline == (_Settings::ActiveScanlines - 2)))
-					InternalData.OAM_addr = 0;
 				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft)) {
+					if ((CycleData.CurCycle == 316) &&
+						(CycleData.Scanline == (_Settings::ActiveScanlines - 2)))
+						InternalData.OAM_addr = 0;
 					FetchSprite();
 					CycleData.CurCycle += 2;
 				}
@@ -799,7 +813,7 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 		/* cc 338 - 341 Конец сканлайна, пропускаем 2 лишних чтения и IDLE такт */
 		WAIT_CYCLE(338) {
 			CycleData.Scanline++;
-			if (CycleData.Scanline != _Settings::ActiveScanlines) {
+			if (CycleData.IsInRender()) {
 				CycleData.CurCycle = 0;
 				CycleData.CyclesLeft -= 341;
 				CycleData.LastCycle -= 341;
