@@ -141,14 +141,11 @@ private:
 			}
 			inline void Write_3(uint8 Src) {
 				Timer = (Timer & 0x0700) | Src;
-				if (Timer == 0)
-					TimerCounter = 0;
 			}
 			inline void Write_4(uint8 Src) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
-				if (Timer == 0)
-					TimerCounter = 0;
 				Start = true;
+				DutyCycle = 0;
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
 			}
@@ -196,16 +193,11 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (Timer > 0) {
-					if ((TimerCounter >= (Timer << 1))) {
-						TimerCounter = 0;
-						DutyCycle++;
-						DutyCycle &= 7;
-						return true;
-					}
-				} else {
-					DutyCycle = (DutyCycle + TimerCounter) & 7;
+				if ((TimerCounter > (Timer << 1))) {
 					TimerCounter = 0;
+					DutyCycle++;
+					DutyCycle &= 7;
+					return true;
 				}
 				return false;
 			}
@@ -218,13 +210,11 @@ private:
 			inline void UpdateCycles(int &Cycle) {
 				int RestCycles;
 
-				if (Timer > 0) {
-					RestCycles = (Timer << 1) - TimerCounter;
-					if (RestCycles <= 0)
-						RestCycles = 1;
-					if (RestCycles < Cycle)
-						Cycle = RestCycles;
-				}
+				RestCycles = (Timer << 1) + 1 - TimerCounter;
+				if (RestCycles <= 0)
+					RestCycles = 1;
+				if (RestCycles < Cycle)
+					Cycle = RestCycles;
 			}
 		};
 
@@ -322,7 +312,7 @@ private:
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
 				if (Timer > 0) {
-					if (TimerCounter >= Timer) {
+					if (TimerCounter > Timer) {
 						TimerCounter = 0;
 						if ((LinearCounter > 0) && (LengthCounter > 0)) {
 							Output = Tables::SeqTable[Sequencer++];
@@ -485,7 +475,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter >= Timer) {
+				if (TimerCounter > Timer) {
 					TimerCounter = 0;
 					if (ShiftCounter == 0) {
 						ShiftCounter = 8;
