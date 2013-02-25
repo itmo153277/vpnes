@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,43 +19,45 @@
 
 \****************************************************************************/
 
-#include "libvpnes.h"
-#include "nbuild.h"
+#ifndef __UXROM_H_
+#define __UXROM_H_
 
-using namespace std;
-using namespace vpnes;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-/* Открыть картридж */
-CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {
-	ines::NES_Type Cfg = Type;
-	CNESConfig *Res = NULL;
+#include "../../types.h"
 
-	if (ReadROM(ROM, Data) < 0)
-		return NULL;
-	if (Type == ines::NES_Auto) {
-		if (Data->Header.TVSystem)
-			Cfg = ines::NES_PAL;
+#include "../ines.h"
+#include "../mapper.h"
+#include "nrom.h"
+
+namespace vpnes {
+
+/* Реализация маппера 2 */
+template <class _Bus>
+class CUxROM: public CNROM<_Bus> {
+	using CNROM<_Bus>::Bus;
+	using CNROM<_Bus>::ROM;
+	using CNROM<_Bus>::PRGData;
+private:
+	/* Смена PRG блоков */
+	uint8 SwitchMask;
+public:
+	inline explicit CUxROM(_Bus *pBus, const ines::NES_ROM_Data *Data):
+		CNROM<_Bus>(pBus, Data) {
+		SwitchMask = mapper::GetMask(ROM->Header.PRGSize) >> 14;
+	}
+
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		if (Address < 0x8000)
+			CNROM<_Bus>::WriteAddress(Address, Src);
 		else
-			Cfg = ines::NES_NTSC;
+			PRGData.PRGLow = ((Src & SwitchMask) << 14);
 	}
-	switch (Data->Header.Mapper) {
-		case 0:
-			Res = NROM_Config(Data, Cfg);
-			break;
-		case 1:
-			Res = MMC1_Config(Data, Cfg);
-			break;
-		case 2:
-			Res = UxROM_Config(Data, Cfg);
-			break;
-		case 4:
-			Res = MMC3_Config(Data, Cfg);
-			break;
-		case 7:
-			Res = AxROM_Config(Data, Cfg);
-			break;
-	}
-	if (Res == NULL)
-		FreeROMData(Data);
-	return Res;
+};
+
 }
+
+#endif

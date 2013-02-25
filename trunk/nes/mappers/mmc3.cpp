@@ -19,43 +19,13 @@
 
 \****************************************************************************/
 
-#include "libvpnes.h"
-#include "nbuild.h"
+#include "mmc3.h"
+#include "../nbuild.h"
 
-using namespace std;
-using namespace vpnes;
+namespace vpnes {
 
-/* Открыть картридж */
-CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {
-	ines::NES_Type Cfg = Type;
-	CNESConfig *Res = NULL;
+CNESConfig *MMC3_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type) {
+	return BuildStdNES<CMMC3>(Data, Type);
+}
 
-	if (ReadROM(ROM, Data) < 0)
-		return NULL;
-	if (Type == ines::NES_Auto) {
-		if (Data->Header.TVSystem)
-			Cfg = ines::NES_PAL;
-		else
-			Cfg = ines::NES_NTSC;
-	}
-	switch (Data->Header.Mapper) {
-		case 0:
-			Res = NROM_Config(Data, Cfg);
-			break;
-		case 1:
-			Res = MMC1_Config(Data, Cfg);
-			break;
-		case 2:
-			Res = UxROM_Config(Data, Cfg);
-			break;
-		case 4:
-			Res = MMC3_Config(Data, Cfg);
-			break;
-		case 7:
-			Res = AxROM_Config(Data, Cfg);
-			break;
-	}
-	if (Res == NULL)
-		FreeROMData(Data);
-	return Res;
 }

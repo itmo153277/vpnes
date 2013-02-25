@@ -759,14 +759,15 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 			}
 		}
 		WAIT_CYCLE(256) {
-			EvaluateSprites();
+			if (ControlRegisters.RenderingEnabled()) {
+				EvaluateSprites();
+				Registers.UpdateScroll();
+			} else
+				Sprites[0].x = -1;
 		}
 		/* cc 256 - 319 — фетчинг спрайтов */
-		//WAIT_CYCLE_RANGE(256, 320) {
 		if (CycleData.CurCycle < 320) {
 			if (ControlRegisters.RenderingEnabled()) {
-				if (CycleData.CurCycle == 256)
-					Registers.UpdateScroll();
 				while (CycleData.CurCycle < std::min(320, CycleData.CyclesLeft)) {
 					if ((CycleData.CurCycle == 316) &&
 						(CycleData.Scanline == (_Settings::ActiveScanlines - 2)))
@@ -856,7 +857,10 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 					(~CycleData.CyclesLeft & 1));
 		}
 		WAIT_CYCLE(341 + 256) {
-			EvaluateSprites();
+			if (ControlRegisters.RenderingEnabled())
+				EvaluateSprites();
+			else
+				Sprites[0].x = -1;
 		}
 		/* cc 256 - 319 — фетчинг спрайтов + обновление скроллинга */
 		if (CycleData.CurCycle < 341 + 320) {
