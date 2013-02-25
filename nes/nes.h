@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <typeinfo>
 #include <iostream>
 #include "ines.h"
 #include "manager.h"
@@ -90,6 +91,8 @@ protected:
 	int Height;
 	/* Время одного фрейма */
 	double Frame;
+	/* Имя конфигурации */
+	const char *Name;
 public:
 	inline explicit CNESConfig() {}
 	inline virtual ~CNESConfig() {}
@@ -100,6 +103,8 @@ public:
 	inline const int &GetHeight() const { return Height; }
 	/* Время фрейма */
 	inline const double &GetFrameLength() const { return Frame; }
+	/* Имя конфигурации */
+	inline const char * const &GetName() const { return Name; }
 	/* Получить приставку по нашим параметрам */
 	virtual CBasicNES *GetNES(CNESFrontend *Frontend) = 0;
 };
@@ -111,6 +116,7 @@ private:
 	const ines::NES_ROM_Data *Data;
 public:
 	inline explicit CNESConfigTemplate(const ines::NES_ROM_Data *ROM) {
+		Name = typeid(this).name();
 		Width = _Settings::Right - _Settings::Left;
 		Height = _Settings::Bottom - _Settings::Top;
 		Frame = _Settings::GetFreq() * _Settings::PPU_Divider *

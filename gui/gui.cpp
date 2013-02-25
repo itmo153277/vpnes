@@ -86,8 +86,10 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->ClearWindow();
 			/* Открываем файл */
 			RomName = Window->GetFileName();
+#if defined(VPNES_INTERACTIVE)
 			if (RomName == NULL)
 				break;
+#endif
 			ROM.open(RomName, std::ios_base::in | std::ios_base::binary);
 			if (ROM.fail())
 				throw CGenericException("Couldn't open ROM file");
@@ -97,6 +99,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			if (NESConfig == NULL)
 				throw CGenericException("Couldn't find any compatible NES configuration "
 					"(unsupported file)");
+			std::clog << "NES config: " << NESConfig->GetName() << std::endl;
 			Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Audio->UpdateDevice(NESConfig->GetFrameLength());

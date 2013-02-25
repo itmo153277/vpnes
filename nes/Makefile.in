@@ -68,7 +68,9 @@ AR = ar
 ARFLAGS = cru
 libvpnes_a_AR = $(AR) $(ARFLAGS)
 libvpnes_a_LIBADD =
-am_libvpnes_a_OBJECTS = ines.$(OBJEXT) libvpnes.$(OBJEXT)
+am_libvpnes_a_OBJECTS = aputables.$(OBJEXT) ines.$(OBJEXT) \
+	libvpnes.$(OBJEXT) axrom.$(OBJEXT) mmc1.$(OBJEXT) \
+	mmc3.$(OBJEXT) nrom.$(OBJEXT) uxrom.$(OBJEXT)
 libvpnes_a_OBJECTS = $(am_libvpnes_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -200,9 +202,20 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes.a
-libvpnes_a_SOURCES = ines.cpp libvpnes.cpp
+libvpnes_a_SOURCES = aputables.cpp ines.cpp libvpnes.cpp \
+	mappers/axrom.cpp \
+	mappers/mmc1.cpp \
+	mappers/mmc3.cpp \
+	mappers/nrom.cpp \
+	mappers/uxrom.cpp
+
 noinst_HEADERS = apu.h bus.h clock.h cpu.h frontend.h ines.h libvpnes.h \
-                 manager.h mapper.h nes.h ppu.h
+                 manager.h mapper.h nbuild.h nes.h ppu.h \
+	mappers/axrom.h \
+	mappers/mmc1.h \
+	mappers/mmc3.h \
+	mappers/nrom.h \
+	mappers/uxrom.h
 
 all: all-am
 
@@ -252,8 +265,14 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aputables.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/axrom.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ines.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libvpnes.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mmc1.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mmc3.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nrom.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uxrom.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -268,6 +287,76 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+axrom.o: mappers/axrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT axrom.o -MD -MP -MF $(DEPDIR)/axrom.Tpo -c -o axrom.o `test -f 'mappers/axrom.cpp' || echo '$(srcdir)/'`mappers/axrom.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/axrom.Tpo $(DEPDIR)/axrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/axrom.cpp' object='axrom.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o axrom.o `test -f 'mappers/axrom.cpp' || echo '$(srcdir)/'`mappers/axrom.cpp
+
+axrom.obj: mappers/axrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT axrom.obj -MD -MP -MF $(DEPDIR)/axrom.Tpo -c -o axrom.obj `if test -f 'mappers/axrom.cpp'; then $(CYGPATH_W) 'mappers/axrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/axrom.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/axrom.Tpo $(DEPDIR)/axrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/axrom.cpp' object='axrom.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o axrom.obj `if test -f 'mappers/axrom.cpp'; then $(CYGPATH_W) 'mappers/axrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/axrom.cpp'; fi`
+
+mmc1.o: mappers/mmc1.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT mmc1.o -MD -MP -MF $(DEPDIR)/mmc1.Tpo -c -o mmc1.o `test -f 'mappers/mmc1.cpp' || echo '$(srcdir)/'`mappers/mmc1.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/mmc1.Tpo $(DEPDIR)/mmc1.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/mmc1.cpp' object='mmc1.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o mmc1.o `test -f 'mappers/mmc1.cpp' || echo '$(srcdir)/'`mappers/mmc1.cpp
+
+mmc1.obj: mappers/mmc1.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT mmc1.obj -MD -MP -MF $(DEPDIR)/mmc1.Tpo -c -o mmc1.obj `if test -f 'mappers/mmc1.cpp'; then $(CYGPATH_W) 'mappers/mmc1.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/mmc1.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/mmc1.Tpo $(DEPDIR)/mmc1.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/mmc1.cpp' object='mmc1.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o mmc1.obj `if test -f 'mappers/mmc1.cpp'; then $(CYGPATH_W) 'mappers/mmc1.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/mmc1.cpp'; fi`
+
+mmc3.o: mappers/mmc3.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT mmc3.o -MD -MP -MF $(DEPDIR)/mmc3.Tpo -c -o mmc3.o `test -f 'mappers/mmc3.cpp' || echo '$(srcdir)/'`mappers/mmc3.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/mmc3.Tpo $(DEPDIR)/mmc3.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/mmc3.cpp' object='mmc3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o mmc3.o `test -f 'mappers/mmc3.cpp' || echo '$(srcdir)/'`mappers/mmc3.cpp
+
+mmc3.obj: mappers/mmc3.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT mmc3.obj -MD -MP -MF $(DEPDIR)/mmc3.Tpo -c -o mmc3.obj `if test -f 'mappers/mmc3.cpp'; then $(CYGPATH_W) 'mappers/mmc3.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/mmc3.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/mmc3.Tpo $(DEPDIR)/mmc3.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/mmc3.cpp' object='mmc3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o mmc3.obj `if test -f 'mappers/mmc3.cpp'; then $(CYGPATH_W) 'mappers/mmc3.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/mmc3.cpp'; fi`
+
+nrom.o: mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT nrom.o -MD -MP -MF $(DEPDIR)/nrom.Tpo -c -o nrom.o `test -f 'mappers/nrom.cpp' || echo '$(srcdir)/'`mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/nrom.Tpo $(DEPDIR)/nrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/nrom.cpp' object='nrom.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o nrom.o `test -f 'mappers/nrom.cpp' || echo '$(srcdir)/'`mappers/nrom.cpp
+
+nrom.obj: mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT nrom.obj -MD -MP -MF $(DEPDIR)/nrom.Tpo -c -o nrom.obj `if test -f 'mappers/nrom.cpp'; then $(CYGPATH_W) 'mappers/nrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/nrom.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/nrom.Tpo $(DEPDIR)/nrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/nrom.cpp' object='nrom.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o nrom.obj `if test -f 'mappers/nrom.cpp'; then $(CYGPATH_W) 'mappers/nrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/nrom.cpp'; fi`
+
+uxrom.o: mappers/uxrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT uxrom.o -MD -MP -MF $(DEPDIR)/uxrom.Tpo -c -o uxrom.o `test -f 'mappers/uxrom.cpp' || echo '$(srcdir)/'`mappers/uxrom.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/uxrom.Tpo $(DEPDIR)/uxrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/uxrom.cpp' object='uxrom.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o uxrom.o `test -f 'mappers/uxrom.cpp' || echo '$(srcdir)/'`mappers/uxrom.cpp
+
+uxrom.obj: mappers/uxrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT uxrom.obj -MD -MP -MF $(DEPDIR)/uxrom.Tpo -c -o uxrom.obj `if test -f 'mappers/uxrom.cpp'; then $(CYGPATH_W) 'mappers/uxrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/uxrom.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/uxrom.Tpo $(DEPDIR)/uxrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/uxrom.cpp' object='uxrom.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o uxrom.obj `if test -f 'mappers/uxrom.cpp'; then $(CYGPATH_W) 'mappers/uxrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/uxrom.cpp'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
