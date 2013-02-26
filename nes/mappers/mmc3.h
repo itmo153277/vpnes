@@ -50,12 +50,12 @@ class CMMC3: public CNROM<_Bus> {
 	using CNROM<_Bus>::CHR;
 private:
 	struct SInternalData: public ManagerID<MMC3ID::InternalDataID> {
-		int PRGBanks[4]; /* PRG */
+		int PRGBanks[8]; /* PRG */
 		int CHRBanks[8]; /* CHR */
 		/* Переключение PRG */
 		enum {
-			PRGSwitch_Low,
-			PRGSwitch_Middle
+			PRGSwitch_Low = 0,
+			PRGSwitch_Middle = 4
 		} PRGSwitch;
 		/* Переключение CHR */
 		enum {
@@ -111,6 +111,9 @@ public:
 		InternalData.PRGBanks[1] = 0x2000;
 		InternalData.PRGBanks[3] = ROM->Header.PRGSize - 0x2000;
 		InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
+		InternalData.PRGBanks[5] = 0x2000;
+		InternalData.PRGBanks[7] = InternalData.PRGBanks[3];
+		InternalData.PRGBanks[4] = InternalData.PRGBanks[3] - 0x2000;
 		for (i = 0; i < 8; i++)
 			InternalData.CHRBanks[i] = i << 10;
 		InternalData.EnableRAM = true;
@@ -129,8 +132,8 @@ public:
 			else
 				return 0x40;
 		}
-		return ROM->PRG[InternalData.PRGBanks[(Address & 0x6000) >> 13] |
-			(Address & 0x1fff)];
+		return ROM->PRG[InternalData.PRGBanks[((Address & 0x6000) >> 13) |
+			InternalData.PRGSwitch] | (Address & 0x1fff)];
 	}
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
@@ -146,8 +149,8 @@ public:
 								(Src & PRGMask) << 13;
 							break;
 						case SInternalData::PRGSwitch_Middle:
-							InternalData.PRGBanks[1 <<
-								(~InternalData.MuxAddr & 0x01)] =
+							InternalData.PRGBanks[(1 <<
+								(~InternalData.MuxAddr & 0x01)) | 0x04] =
 								(Src & PRGMask) << 13;
 							break;
 					}
@@ -170,13 +173,10 @@ public:
 					InternalData.CHRSwitch = SInternalData::CHRSwitch_42;
 				else
 					InternalData.CHRSwitch = SInternalData::CHRSwitch_24;
-				if (Src & 0x40) {
+				if (Src & 0x40)
 					InternalData.PRGSwitch = SInternalData::PRGSwitch_Middle;
-					InternalData.PRGBanks[0] = InternalData.PRGBanks[3] - 0x2000;
-				} else {
+				else
 					InternalData.PRGSwitch = SInternalData::PRGSwitch_Low;
-					InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
-				}
 				InternalData.MuxAddr = Src & 0x07;
 			}
 		} else if (Address < 0xc000) {
