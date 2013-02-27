@@ -142,15 +142,17 @@ void CAudio::UpdateDevice(double FrameLength) {
 	for (i = 0; i < 4; i++) {
 		delete [] PCMBuffers[i];
 		PCMBuffers[i] = new sint16[Size];
-		BuffersFull[i] = false;
+		if (i < 3)
+			BuffersFull[i] = false;
 		memset(PCMBuffers[i], ObtainedAudio->silence, ObtainedAudio->size);
 	}
 	PCMIndex = 0;
 	CurIndex = 0;
 	PCMPlay = false;
 	Stop = false;
-	Frequency = 44.1;
 	Buf = PCMBuffers[0];
+	ResetDAC();
+	ChangeSpeed(1.0);
 }
 
 }

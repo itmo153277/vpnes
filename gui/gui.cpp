@@ -102,7 +102,6 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			std::clog << "NES config: " << NESConfig->GetName() << std::endl;
 			Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
-			Audio->UpdateDevice(NESConfig->GetFrameLength());
 
 			std::stringstream InfoStr;
 
@@ -119,7 +118,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->GetInfoText() = InfoString.c_str();
 #endif
 			do {
-				Audio->ResetDAC();
+				Audio->UpdateDevice(NESConfig->GetFrameLength());
 				NES = NESConfig->GetNES(this);
 				if (Data.Header.HaveBattery) {
 					Name = RomName;

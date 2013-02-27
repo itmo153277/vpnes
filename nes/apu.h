@@ -290,13 +290,13 @@ private:
 			}
 			inline void Write_2(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x0700) | Src;
-				if (Timer < 2)
+				if (Timer == 0)
 					TimerCounter = 0;
 				UpdateCycles(Cycle);
 			}
 			inline void Write_3(uint8 Src, int &Cycle) {
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
-				if (Timer < 2)
+				if (Timer == 0)
 					TimerCounter = 0;
 				if (UseCounter)
 					LengthCounter = Tables::LengthCounterTable[Src >> 3];
@@ -524,31 +524,26 @@ private:
 			}
 		} DMChannel;
 
-		/* Обновить выход */
 		inline void Update(_Bus *pBus) {
-			CAudioFrontend::SOutput Output; /* Вход DAC */
-			double NewOutput; /* Выход DAC */
+			int SqOut = 0, TNDOut = 0;
+			double NewOutput;
 
 			if (SquareChannel1.CanOutput())
-				Output.Square1 = SquareChannel1.Output;
-			else
-				Output.Square1 = 0;
+				SqOut += SquareChannel1.Output;
 			if (SquareChannel2.CanOutput())
-				Output.Square2 = SquareChannel2.Output;
-			else
-				Output.Square2 = 0;
+				SqOut += SquareChannel2.Output;
 			if (NoiseChannel.CanOutput())
-				Output.Noise = NoiseChannel.Output;
-			else
-				Output.Noise = 0;
-			Output.DMC = DMChannel.Output;
+				TNDOut += NoiseChannel.Output * 2;
+			TNDOut += DMChannel.Output;
 			if (TriangleChannel.HighFreq())
-				Output.Triangle = -1;
-			else 
-				Output.Triangle = TriangleChannel.Output;
-			NewOutput = pBus->GetFrontend()->GetAudioFrontend()->\
-				template UpdateDAC<typename _Bus::ROMClass>(pBus->GetROM(), &Output);
-			if (NewOutput != LastOutput) {
+				NewOutput = (apu::TNDTable[TNDOut + 21] +
+					apu::TNDTable[TNDOut + 24]) / 2;
+			else {
+				TNDOut += TriangleChannel.Output * 3;
+				NewOutput = apu::TNDTable[TNDOut];
+			}
+			NewOutput += apu::SquareTable[SqOut];
+			if (LastOutput != NewOutput) {
 				FlushBuffer(pBus);
 				LastOutput = NewOutput;
 			}
