@@ -29,21 +29,11 @@
 #include "../types.h"
 
 #include <cstring>
-#include "aputables.h"
 
 namespace vpnes {
 
 /* Интерфейс для звука */
 class CAudioFrontend {
-public:
-	/* Структура для передачи данных DAC */
-	struct SOutput {
-		int Square1;
-		int Square2;
-		int Triangle;
-		int Noise;
-		int DMC;
-	};
 private:
 	/* Среднее значение DAC */
 	double Average;
@@ -67,13 +57,6 @@ protected:
 	/* Обновить буфер */
 	virtual void UpdateBuffer() = 0;
 
-public:
-	inline explicit CAudioFrontend() {
-		Volume = 1.0;
-		ResetDAC();
-	}
-	inline virtual ~CAudioFrontend() {}
-
 	/* Сброс параметров DAC */
 	inline void ResetDAC() {
 		Average = 0.0;
@@ -81,6 +64,13 @@ public:
 		Time = 0.0;
 		Sum = 0.0;
 	}
+public:
+	inline explicit CAudioFrontend() {
+		Volume = 1.0;
+		ResetDAC();
+	}
+	inline virtual ~CAudioFrontend() {}
+
 	/* Остановить воспроизведение */
 	virtual void StopAudio() = 0;
 	/* Продолжить воспроизведение */
@@ -96,7 +86,7 @@ public:
 	inline void PushSample(double Sample) {
 		double Res = Average + Sample;
 
-		Average -= Res / 128 / Frequency;
+		Average -= Res / 5 / Frequency;
 		PushSample((sint16) (Res * Volume * 37267.0));
 	}
 	inline void PushSample(double DACOutput, double Length) {
@@ -114,27 +104,6 @@ public:
 		} else
 			Sum += DACOutput * (Time - TimeDiff);
 		TimeDiff = Time;
-	}
-
-	/* Обновить вход DAC */
-	template <class _ROM>
-	inline double UpdateDAC(_ROM *ROM, SOutput *DACIn) {
-		double NewOutput;
-		int SqOut = 0, TNDOut = 0;
-
-		SqOut += DACIn->Square1;
-		SqOut += DACIn->Square2;
-		TNDOut += DACIn->DMC;
-		TNDOut += DACIn->Noise * 2;
-		if (DACIn->Triangle < 0)
-			NewOutput = (apu::TNDTable[TNDOut + 21] +
-				apu::TNDTable[TNDOut + 24]) / 2;
-		else {
-			TNDOut += DACIn->Triangle * 3;
-			NewOutput = apu::TNDTable[TNDOut];
-		}
-		NewOutput += apu::SquareTable[SqOut];
-		return NewOutput;
 	}
 };
 
