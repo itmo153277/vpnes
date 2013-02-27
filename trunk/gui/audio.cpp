@@ -52,7 +52,7 @@ void CAudio::AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 	if (Audio->PCMPlay && Audio->BuffersFull[Audio->PCMIndex]) {
 		Audio->BuffersFull[Audio->PCMIndex] = false;
 		memcpy(Stream, Audio->PCMBuffers[Audio->PCMIndex], Len);
-		memcpy(Audio->PCMBuffers[3], Audio->PCMBuffers[Audio->PCMIndex], Audio->Length *
+		memcpy(Audio->PCMBuffers[3], Audio->PCMBuffers[Audio->PCMIndex], Audio->Size *
 			sizeof(sint16));
 		Audio->PCMIndex++;
 		if (Audio->PCMIndex > 2)
@@ -137,11 +137,11 @@ void CAudio::UpdateDevice(double FrameLength) {
 		delete ObtainedAudio;
 		throw CGenericException("Audio initializtion failure");
 	}
-	Length = ObtainedAudio->size / sizeof(sint16);
+	Size = ObtainedAudio->size / sizeof(sint16);
 	Pos = 0;
 	for (i = 0; i < 4; i++) {
 		delete [] PCMBuffers[i];
-		PCMBuffers[i] = new sint16[Length];
+		PCMBuffers[i] = new sint16[Size];
 		BuffersFull[i] = false;
 		memset(PCMBuffers[i], ObtainedAudio->silence, ObtainedAudio->size);
 	}

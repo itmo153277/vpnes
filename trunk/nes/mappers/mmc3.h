@@ -50,12 +50,12 @@ class CMMC3: public CNROM<_Bus> {
 	using CNROM<_Bus>::CHR;
 private:
 	struct SInternalData: public ManagerID<MMC3ID::InternalDataID> {
-		int PRGBanks[8]; /* PRG */
+		int PRGBanks[3]; /* PRG */
 		int CHRBanks[8]; /* CHR */
 		/* Переключение PRG */
 		enum {
 			PRGSwitch_Low = 0,
-			PRGSwitch_Middle = 4
+			PRGSwitch_Middle = 2
 		} PRGSwitch;
 		/* Переключение CHR */
 		enum {
@@ -98,7 +98,7 @@ private:
 	} IRQCircuit;
 
 	/* Ограничитель PRG */
-	uint8 PRGMask;
+	int PRGMask;
 	/* Ограничитель CHR */
 	uint8 CHRMask;
 public:
@@ -109,31 +109,43 @@ public:
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		memset(&InternalData, 0, sizeof(InternalData));
 		InternalData.PRGBanks[1] = 0x2000;
-		InternalData.PRGBanks[3] = ROM->Header.PRGSize - 0x2000;
-		InternalData.PRGBanks[2] = InternalData.PRGBanks[3] - 0x2000;
-		InternalData.PRGBanks[5] = 0x2000;
-		InternalData.PRGBanks[7] = InternalData.PRGBanks[3];
-		InternalData.PRGBanks[4] = InternalData.PRGBanks[3] - 0x2000;
 		for (i = 0; i < 8; i++)
 			InternalData.CHRBanks[i] = i << 10;
 		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
 		Bus->GetManager()->template SetPointer<SIRQCircuit>(&IRQCircuit);
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
-		PRGMask = mapper::GetMask(ROM->Header.PRGSize) >> 13;
+		PRGMask = mapper::GetMask(ROM->Header.PRGSize);
 		CHRMask = mapper::GetMask(ROM->Header.CHRSize) >> 10;
 	}
 
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
+		int PRGAddr;
+
 		if (Address < 0x8000) {
 			if (InternalData.EnableRAM)
 				return CNROM<_Bus>::ReadAddress(Address);
 			else
 				return 0x40;
 		}
-		return ROM->PRG[InternalData.PRGBanks[((Address & 0x6000) >> 13) |
-			InternalData.PRGSwitch] | (Address & 0x1fff)];
+		switch (Address & 0x6000) {
+			case 0x2000:
+				PRGAddr = InternalData.PRGBanks[1];
+				break;
+			case 0x0000:
+			case 0x4000:
+				if (((Address & 0x6000) >> 13) == InternalData.PRGSwitch)
+					PRGAddr = InternalData.PRGBanks[InternalData.PRGSwitch];
+				else
+					PRGAddr = 0x1fc000;
+				break;
+			case 0x6000:
+				PRGAddr = 0x1fe000;
+				break;
+		}
+		PRGAddr |= Address & 0x1fff;
+		return ROM->PRG[PRGAddr & PRGMask];
 	}
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
@@ -146,12 +158,11 @@ public:
 					switch (InternalData.PRGSwitch) {
 						case SInternalData::PRGSwitch_Low:
 							InternalData.PRGBanks[InternalData.MuxAddr & 0x01] =
-								(Src & PRGMask) << 13;
+								Src << 13;
 							break;
 						case SInternalData::PRGSwitch_Middle:
-							InternalData.PRGBanks[(1 <<
-								(~InternalData.MuxAddr & 0x01)) | 0x04] =
-								(Src & PRGMask) << 13;
+							InternalData.PRGBanks[1 << (~InternalData.MuxAddr & 0x01)] =
+								Src << 13;
 							break;
 					}
 				else {

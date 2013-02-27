@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include "aputables.h"
 #include "manager.h"
 #include "frontend.h"
 #include "bus.h"
@@ -90,9 +91,9 @@ private:
 		double LastOutput; /* Текущий выход */
 
 		/* Дописать буфер */
-		inline void FlushBuffer(CAudioFrontend *Frontend) {
-			Frontend->PushSample(LastOutput, UpdCycle * _Bus::ClockClass::GetFix() *
-				ClockDivider);
+		inline void FlushBuffer(_Bus *pBus) {
+			pBus->GetFrontend()->GetAudioFrontend()->PushSample(LastOutput, UpdCycle *
+				_Bus::ClockClass::GetFix() * ClockDivider);
 			UpdCycle = 0;
 		}
 
@@ -140,9 +141,15 @@ private:
 				SweepReload = true;
 			}
 			inline void Write_3(uint8 Src) {
+				if (Timer < 8) {
+					DutyCycle = (DutyCycle + (TimerCounter / ((Timer + 1) << 1))) & 7;
+					TimerCounter %= ((Timer + 1) << 1);
+				}
 				Timer = (Timer & 0x0700) | Src;
 			}
 			inline void Write_4(uint8 Src) {
+				if (Timer < 8)
+					TimerCounter %= ((Timer + 1) << 1);
 				Timer = (Timer & 0x00ff) | ((Src & 0x07) << 8);
 				Start = true;
 				DutyCycle = 0;
@@ -151,12 +158,11 @@ private:
 			}
 			/* Генерация формы */
 			inline void Envelope() {
-				if (EnvelopeConstant)
-					return;
 				if (Start) {
 					EnvelopeCounter = 15;
 					EnvelopeDivider = 0;
-					Output = EnvelopeCounter;
+					if (!EnvelopeConstant)
+						Output = EnvelopeCounter;
 					Start = false;
 				} else {
 					EnvelopeDivider++;
@@ -166,7 +172,8 @@ private:
 								EnvelopeCounter = 15;
 						} else
 							EnvelopeCounter--;
-						Output = EnvelopeCounter;
+						if (!EnvelopeConstant)
+							Output = EnvelopeCounter;
 						EnvelopeDivider = 0;
 					}
 				}
@@ -193,7 +200,9 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if ((TimerCounter > (Timer << 1))) {
+				if (Timer < 8)
+					return false;
+				if (TimerCounter >= ((Timer + 1) << 1)) {
 					TimerCounter = 0;
 					DutyCycle++;
 					DutyCycle &= 7;
@@ -210,7 +219,9 @@ private:
 			inline void UpdateCycles(int &Cycle) {
 				int RestCycles;
 
-				RestCycles = (Timer << 1) + 1 - TimerCounter;
+				if (Timer < 8)
+					return;
+				RestCycles = ((Timer + 1) << 1) - TimerCounter;
 				if (RestCycles <= 0)
 					RestCycles = 1;
 				if (RestCycles < Cycle)
@@ -337,7 +348,7 @@ private:
 				int RestCycles;
 
 				if (Timer > 1) {
-					RestCycles = Timer - TimerCounter;
+					RestCycles = Timer + 1 - TimerCounter;
 					if (RestCycles <= 0)
 						RestCycles = 1;
 					if (RestCycles < Cycle)
@@ -382,12 +393,11 @@ private:
 			}
 			/* Генерация формы */
 			inline void Envelope() {
-				if (EnvelopeConstant)
-					return;
 				if (Start) {
 					EnvelopeCounter = 15;
 					EnvelopeDivider = 0;
-					Output = EnvelopeCounter;
+					if (!EnvelopeConstant)
+						Output = EnvelopeCounter;
 					Start = false;
 				} else {
 					EnvelopeDivider++;
@@ -397,7 +407,8 @@ private:
 								EnvelopeCounter = 15;
 						} else
 							EnvelopeCounter--;
-						Output = EnvelopeCounter;
+						if (!EnvelopeConstant)
+							Output = EnvelopeCounter;
 						EnvelopeDivider = 0;
 					}
 				}
@@ -475,7 +486,7 @@ private:
 			/* Таймер */
 			inline bool Do_Timer(int Cycles) {
 				TimerCounter += Cycles;
-				if (TimerCounter > Timer) {
+				if (TimerCounter >= Timer) {
 					TimerCounter = 0;
 					if (ShiftCounter == 0) {
 						ShiftCounter = 8;
@@ -514,27 +525,31 @@ private:
 		} DMChannel;
 
 		/* Обновить выход */
-		inline void Update(CAudioFrontend *Frontend) {
-			int SqOut = 0, TNDOut = 0;
-			double NewOutput;
+		inline void Update(_Bus *pBus) {
+			CAudioFrontend::SOutput Output; /* Вход DAC */
+			double NewOutput; /* Выход DAC */
 
 			if (SquareChannel1.CanOutput())
-				SqOut += SquareChannel1.Output;
+				Output.Square1 = SquareChannel1.Output;
+			else
+				Output.Square1 = 0;
 			if (SquareChannel2.CanOutput())
-				SqOut += SquareChannel2.Output;
+				Output.Square2 = SquareChannel2.Output;
+			else
+				Output.Square2 = 0;
 			if (NoiseChannel.CanOutput())
-				TNDOut += NoiseChannel.Output * 2;
-			TNDOut += DMChannel.Output;
+				Output.Noise = NoiseChannel.Output;
+			else
+				Output.Noise = 0;
+			Output.DMC = DMChannel.Output;
 			if (TriangleChannel.HighFreq())
-				NewOutput = (Tables::TNDTable[TNDOut + 21] +
-					Tables::TNDTable[TNDOut + 24]) / 2;
-			else {
-				TNDOut += TriangleChannel.Output * 3;
-				NewOutput = Tables::TNDTable[TNDOut];
-			}
-			NewOutput += Tables::SquareTable[SqOut];
-			if (LastOutput != NewOutput) {
-				FlushBuffer(Frontend);
+				Output.Triangle = -1;
+			else 
+				Output.Triangle = TriangleChannel.Output;
+			NewOutput = pBus->GetFrontend()->GetAudioFrontend()->\
+				template UpdateDAC<typename _Bus::ROMClass>(pBus->GetROM(), &Output);
+			if (NewOutput != LastOutput) {
+				FlushBuffer(pBus);
 				LastOutput = NewOutput;
 			}
 		}
@@ -571,14 +586,15 @@ private:
 			Sweep();
 		}
 		/* Таймер */
-		inline void Do_Timer(int Cycles, CAudioFrontend *Frontend) {
+		inline void Do_Timer(int Cycles, _Bus *pBus) {
 			UpdCycle += Cycles;
 			if (SquareChannel1.Do_Timer(Cycles) |
 				SquareChannel2.Do_Timer(Cycles) |
 				TriangleChannel.Do_Timer(Cycles) |
 				NoiseChannel.Do_Timer(Cycles) |
-				DMChannel.Do_Timer(Cycles)) {
-				Update(Frontend);
+				DMChannel.Do_Timer(Cycles) |
+				pBus->GetROM()->Do_Timer(Cycles)) {
+				Update(pBus);
 			}
 			NextCycle -= Cycles;
 			if (NextCycle <= 0) {
@@ -588,13 +604,14 @@ private:
 				TriangleChannel.UpdateCycles(NextCycle);
 				NoiseChannel.UpdateCycles(NextCycle);
 				DMChannel.UpdateCycles(NextCycle);
+				pBus->GetROM()->UpdateAPUCycles(NextCycle);
 				if (NextCycle == 0x0800)
 					NextCycle = 0;
 			}
 		}
 		/* Выполнить таймиер */
-		inline void Timer(int Cycles, CAudioFrontend *Frontend) {
-			Do_Timer(Cycles - CurCycle, Frontend);
+		inline void Timer(int Cycles, _Bus *pBus) {
+			Do_Timer(Cycles - CurCycle, pBus);
 			CurCycle = Cycles;
 		}
 
@@ -657,7 +674,7 @@ public:
 		Process(Bus->GetClock()->GetPreCPUCycles() - PreprocessedCycles);
 		PreprocessedCycles = Bus->GetClock()->GetPreCPUCycles();
 		/* Обновляем состояние каналов */
-		Channels.Timer(CycleData.CyclesLeft, Bus->GetFrontend()->GetAudioFrontend());
+		Channels.Timer(CycleData.CyclesLeft, Bus);
 	}
 
 	/* Обработать такты */
@@ -684,7 +701,7 @@ public:
 		Channels.NoiseChannel.Shift = 13;
 		Channels.DMChannel.Timer = Tables::DMTable[0];
 		Channels.Write_4017(InternalData.bMode);
-		Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
+		Channels.Update(Bus);
 		memset(&InternalData, 0, sizeof(InternalData));
 		memset(&CycleData, 0, sizeof(CycleData));
 		CycleData.NextCycle = Tables::StepCycles[0];
@@ -835,13 +852,13 @@ public:
 				CycleData.DebugTimer = 0;
 				break;
 		}
-		Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
+		Channels.Update(Bus);
 	}
 
 	/* Дописать буфер */
 	inline void FlushBuffer() {
-		Channels.Timer(CycleData.CyclesLeft, Bus->GetFrontend()->GetAudioFrontend());
-		Channels.FlushBuffer(Bus->GetFrontend()->GetAudioFrontend());
+		Channels.Timer(CycleData.CyclesLeft, Bus);
+		Channels.FlushBuffer(Bus);
 	}
 	/* Текущий такт */
 	inline int GetCycles() {
@@ -867,7 +884,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 	while (CycleData.CyclesLeft > CycleData.CurCycle) {
 		CycleData.DebugTimer += CycleData.CurCycle - CycleData.LastCur;
 		CycleData.LastCur = CycleData.CurCycle;
-		Channels.Timer(CycleData.CurCycle, Bus->GetFrontend()->GetAudioFrontend());
+		Channels.Timer(CycleData.CurCycle, Bus);
 		if (!Channels.DMChannel.NotEmpty && (Channels.DMChannel.LengthCounter > 0)) {
 			if (Channels.DMChannel.Address < 0x8000)
 				Channels.DMChannel.Address |= 0x8000;
@@ -917,7 +934,7 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 					}
 					break;
 			}
-			Channels.Update(Bus->GetFrontend()->GetAudioFrontend());
+			Channels.Update(Bus);
 			CycleData.Step++;
 			if (CycleData.Step != Channels.Mode)
 				CycleData.NextCycle = Tables::StepCycles[CycleData.Step];
@@ -946,42 +963,6 @@ void CAPU<_Bus, _Settings>::Process(int Cycles) {
 		}
 		UpdateCycle();
 	}
-
-}
-
-namespace apu {
-
-/* Таблицы для NTSC */
-struct NTSC_Tables {
-	/* Число тактов на каждом шаге */
-	static const int StepCycles[6];
-	/* Перекрываемые кнопки контроллера */
-	static const int ButtonsRemap[4];
-	/* Таблица счетчика */
-	static const int LengthCounterTable[32];
-	/* Таблица формы */
-	static const bool DutyTable[32];
-	/* Таблица пилообразной формы */
-	static const int SeqTable[32];
-	/* Таблица длин для канала шума */
-	static const int NoiseTable[16];
-	/* Таблица длин для ДМ-канала */
-	static const int DMTable[16];
-	/* Таблица выхода прямоугольных каналов */
-	static const double SquareTable[31];
-	/* Таблица выхода остальных каналов */
-	static const double TNDTable[203];
-};
-
-/* Таблицы для PAL */
-struct PAL_Tables: public NTSC_Tables {
-	/* Число тактов на каждом шаге */
-	static const int StepCycles[6];
-	/* Таблица длин для канала шума */
-	static const int NoiseTable[16];
-	/* Таблица длин для ДМ-канала */
-	static const int DMTable[16];
-};
 
 }
 

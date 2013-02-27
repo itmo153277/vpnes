@@ -119,6 +119,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->GetInfoText() = InfoString.c_str();
 #endif
 			do {
+				Audio->ResetDAC();
 				NES = NESConfig->GetNES(this);
 				if (Data.Header.HaveBattery) {
 					Name = RomName;
