@@ -141,6 +141,17 @@ public:
 		if (ROM->CHR == NULL)
 			CHR[Address] = Src;
 	}
+
+	/* Обновление семплов аудио */
+	inline void UpdateSound(double &DACOut) {
+	}
+	/* Такты аудио */
+	inline bool Do_Timer(int Cycles) {
+		return false;
+	}
+	/* Обновить такты APU */
+	inline void UpdateAPUCycles(int &Cycle) {
+	}
 };
 
 }

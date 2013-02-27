@@ -209,7 +209,7 @@ libvpnes_a_SOURCES = aputables.cpp ines.cpp libvpnes.cpp \
 	mappers/nrom.cpp \
 	mappers/uxrom.cpp
 
-noinst_HEADERS = apu.h bus.h clock.h cpu.h frontend.h ines.h libvpnes.h \
+noinst_HEADERS = apu.h aputables.h bus.h clock.h cpu.h frontend.h ines.h libvpnes.h \
                  manager.h mapper.h nbuild.h nes.h ppu.h \
 	mappers/axrom.h \
 	mappers/mmc1.h \
