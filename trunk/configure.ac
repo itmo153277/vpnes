@@ -91,8 +91,8 @@ AC_LANG_POP
 AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
 
 dnl C++ standards
-AC_CHECK_HEADERS([exception typeinfo cstring cstdio cstdlib algorithm vector istream iostream \
-	iomanip fstream sstream], [], [AC_MSG_ERROR([required headers not found])], [ ])
+AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib algorithm vector istream \
+	iostream iomanip fstream sstream], [], [AC_MSG_ERROR([required headers not found])], [ ])
 
 if test "x$host_os_windows" = "xyes" ; then
 	LIBS="-luser32 $LIBS"

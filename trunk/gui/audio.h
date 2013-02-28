@@ -29,6 +29,7 @@
 #include "../types.h"
 
 #include <SDL.h>
+#include <cmath>
 #include "../nes/frontend.h"
 #if defined(VPNES_CONFIGFILE)
 #include "configfile.h"
@@ -84,6 +85,7 @@ public:
 	/* Изменить внутреннюю скорость */
 	inline void ChangeSpeed(double Rate) {
 		Frequency = 44.1 / Rate;
+		Decay = 220 * exp(1 / 44.1 - 1 / Frequency);
 	}
 };
 

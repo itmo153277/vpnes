@@ -28,6 +28,7 @@
 
 #include "../../types.h"
 
+#include <cstring>
 #include "../manager.h"
 #include "../bus.h"
 #include "../mapper.h"
@@ -88,6 +89,7 @@ public:
 			RAM = NULL;
 		else {
 			RAM = new uint8[ROM->Header.RAMSize];
+			memset(RAM, 0x00, ROM->Header.RAMSize * sizeof(uint8));
 			if (ROM->Trainer != NULL)
 				memcpy(RAM + 0x1000, ROM->Trainer, 0x0200 * sizeof(uint8));
 			if (ROM->Header.HaveBattery) {

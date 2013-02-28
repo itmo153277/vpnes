@@ -54,6 +54,8 @@ protected:
 	double Volume;
 	/* Частота */
 	double Frequency;
+	/* Затузание */
+	double Decay;
 	/* Обновить буфер */
 	virtual void UpdateBuffer() = 0;
 
@@ -67,6 +69,7 @@ protected:
 public:
 	inline explicit CAudioFrontend() {
 		Volume = 1.0;
+		Decay = 1.0;
 		ResetDAC();
 	}
 	inline virtual ~CAudioFrontend() {}
@@ -86,7 +89,7 @@ public:
 	inline void PushSample(double Sample) {
 		double Res = Average + Sample;
 
-		Average -= Res / 5 / Frequency;
+		Average -= Res / Decay;
 		PushSample((sint16) (Res * Volume * 37267.0));
 	}
 	inline void PushSample(double DACOutput, double Length) {
