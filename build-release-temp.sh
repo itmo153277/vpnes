@@ -12,19 +12,5 @@ echo "#define BUILDNUM \"$BUILDNUM\"" >> config.h
 if [ $# -gt 0 ] ; then
 	echo "#define SVNREV \"$1\"" >> config.h
 fi
-make || exit 1 
-make dist || exit 1
-echo Packing exe...
-i686-w64-mingw32-strip --strip-debug vpnes.exe
-i686-w64-mingw32-strip --strip-unneeded vpnes.exe
-/cygdrive/d/pack/raw/RAD\ Studio/Builder/upx -9 --best --ultra-brute vpnes.exe &> /dev/null || exit 1
-/cygdrive/d/pack/raw/RAD\ Studio/Builder/rebuildpe --hard vpnes.exe &> /dev/null || exit 1
-echo ============
-echo Build [ OK ]
-echo ============
-mv -v vpnes-0.3.tar.gz ..
-mkdir ../vpnes-0.3
-cp -v vpnes.exe ../win32/* /usr/local/freetype/bin/libfreetype-6.dll /usr/local/sdl-release/bin/SDL.dll ../vpnes-0.3/
-cd ..
-touch vpnes-0.3/*
-cmd /c start make-arch.bat
+cp -v /usr/local/freetype/bin/libfreetype-6.dll /usr/local/sdl-release/bin/SDL.dll .
+make || exit 1
