@@ -5126,8 +5126,8 @@ fi
 done
 
 
-for ac_header in exception typeinfo cstring cstdio cstdlib algorithm vector istream iostream \
-	iomanip fstream sstream
+for ac_header in exception typeinfo cmath cstring cstdio cstdlib algorithm vector istream \
+	iostream iomanip fstream sstream
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_cxx_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "

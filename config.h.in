@@ -3,6 +3,9 @@
 /* Define to 1 if you have the <algorithm> header file. */
 #undef HAVE_ALGORITHM
 
+/* Define to 1 if you have the <cmath> header file. */
+#undef HAVE_CMATH
+
 /* Define to 1 if you have the <commctrl.h> header file. */
 #undef HAVE_COMMCTRL_H
 

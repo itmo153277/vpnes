@@ -285,8 +285,11 @@ inline void *CMemoryManager::GetPointer(size_t Size) {
 
 	iter = find_if(MemoryBlocks.begin(), MemoryBlocks.end(), MemoryCompare<typename T::ID>);
 	if (iter != MemoryBlocks.end()) { /* Нашли с нужным ID */
-		if (((*iter)->p == NULL) & (Size > 0)) /* Память была освобождена */
+		if (((*iter)->p == NULL) && (Size > 0)) { /* Память была освобождена */
+			(*iter)->alloc = true;
+			(*iter)->Size = Size;
 			(*iter)->p = malloc(Size);
+		}
 		return (*iter)->p;
 	}
 	if (Size > 0) { /* Создаем новый */

@@ -49,11 +49,11 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 			Data->Header.RAMSize = 0x2000;
 		else 
 			Data->Header.RAMSize = Header.RAMSize * 0x2000;
-		if ((((Header.Flags_unofficial >> 1) & 0x01) == Data->Header.TVSystem) ||
-			(Header.Flags_unofficial & 0x01)) { /* Можно использвать флаги */
-			if ((Header.RAMSize == 0) && (Header.Flags_unofficial & 0x10))
-				Data->Header.RAMSize = 0;
-		}
+		if ((Header.RAMSize == 0) && (Header.Flags_unofficial & 0x10))
+			Data->Header.RAMSize = 0;
+		/* Overrule */
+		if ((~Header.Flags_unofficial & 0x01) && (Header.Flags_unofficial & 0x02))
+			Data->Header.TVSystem = (Header.Flags_unofficial & 0x02);
 	}
 	if (Header.Flags & 0x04) { /* Trainer */
 		Data->Trainer = new uint8[0x0200];
