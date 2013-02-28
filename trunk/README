@@ -1,5 +1,5 @@
 NES Emulator
-Copyright (c) 2012  Ivanov Viktor
+Copyright (c) 2012-2013  Ivanov Viktor
 
 vpnes — Simple NES Emulator
 
@@ -9,20 +9,21 @@ vpnes rom_file
 
 == Default input settings ==
 
-Select - A
-Start  - S
-B      - X
-A      - C
-Up     - Up Arrow
-Down   - Down Arrow
-Left   - Left Arrow
-Right  - Right Arrow
-Reset  - F1
-Save   - F5
-Load   - F7
-Pause  - Pause
-Step   - Space
-Speed  - TAB
+Select     - A
+Start      - S
+B          - X
+A          - C
+Up         - Up Arrow
+Down       - Down Arrow
+Left       - Left Arrow
+Right      - Right Arrow
+Soft Reset - F1
+Hard Reset - F2
+Save State - F5
+Load State - F7
+Pause      - Pause
+Step       - Space
+Speed      - TAB
 
 == About saving states ==
 
