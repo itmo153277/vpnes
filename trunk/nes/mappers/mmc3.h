@@ -147,10 +147,10 @@ public:
 				if (((Address & 0x6000) >> 13) == InternalData.PRGSwitch)
 					PRGAddr = InternalData.PRGBanks[0];
 				else
-					PRGAddr = ROM->Header.PRGSize - 0X4000;
+					PRGAddr = ROM->Header.PRGSize - 0x4000;
 				break;
 			case 0x6000:
-				PRGAddr = ROM->Header.PRGSize - 0X2000;
+				PRGAddr = ROM->Header.PRGSize - 0x2000;
 				break;
 		}
 		PRGAddr |= Address & 0x1fff;
