@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <cmath>
 #include <cstring>
 
 namespace vpnes {
@@ -35,14 +36,16 @@ namespace vpnes {
 /* Интерфейс для звука */
 class CAudioFrontend {
 private:
-	/* Среднее значение DAC */
-	double Average;
 	/* Различее времени */
 	double TimeDiff;
 	/* Время */
 	double Time;
 	/* Интегральное значение DAC */
 	double Sum;
+	/* Какие-то левые переменные */
+	double a[4];
+	double b[2];
+	double x[2];
 protected:
 	/* Аудио буфер */
 	sint16 *Buf;
@@ -54,22 +57,37 @@ protected:
 	double Volume;
 	/* Частота */
 	double Frequency;
-	/* Затузание */
-	double Decay;
 	/* Обновить буфер */
 	virtual void UpdateBuffer() = 0;
 
 	/* Сброс параметров DAC */
 	inline void ResetDAC() {
-		Average = 0.0;
 		TimeDiff = 0.0;
 		Time = 0.0;
 		Sum = 0.0;
+		x[0] = 0.0;
+		x[1] = 0.0;
+	}
+	/* Обновить параметры */
+	inline void RecalculateDecay() {
+		/* Конечно, представлять это обчным колебательным звеном (а это */
+		/* колебательное звено) — неправильно */
+		/* И непонятно, чем это лучше обычного апериодического */
+		/* Порядок должен быть не меньше 3 с 2 мнимыми корнями и одним действительным */
+		double RA = exp(-0.343 / Frequency);
+		double RC = cos(0.34993 / Frequency);
+		double RS = sin(0.34993 / Frequency);
+
+		a[0] = RA * (RC + 0.980196 * RS);
+		a[1] = RA * (-0.686137) * RS;
+		a[2] = RA * 2.85771 * RS;
+		a[3] = RA * (RC - 0.980196 * RS);
+		b[0] = 0.686 + RA * (-0.686 * RC + 0.0137227 * RS);
+		b[1] = 1 - RA * (RC + 0.980196 * RS);
 	}
 public:
 	inline explicit CAudioFrontend() {
-		Volume = 1.0;
-		Decay = 1.0;
+		Volume = 2;
 		ResetDAC();
 	}
 	inline virtual ~CAudioFrontend() {}
@@ -87,10 +105,17 @@ public:
 		}
 	}
 	inline void PushSample(double Sample) {
-		double Res = Average + Sample;
+		double Res, tx;
 
-		Average -= Res / Decay;
-		PushSample((sint16) (Res * Volume * 37267.0));
+		Res = (Sample - x[1]) * Volume;
+		if (Res < -1.0)
+			Res = -1.0;
+		else if (Res > 1.0)
+			Res = 1.0;
+		tx = x[0];
+		x[0] = a[0] * tx + a[1] * x[1] + b[0] * Sample;
+		x[1] = a[2] * tx + a[3] * x[1] + b[1] * Sample;
+		PushSample((sint16) (Res * 37267.0));
 	}
 	inline void PushSample(double DACOutput, double Length) {
 		int i, num;
