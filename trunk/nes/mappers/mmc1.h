@@ -101,7 +101,7 @@ public:
 		memset(&InternalData, 0, sizeof(InternalData));
 		InternalData.EnableRAM = true;
 		InternalData.EnableWrite = true;
-		InternalData.CHRSwitch = SInternalData::CHRSwitch_8k;
+		InternalData.CHRSwitch = SInternalData::CHRSwitch_4k;
 		InternalData.PRGSwitch = SInternalData::PRGSwitch_Low;
 		InternalData.CHRBanks[1] = 0x1000;
 		if (ROM->Header.PRGSize > 0x40000) { /* SUROM / SXROM */
@@ -112,11 +112,11 @@ public:
 				Bus->GetManager()->template SetPointer<ManagerID<NROMID::BatteryID> >(\
 					RAM, ROM->Header.RAMSize * sizeof(uint8));
 			} else
-				InternalData.Mode = SInternalData::MMC1_SOROM;
-		} else if (ROM->Header.RAMSize > 0x2000) { /* SUROM */
-			InternalData.Mode = SInternalData::MMC1_SUROM;
-		} else if (ROM->CHR == NULL) { /* SNROM */
-			InternalData.Mode = SInternalData::MMC1_SNROM;
+				InternalData.Mode = SInternalData::MMC1_SUROM;
+		} else if (ROM->Header.RAMSize > 0x2000) { /* SOROM */
+			InternalData.Mode = SInternalData::MMC1_SOROM;
+		} else if (ROM->Header.CHRSize == 0x2000) { /* SNROM */
+			InternalData.Mode = SInternalData::MMC1_SNROM; /* Tricky */
 		} else
 			InternalData.Mode = SInternalData::MMC1_Normal;
 		PRGMask = mapper::GetMask(ROM->Header.PRGSize);

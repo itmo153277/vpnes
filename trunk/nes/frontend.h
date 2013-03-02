@@ -87,7 +87,7 @@ protected:
 	}
 public:
 	inline explicit CAudioFrontend() {
-		Volume = 2;
+		Volume = 1.0;
 		ResetDAC();
 	}
 	inline virtual ~CAudioFrontend() {}
