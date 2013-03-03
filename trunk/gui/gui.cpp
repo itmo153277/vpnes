@@ -74,6 +74,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 	std::basic_string<char> InfoString;
 	const char *RomName;
 	bool Quit;
+	int Flag;
 	int SaveState = 0;
 
 #if defined(VPNES_INTERACTIVE)
@@ -156,12 +157,12 @@ void CNESGUI::Start(bool ForceDendyMode) {
 							if (!State.fail()) {
 								NES->SaveState(State);
 								State.close();
-#if defined(VPNES_USE_TTF)
-								Window->SetText("Save state");
-							} else
-								Window->SetText("Save state error");
-#else
 							}
+#if defined(VPNES_USE_TTF)
+							if (State.fail())
+								Window->SetText("Save state error");
+							else
+								Window->SetText("Save state");
 #endif
 							break;
 						case CWindow::wsLoadState:
@@ -171,14 +172,14 @@ void CNESGUI::Start(bool ForceDendyMode) {
 							State.open(Name.c_str(), std::ios_base::in |
 								std::ios_base::binary);
 							if (!State.fail()) {
-								NES->LoadState(State);
+								Flag = NES->LoadState(State);
 								State.close();
-#if defined(VPNES_USE_TTF)
-								Window->SetText("Load state");
-							} else
-								Window->SetText("Load state error");
-#else
 							}
+#if defined(VPNES_USE_TTF)
+							if (State.fail() || Flag)
+								Window->SetText("Load state error");
+							else
+								Window->SetText("Load state");
 #endif
 							break;
 						default:

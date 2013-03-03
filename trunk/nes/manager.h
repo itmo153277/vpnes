@@ -325,23 +325,33 @@ inline int CMemoryManager::LoadMemory(std::istream &State) {
 	MemoryVec::iterator iter;
 	char ID[7];
 	uint32 Size;
+	bool Skip;
+	int Res = 0;
 
 	for (;;) {
 		State.getline(ID, 7 * sizeof(char), '\0');
-		if (!(*ID))
+		if (!(*ID)) {
+			State.clear();
 			break;
-		State.read((char *) &Size, sizeof(Size));
-		if (!CompareID<_ID>(ID)) {
-			State.seekg(Size, std::ios_base::cur);
-			continue;
 		}
-		for (iter = MemoryBlocks.begin();iter != MemoryBlocks.end(); iter++)
-			if (!strcmp(ID, (*iter)->ID)) {
-				(*iter)->LoadMemory(State);
-				break;
-			}
+		State.read((char *) &Size, sizeof(Size));
+		if (State.fail())
+			return -1;
+		Skip = true;
+		if (CompareID<_ID>(ID))
+			for (iter = MemoryBlocks.begin(); iter != MemoryBlocks.end(); iter++)
+				if (((*iter)->p != NULL) && (!strcmp(ID, (*iter)->ID)) &&
+					((*iter)->Size == Size)) {
+					(*iter)->LoadMemory(State);
+					Skip = false;
+					break;
+				}
+		if (Skip) {
+			State.seekg(Size, std::ios_base::cur);
+			Res = -1;
+		}
 	}
-	return 0;
+	return Res;
 }
 
 /* Сохранить память в поток */
@@ -358,7 +368,7 @@ inline int CMemoryManager::SaveMemory(std::ostream &State) {
 		State.write((*iter)->ID, (strlen((*iter)->ID) + 1) * sizeof(char));
 		(*iter)->SaveMemory(State);
 	}
-	return 0;
+	return State.fail() ? -1 : 0;
 }
 
 /* Освободить память */
