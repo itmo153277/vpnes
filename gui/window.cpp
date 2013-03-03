@@ -434,6 +434,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 			pAudio->StopDevice();
 			break;
 		case WM_COMMAND:
+			ResetMouse();
 			switch (Msg->wParam) {
 				case ID_FILE_OPEN:
 #if !defined(VPNES_DISABLE_SYNC)
