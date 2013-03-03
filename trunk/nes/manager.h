@@ -353,6 +353,8 @@ inline int CMemoryManager::SaveMemory(std::ostream &State) {
 		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
 		if (iter == MemoryBlocks.end())
 			break;
+		if ((*iter)->p == NULL)
+			continue;
 		State.write((*iter)->ID, (strlen((*iter)->ID) + 1) * sizeof(char));
 		(*iter)->SaveMemory(State);
 	}
