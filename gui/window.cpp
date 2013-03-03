@@ -215,9 +215,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 				break;
 #endif
 			case SDL_MOUSEMOTION:
-				::SDL_ShowCursor(SDL_ENABLE);
-				MouseTimer = ::SDL_GetTicks();
-				MouseState = true;
+				ResetMouse();
 				break;
 			case SDL_KEYDOWN:
 				pInput->ProcessKeyboard(&Event.key);
@@ -272,15 +270,15 @@ CWindow::WindowState CWindow::ProcessMessages() {
 		if (Quit)
 			break;
 	}
-	if (PauseState == psPlay)
+	if ((PauseState == psPlay) && (CurState != wsQuit))
 		pAudio->ResumeDevice();
 #if !defined(VPNES_DISABLE_SYNC)
-	MouseTimer += pSyncManager->SyncResume();
+	pSyncManager->SyncResume();
 	pSyncManager->Sync(PlayRate);
 #endif
 	if (Quit) {
 		/* Освобождаем очередь */
-		while (::SDL_PollEvent(&Event));
+		while (::SDL_PeepEvents(&Event, 1, SDL_GETEVENT, SDL_USEREVENT));
 		return CurState;
 	}
 #if defined(VPNES_SHOW_FPS)
@@ -318,8 +316,7 @@ void CWindow::UpdateSizes(int Width, int Height) {
 	_Height = Height;
 	PlayRate = 1.0;
 	PauseState = psPlay;
-	MouseState = true;
-	MouseTimer = ::SDL_GetTicks();
+	ResetMouse();
 #if defined(VPNES_INTERACTIVE)
 	UpdateState(true);
 #endif
@@ -334,6 +331,13 @@ void CWindow::InitializeScreen() {
 #if !defined(VPNES_DISABLE_SYNC)
 	pSyncManager->SyncReset();
 #endif
+}
+
+/* Сбросить состояние указателя мыши */
+void CWindow::ResetMouse() {
+	::SDL_ShowCursor(SDL_ENABLE);
+	MouseState = true;
+	MouseTimer = ::SDL_GetTicks();
 }
 
 /* Очистить окно */
@@ -453,6 +457,8 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 						CurState = wsQuit;
 						return true;
 					}
+					/* Можем упустить перемещение мыши */
+					ResetMouse();
 					break;
 				case ID_FILE_CLOSE:
 					OpenFile = true;
@@ -491,6 +497,8 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					pAudio->StopDevice();
 					::DialogBoxParam(Instance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), Handle,
 						(DLGPROC) AboutProc, (LPARAM) InfoText);
+					/* Можем упустить перемещение мыши */
+					ResetMouse();
 					break;
 			}
 			break;
@@ -522,7 +530,7 @@ const char *CWindow::GetFileName() {
 			}
 		} while (CurState != wsQuit);
 		/* Освобождаем очередь */
-		while (::SDL_PollEvent(&Event));
+		while (::SDL_PeepEvents(&Event, 1, SDL_GETEVENT, SDL_USEREVENT));
 		if (!FileReady)
 			return NULL;
 	}

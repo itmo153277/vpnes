@@ -184,6 +184,8 @@ private:
 	void ProcessAction(WindowActions Action);
 	/* Инициализация буфера */
 	void InitializeScreen();
+	/* Сбросить состояние указателя мыши */
+	void ResetMouse();
 public:
 	CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input);
 	~CWindow();
