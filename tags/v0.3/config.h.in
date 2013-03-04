@@ -1,0 +1,100 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 if you have the <algorithm> header file. */
+#undef HAVE_ALGORITHM
+
+/* Define to 1 if you have the <cmath> header file. */
+#undef HAVE_CMATH
+
+/* Define to 1 if you have the <commctrl.h> header file. */
+#undef HAVE_COMMCTRL_H
+
+/* Define to 1 if you have the <commdlg.h> header file. */
+#undef HAVE_COMMDLG_H
+
+/* Define to 1 if you have the <cstdio> header file. */
+#undef HAVE_CSTDIO
+
+/* Define to 1 if you have the <cstdlib> header file. */
+#undef HAVE_CSTDLIB
+
+/* Define to 1 if you have the <cstring> header file. */
+#undef HAVE_CSTRING
+
+/* Define to 1 if you have the <exception> header file. */
+#undef HAVE_EXCEPTION
+
+/* Define to 1 if you have the <fstream> header file. */
+#undef HAVE_FSTREAM
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <iomanip> header file. */
+#undef HAVE_IOMANIP
+
+/* Define to 1 if you have the <iostream> header file. */
+#undef HAVE_IOSTREAM
+
+/* Define to 1 if you have the <istream> header file. */
+#undef HAVE_ISTREAM
+
+/* Define to 1 if you have the <shellapi.h> header file. */
+#undef HAVE_SHELLAPI_H
+
+/* Define to 1 if you have the <sstream> header file. */
+#undef HAVE_SSTREAM
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <typeinfo> header file. */
+#undef HAVE_TYPEINFO
+
+/* Define to 1 if you have the <vector> header file. */
+#undef HAVE_VECTOR
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Version number of package */
+#undef VERSION
+
+/* Define to local/global or full path to config file to use configurations */
+#undef VPNES_CONFIGFILE
+
+/* Define to 1 to disable frame skip */
+#undef VPNES_DISABLE_FSKIP
+
+/* Define to 1 to disable frame synchronization */
+#undef VPNES_DISABLE_SYNC
+
+/* Define to 1 to enable interactive mode for GUI */
+#undef VPNES_INTERACTIVE
+
+/* Define to 1 to show frame number in window title */
+#undef VPNES_SHOW_CURFRAME
+
+/* Define to 1 to show fps in window title */
+#undef VPNES_SHOW_FPS
+
+/* Define to 1 to enable TTF support */
+#undef VPNES_USE_TTF

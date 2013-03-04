@@ -1,0 +1,14 @@
+v0.3 — It was a long run...
+	GUI for win32
+	APU advanced implementation
+	MMC1, MMC3 support
+	PAL/NTSC/Dendy modes
+	Save/Load NES states
+
+v0.2
+	Added basic MMC1 support
+	New renderer
+	APU basic implementation
+
+v0.1
+	Initial release

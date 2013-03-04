@@ -1,0 +1,71 @@
+/****************************************************************************\
+
+	NES Emulator
+	Copyright (C) 2012-2013  Ivanov Viktor
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+\****************************************************************************/
+
+#include "win32-res.h"
+
+IDI_MAINICON ICON "icon.ico"
+
+#if defined(VPNES_USE_TTF)
+IDR_MAINFONT RCDATA "../text.otf"
+#endif
+
+#if defined(VPNES_INTERACTIVE)
+IDM_MAINMENU MENU
+BEGIN
+	POPUP "&File"
+	BEGIN
+		MENUITEM "&Open",           ID_FILE_OPEN
+		MENUITEM "C&lose",          ID_FILE_CLOSE
+		MENUITEM SEPARATOR
+		MENUITEM "&Settings",       ID_FILE_SETTINGS
+		MENUITEM SEPARATOR
+		MENUITEM "E&xit",           ID_FILE_EXIT
+	END
+	POPUP "&CPU"
+	BEGIN
+		MENUITEM "Software &Reset", ID_CPU_SOFTWARERESET
+		MENUITEM "Har&dware Reset", ID_CPU_HARDWARERESET
+		MENUITEM SEPARATOR
+		MENUITEM "&Pause",          ID_CPU_PAUSE
+		MENUITEM "R&esume",         ID_CPU_RESUME
+		MENUITEM "S&tep",           ID_CPU_STEP
+		MENUITEM SEPARATOR
+		MENUITEM "&Save State",     ID_CPU_SAVESTATE
+		MENUITEM "&Load State",     ID_CPU_LOADSTATE
+	END
+	POPUP "&Help"
+	BEGIN
+		MENUITEM "&About",          ID_CPU_ABOUT
+	END
+END
+
+IDD_ABOUTDIALOG DIALOGEX 0, 0, 200, 117
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+	CTEXT "VPNES " VPNES_VERSION VPNES_BUILD "\nCopyright (c) Ivanov Viktor 2012-2013",
+	IDC_STATIC, 7, 7, 186, 32
+	LTEXT "", IDC_STATICINFO, 7, 46, 186, 43, 0, WS_EX_CLIENTEDGE
+	DEFPUSHBUTTON "OK", IDCANCEL, 75, 96, 50, 14
+END
+
+#endif
