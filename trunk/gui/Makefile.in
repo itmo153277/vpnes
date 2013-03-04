@@ -86,8 +86,9 @@ CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 CXXLD = $(CXX)
 CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
-SOURCES = $(libvpnes_gui_a_SOURCES)
-DIST_SOURCES = $(am__libvpnes_gui_a_SOURCES_DIST)
+SOURCES = $(libvpnes_gui_a_SOURCES) $(EXTRA_libvpnes_gui_a_SOURCES)
+DIST_SOURCES = $(am__libvpnes_gui_a_SOURCES_DIST) \
+	$(EXTRA_libvpnes_gui_a_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -241,7 +242,8 @@ libvpnes_gui_a_SOURCES = audio.cpp gui.cpp input.cpp video.cpp \
 noinst_HEADERS = audio.h configfile.h gui.h input.h video.h window.h \
                  win32-res/win32-res.h
 
-dist_noinst_DATA = configfile.cpp text.otf win32-res/icon.ico win32-res/win32-res.rc
+dist_noinst_DATA = text.otf win32-res/icon.ico
+EXTRA_libvpnes_gui_a_SOURCES = configfile.cpp win32-res/win32-res.rc
 @VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONT = text.otf
 @VPNES_USEFONT_TRUE@@WINDOWS_TRUE@FONT = 
 @VPNES_USEFONT_TRUE@@WINDOWS_FALSE@FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'

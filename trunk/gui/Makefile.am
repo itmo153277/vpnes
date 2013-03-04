@@ -3,7 +3,8 @@ libvpnes_gui_a_SOURCES = audio.cpp gui.cpp input.cpp video.cpp \
                          window.cpp
 noinst_HEADERS = audio.h configfile.h gui.h input.h video.h window.h \
                  win32-res/win32-res.h
-dist_noinst_DATA = configfile.cpp text.otf win32-res/icon.ico win32-res/win32-res.rc
+dist_noinst_DATA = text.otf win32-res/icon.ico
+EXTRA_libvpnes_gui_a_SOURCES = configfile.cpp win32-res/win32-res.rc
 
 if VPNES_CONFIGFILE
 
