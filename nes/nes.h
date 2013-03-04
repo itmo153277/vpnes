@@ -62,23 +62,20 @@ public:
 
 	/* Выключить приставку (сохранение памяти) */
 	inline int PowerOff(std::ostream &RamFile) {
-		Manager.SaveMemory<BatteryGroupID>(RamFile);
-		return 0;
+		return Manager.SaveMemory<BatteryGroupID>(RamFile);
 	}
 
 	/* Сохранить текущее состоянии приставки (сохранение */
 	/* всей динамической памяти) */
 	inline int SaveState(std::ostream &RamFile) {
-		Manager.SaveMemory<DynamicGroupID>(RamFile);
-		return 0;
+		return Manager.SaveMemory<DynamicGroupID>(RamFile);
 	}
 
 	/* Загрузить текущее состояние (загрузка всей динамической */
 	/* памяти в образе, т.е. можно использовть для загрузки */
-	/* PRG RAM питающейся от батареи */
+	/* PRG RAM, питающейся от батареи) */
 	inline int LoadState(std::istream &RamFile) {
-		Manager.LoadMemory<DynamicGroupID>(RamFile);
-		return 0;
+		return Manager.LoadMemory<DynamicGroupID>(RamFile);
 	}
 };
 
