@@ -50,6 +50,8 @@ class CMMC1: public CNROM<_Bus> {
 	using CNROM<_Bus>::RAM;
 private:
 	struct SInternalData: public ManagerID<MMC1ID::InternalDataID> {
+		/* PRW R/~W pin */
+		bool PRGRW;
 		/* Модификация MMC1 */
 		enum {
 			MMC1_Normal,
@@ -123,6 +125,12 @@ public:
 		CHRMask = mapper::GetMask(ROM->Header.CHRSize);
 	}
 
+	/* Обновление адреса на шине CPU */
+	inline void UpdateCPUBus(uint16 Address) {
+		InternalData.PRGRW = true; /* Детектим чтение */
+	}
+	inline void UpdateCPUBus(uint16 Address, uint8 Src) {
+	}
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
 		int PRGAddr;
@@ -163,8 +171,9 @@ public:
 				RAM[InternalData.SRAMPage | (Address & 0x1fff)] = Src;
 		} else {
 			/* Игнорируем запись, если не было изменения PRG R/$W */
-			if (!Bus->WasPRGRWClocked())
+			if (!InternalData.PRGRW)
 				return;
+			InternalData.PRGRW = false;
 			if (Src & 0x80) { /* Сброс */
 				InternalData.Reset();
 				return;

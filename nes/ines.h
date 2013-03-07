@@ -55,7 +55,8 @@ enum SolderPad {
 	Horizontal = 0x00,
 	Vertical = 0x01,
 	SingleScreen_1 = 0x08,
-	SingleScreen_2 = 0x09
+	SingleScreen_2 = 0x09,
+	FourScreen = 0x18
 };
 
 /* NES_Type */

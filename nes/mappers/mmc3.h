@@ -48,8 +48,6 @@ class CMMC3: public CNROM<_Bus> {
 	using CNROM<_Bus>::Bus;
 	using CNROM<_Bus>::ROM;
 	using CNROM<_Bus>::CHR;
-public:
-	typedef FourScreenSolderPad SolderPad;
 private:
 	struct SInternalData: public ManagerID<MMC3ID::InternalDataID> {
 		int PRGBanks[2]; /* PRG */
@@ -115,13 +113,6 @@ public:
 			InternalData.CHRBanks[i] = i << 10;
 		InternalData.EnableRAM = false;
 		InternalData.EnableWrite = true;
-		if (ROM->Header.Mirroring & 0x08) { /* 4-screen */
-			Bus->GetManager()->template FreeMemory<NROMID::RAMID>();
-			Bus->GetManager()->template FreeMemory<NROMID::BatteryID>();
-			Bus->GetSolderPad()->RAM = (uint8 *) Bus->GetManager()->\
-				template GetPointer<ManagerID<NROMID::RAMID> >(0x1000 * sizeof(uint8));
-			memset(Bus->GetSolderPad()->RAM, 0x00, 0x1000 * sizeof(uint8));
-		}
 		Bus->GetManager()->template SetPointer<SIRQCircuit>(&IRQCircuit);
 		memset(&IRQCircuit, 0, sizeof(IRQCircuit));
 		PRGMask = mapper::GetMask(ROM->Header.PRGSize);

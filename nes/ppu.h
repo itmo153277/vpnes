@@ -144,6 +144,10 @@ private:
 		/* Получить адрес для чтения Palette */
 		inline uint8 GetPALAddress(uint8 col, uint16 CAR) { if ((col & 0x03) == 0)
 			return 0x00; else return ((CAR & 0x03) << 2) | col; }
+		/* Получить адрес пустого фона */
+		inline uint8 GetDropColour(bool RenderingEnabled) {
+			if (RenderingEnabled || (~RealReg1 & 0x3f00)) return 0x00;
+			if (RealReg1 & 0x0003) return RealReg1 & 0x001f; else return RealReg1 & 0x000c; }
 		/* Получить адрес для чтения PatternTable спрайтов */
 		inline uint16 GetSpriteAddress(uint8 Tile, uint8 v, uint16 CurPage) {
 			return CurPage | (Tile << 4) | v; }
@@ -638,7 +642,7 @@ inline void CPPU<_Bus, _Settings>::DrawPixel() {
 		col = (InternalData.ShiftReg >> (0x10 | (Registers.FH << 1))) & 0x03;
 		t = Registers.GetPALAddress(col, Registers.AR);
 	} else
-		t = 0;
+		t = Registers.GetDropColour(ControlRegisters.RenderingEnabled());
 	/* Рисуем спрайты */
 	scol = 0x10;
 	for (i = 0; i < 8; i++)

@@ -84,29 +84,42 @@ public:
 				0x2000 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<ManagerID<NROMID::SolderPadID> >(\
 			&Bus->GetSolderPad()->Mirroring, sizeof(ines::SolderPad));
-		Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
-		if (ROM->Header.RAMSize == 0)
-			RAM = NULL;
-		else {
-			RAM = new uint8[ROM->Header.RAMSize];
-			memset(RAM, 0x00, ROM->Header.RAMSize * sizeof(uint8));
-			if (ROM->Trainer != NULL)
-				memcpy(RAM + 0x1000, ROM->Trainer, 0x0200 * sizeof(uint8));
-			if (ROM->Header.HaveBattery) {
-				Bus->GetManager()->template SetPointer<ManagerID<NROMID::BatteryID> >(\
-					RAM + (ROM->Header.RAMSize - 0x2000), 0x2000 * sizeof(uint8));
-				if (ROM->Header.RAMSize > 0x2000)
+		if (ROM->Header.Mirroring & 0x08) {
+			Bus->GetSolderPad()->Mirroring = ines::FourScreen;
+			Bus->GetSolderPad()->RAM = (uint8 *) Bus->GetManager()->\
+				template GetPointer<ManagerID<NROMID::RAMID> >(0x1000 * sizeof(uint8));
+			memset(Bus->GetSolderPad()->RAM, 0x00, 0x1000 * sizeof(uint8));
+			RAM = NULL; /* Disable W-RAM at 4-screen mode */
+		} else {
+			Bus->GetSolderPad()->Mirroring = ROM->Header.Mirroring;
+			if (ROM->Header.RAMSize == 0)
+				RAM = NULL;
+			else {
+				RAM = new uint8[ROM->Header.RAMSize];
+				memset(RAM, 0x00, ROM->Header.RAMSize * sizeof(uint8));
+				if (ROM->Trainer != NULL)
+					memcpy(RAM + 0x1000, ROM->Trainer, 0x0200 * sizeof(uint8));
+				if (ROM->Header.HaveBattery) {
+					Bus->GetManager()->template SetPointer<ManagerID<NROMID::BatteryID> >(\
+						RAM + (ROM->Header.RAMSize - 0x2000), 0x2000 * sizeof(uint8));
+					if (ROM->Header.RAMSize > 0x2000)
+						Bus->GetManager()->template SetPointer<ManagerID<NROMID::RAMID> >(\
+							RAM, (ROM->Header.RAMSize - 0x2000) * sizeof(uint8));
+				} else
 					Bus->GetManager()->template SetPointer<ManagerID<NROMID::RAMID> >(\
-						RAM, (ROM->Header.RAMSize - 0x2000) * sizeof(uint8));
-			} else
-				Bus->GetManager()->template SetPointer<ManagerID<NROMID::RAMID> >(\
-					RAM, ROM->Header.RAMSize * sizeof(uint8));
+						RAM, ROM->Header.RAMSize * sizeof(uint8));
+			}
 		}
 	}
 	inline ~CNROM() {
 		delete [] RAM;
 	}
 
+	/* Обновление адреса на шине CPU */
+	inline void UpdateCPUBus(uint16 Address) {
+	}
+	inline void UpdateCPUBus(uint16 Address, uint8 Src) {
+	}
 	/* Чтение памяти */
 	inline uint8 ReadAddress(uint16 Address) {
 		if (Address < 0x6000) /* Регистры */
@@ -131,6 +144,11 @@ public:
 			RAM[Address & 0x1fff] = Src;
 	}
 
+	/* Обновление адреса на шине PPU */
+	inline void UpdatePPUBus(uint16 Address) {
+	}
+	inline void UpdatePPUBus(uint16 Address, uint8 Src) {
+	}
 	/* Обновление адреса PPU */
 	inline void UpdatePPUAddress(uint16 Address) {
 	}
