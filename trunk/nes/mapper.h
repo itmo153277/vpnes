@@ -60,6 +60,7 @@ struct StaticSolderPad {
 	ines::SolderPad Mirroring; /* Текущий переключатель */
 	uint8 *Screen1; /* Экран 1 */
 	uint8 *Screen2; /* Экран 2 */
+	uint8 *RAM; /* Дополнительная память */
 
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
@@ -78,55 +79,7 @@ struct StaticSolderPad {
 				return Screen1[Address & 0x03ff];
 			case ines::SingleScreen_2:
 				return Screen2[Address & 0x03ff];
-		}
-		return 0x40;
-	}
-	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) {
-		switch (Mirroring) {
-			case ines::Horizontal:
-				if (Address & 0x0800)
-					Screen2[Address & 0x3ff] = Src;
-				else
-					Screen1[Address & 0x3ff] = Src;
-				break;
-			case ines::Vertical:
-				if (Address & 0x0400)
-					Screen2[Address & 0x3ff] = Src;
-				else
-					Screen1[Address & 0x3ff] = Src;
-				break;
-			case ines::SingleScreen_1:
-				Screen1[Address & 0x03ff] = Src;
-				break;
-			case ines::SingleScreen_2:
-				Screen2[Address & 0x03ff] = Src;
-		}
-	}
-};
-
-/* Поддержка 4-screen */
-struct FourScreenSolderPad {
-	ines::SolderPad Mirroring; /* Текущий переключатель */
-	uint8 *Screen1; /* Экран 1 */
-	uint8 *Screen2; /* Экран 2 */
-	uint8 *RAM; /* Дополнительная память */
-
-	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) {
-		switch (Mirroring) {
-			case ines::Horizontal:
-				if (Address & 0x0800)
-					return Screen2[Address & 0x3ff];
-				else
-					return Screen1[Address & 0x3ff];
-			case ines::Vertical:
-				if (Address & 0x0400)
-					return Screen2[Address & 0x3ff];
-				else
-					return Screen1[Address & 0x3ff];
-			case ines::SingleScreen_1:
-			case ines::SingleScreen_2:
+			case ines::FourScreen:
 				switch (Address & 0x0c00) {
 					case 0x0000:
 						return Screen1[Address & 0x03ff];
@@ -155,7 +108,12 @@ struct FourScreenSolderPad {
 					Screen1[Address & 0x3ff] = Src;
 				break;
 			case ines::SingleScreen_1:
+				Screen1[Address & 0x03ff] = Src;
+				break;
 			case ines::SingleScreen_2:
+				Screen2[Address & 0x03ff] = Src;
+				break;
+			case ines::FourScreen:
 				switch (Address & 0x0c00) {
 					case 0x0000:
 						Screen1[Address & 0x03ff] = Src;

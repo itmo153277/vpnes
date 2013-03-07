@@ -187,7 +187,9 @@ inline CNESConfig *BuildStdNES(const ines::NES_ROM_Data *Data, ines::NES_Type Ty
 CNESConfig *NROM_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 0 */
 CNESConfig *MMC1_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 1 */
 CNESConfig *UxROM_Config(const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 2 */
+CNESConfig *CNROM_Config(const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 3 */
 CNESConfig *MMC3_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 4 */
+CNESConfig *MMC5_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 5 */
 CNESConfig *AxROM_Config(const ines::NES_ROM_Data *Data, ines::NES_Type Type); /* 7 */
 
 }

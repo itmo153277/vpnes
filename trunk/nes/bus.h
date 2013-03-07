@@ -76,18 +76,15 @@ private:
 	ROMClass *ROM;
 	/* SolderPad */
 	typename ROMClass::SolderPad SolderPad;
-	/* PRG RW State */
-	bool PRGRW;
 public:
 	inline explicit CBus_Basic(CNESFrontend *Frontend, CMemoryManager *Manager):
 		_Frontend(Frontend), _Manager(Manager) {
-		PRGRW = false;
 	}
 	inline ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPUMemory(uint16 Address) {
-		PRGRW = true;
+		ROM->UpdateCPUBus(Address);
 		if (Address < 0x2000) /* CPU internal RAM */
 			return CPU->ReadAddress(Address);
 		if (Address < 0x4000) /* PPU registers */
@@ -98,6 +95,7 @@ public:
 			return ROM->ReadAddress(Address);
 	}
 	inline void WriteCPUMemory(uint16 Address, uint8 Src) {
+		ROM->UpdateCPUBus(Address, Src);
 		if (Address < 0x2000) /* CPU internal RAM */
 			CPU->WriteAddress(Address, Src);
 		else if (Address < 0x4000) /* PPU registers */
@@ -108,22 +106,16 @@ public:
 			ROM->WriteAddress(Address, Src);
 	}
 
-	/* Проверяем был ли цикл запись-чтение */
-	inline bool WasPRGRWClocked() {
-		bool Res = PRGRW;
-
-		PRGRW = false;
-		return Res;
-	}
-
 	/* Обращение к памяти PPU */
 	inline uint8 ReadPPUMemory(uint16 Address) {
+		ROM->UpdatePPUBus(Address);
 		if (Address < 0x2000) /* Mapper CHR data */
 			return ROM->ReadPPUAddress(Address);
 		else /* PPU attributes/nametables */
 			return SolderPad.ReadPPUAddress(Address);
 	}
 	inline void WritePPUMemory(uint16 Address, uint8 Src) {
+		ROM->UpdatePPUBus(Address, Src);
 		if (Address < 0x2000) /* Mapper CHR data */
 			ROM->WritePPUAddress(Address, Src);
 		else /* PPU attributes/nametables */

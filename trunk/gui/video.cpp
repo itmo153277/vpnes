@@ -272,18 +272,18 @@ void CVideo::SyncReset() {
 
 /* Синхронизировать время */
 void CVideo::Sync(double PlayRate) {
-	Uint32 FrameTime;
+	Sint32 FrameTime;
 	Sint32 DelayTime;
 
 	/* Синхронизация */
 	Delta += LastFrameTime / PlayRate;
-	FrameTime = (Uint32) Delta;
+	FrameTime = (Sint32) Delta;
 	DelayTime = FrameTime - (::SDL_GetTicks() - FrameStart);
 	Delta -= FrameTime;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (!SkipFrame) {
 #endif
-	DelayTime -= Jitter;
+	DelayTime -= Jitter / 2;
 	if (DelayTime > 0)
 		::SDL_Delay(DelayTime);
 #if !defined(VPNES_DISABLE_FSKIP)
@@ -303,12 +303,15 @@ void CVideo::Sync(double PlayRate) {
 			SkipFrame = false;
 			/* log */
 		}
-	} else if (Jitter > FrameTime) {
+	} else if (Jitter > (FrameTime * 2)) {
 		SkipFrame = true;
 		SkippedTime = 0;
 		FramesSkipped = 0;
 		/* log */
 	}
+#else
+	if (Jitter > 50)
+		Jitter = 0; /* Сброс */
 #endif
 	FrameTimeCheck = FrameStart;
 #if defined(VPNES_USE_TTF)

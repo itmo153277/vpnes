@@ -95,7 +95,7 @@ private:
 	/* Накапливаемая ошибка */
 	double Delta;
 	/* Смещение */
-	Uint32 Jitter;
+	Sint32 Jitter;
 	/* Время остановки */
 	Uint32 StopTime;
 	/* Синхронизация остановлена */
