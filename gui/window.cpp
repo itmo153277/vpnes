@@ -42,6 +42,7 @@ namespace vpnes_gui {
 
 CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 	FileName[VPNES_MAX_PATH - 1] = '\0';
+	WAVFile[VPNES_MAX_PATH - 1] = '\0';
 #if !defined(VPNES_INTERACTIVE)
 	if (DefaultFileName == NULL)
 		throw CGenericException("Nothing to run");
@@ -125,6 +126,8 @@ CWindow::~CWindow() {
 
 /* Обработка событий */
 void CWindow::ProcessAction(WindowActions Action) {
+	bool Res;
+
 	switch (Action) {
 		case waSoftReset:
 			CurState = wsSoftReset;
@@ -140,7 +143,37 @@ void CWindow::ProcessAction(WindowActions Action) {
 			break;
 		case waChangeSlot:
 			break;
+		case waWAVRecordStart:
+			if (pAudio->IsWritingWAV())
+				break;
+			Res = pAudio->StartWAVRecord(WAVFile);
+#if defined(VPNES_USE_TTF)
+			if (Res)
+				SetText("Start WAV Recording");
+			else
+				SetText("WAV Recording failure");
+#endif
+#if defined(VPNES_INTERACTIVE)
+			UpdateState(true);
+#endif
+			break;
+		case waWAVRecordStop:
+			if (!pAudio->IsWritingWAV())
+				break;
+			Res = pAudio->StopWAVRecord();
+#if defined(VPNES_USE_TTF)
+			if (Res)
+				SetText("Stop WAV Recording");
+			else
+				SetText("WAV Recording failure");
+#endif
+#if defined(VPNES_INTERACTIVE)
+			UpdateState(true);
+#endif
+			break;
 		case waPause:
+			if (PauseState == psPaused)
+				break;
 #if defined(VPNES_USE_TTF)
 			SetText("Pause");
 #endif
@@ -161,6 +194,8 @@ void CWindow::ProcessAction(WindowActions Action) {
 #endif
 			break;
 		case waResume:
+			if (PauseState == psPlay)
+				break;
 #if defined(VPNES_USE_TTF)
 			SetText("Resume");
 #endif
@@ -461,6 +496,31 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					/* Можем упустить перемещение мыши */
 					ResetMouse();
 					break;
+				case ID_FILE_RECORDSTART:
+#if !defined(VPNES_DISABLE_SYNC)
+					pSyncManager->SyncStop();
+#endif
+					pAudio->StopDevice();
+					memset(&ofn, 0, sizeof(OPENFILENAME));
+					ofn.lStructSize = sizeof(OPENFILENAME);
+					ofn.hwndOwner = Handle;
+					ofn.hInstance = Instance;
+					ofn.lpstrFilter = "WAV file (*.wav)\0*.wav\0"
+						"All Files (*.*)\0*.*\0";
+					ofn.lpstrFile = FileNameBuf;
+					ofn.nMaxFile = VPNES_MAX_PATH;
+					ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_LONGNAMES |
+						OFN_HIDEREADONLY;
+					ofn.lpstrDefExt = "wav";
+					if (::GetSaveFileName(&ofn)) {
+						strncpy(WAVFile, FileNameBuf, VPNES_MAX_PATH - 1);
+						ProcessAction(waWAVRecordStart);
+					}
+					ResetMouse();
+					break;
+				case ID_FILE_RECORDSTOP:
+					ProcessAction(waWAVRecordStop);
+					break;
 				case ID_FILE_CLOSE:
 					OpenFile = true;
 					FileReady = false;
@@ -478,13 +538,13 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					return true;
 				case ID_CPU_PAUSE:
 					ProcessAction(waPause);
-					return true;
+					break;
 				case ID_CPU_RESUME:
 					ProcessAction(waResume);
-					return true;
+					break;
 				case ID_CPU_STEP:
 					ProcessAction(waStep);
-					return true;
+					break;
 				case ID_CPU_SAVESTATE:
 					ProcessAction(waSaveState);
 					return true;
@@ -547,6 +607,14 @@ void CWindow::UpdateState(bool Run) {
 #ifdef _WIN32
 	if (Run) {
 		::EnableMenuItem(Menu, ID_FILE_CLOSE, MF_ENABLED);
+		::EnableMenuItem(Menu, ID_FILE_WAVRECORD, MF_ENABLED);
+		if (pAudio->IsWritingWAV()) {
+			::EnableMenuItem(Menu, ID_FILE_RECORDSTOP, MF_ENABLED);
+			::EnableMenuItem(Menu, ID_FILE_RECORDSTART, MF_GRAYED);
+		} else {
+			::EnableMenuItem(Menu, ID_FILE_RECORDSTOP, MF_GRAYED);
+			::EnableMenuItem(Menu, ID_FILE_RECORDSTART, MF_ENABLED);
+		}
 		::EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
 		::EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_ENABLED);
 		::EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_ENABLED);
@@ -562,6 +630,9 @@ void CWindow::UpdateState(bool Run) {
 		::EnableMenuItem(Menu, ID_CPU_LOADSTATE, MF_ENABLED);
 	} else {
 		::EnableMenuItem(Menu, ID_FILE_CLOSE, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_FILE_WAVRECORD, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_FILE_RECORDSTART, MF_GRAYED);
+		::EnableMenuItem(Menu, ID_FILE_RECORDSTOP, MF_GRAYED);
 		::EnableMenuItem(Menu, ID_FILE_SETTINGS, MF_GRAYED);
 		::EnableMenuItem(Menu, ID_CPU_SOFTWARERESET, MF_GRAYED);
 		::EnableMenuItem(Menu, ID_CPU_HARDWARERESET, MF_GRAYED);

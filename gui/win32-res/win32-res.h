@@ -37,16 +37,19 @@
 #define IDD_ABOUTDIALOG      101
 #define ID_FILE_OPEN         40001
 #define ID_FILE_CLOSE        40002
-#define ID_FILE_SETTINGS     40003
-#define ID_FILE_EXIT         40004
-#define ID_CPU_SOFTWARERESET 40005
-#define ID_CPU_HARDWARERESET 40006
-#define ID_CPU_PAUSE         40007
-#define ID_CPU_RESUME        40008
-#define ID_CPU_STEP          40009
-#define ID_CPU_SAVESTATE     40010
-#define ID_CPU_LOADSTATE     40011
-#define ID_CPU_ABOUT         40012
+#define ID_FILE_WAVRECORD    40003
+#define ID_FILE_RECORDSTART  40004
+#define ID_FILE_RECORDSTOP   40005
+#define ID_FILE_SETTINGS     40006
+#define ID_FILE_EXIT         40007
+#define ID_CPU_SOFTWARERESET 40008
+#define ID_CPU_HARDWARERESET 40009
+#define ID_CPU_PAUSE         40010
+#define ID_CPU_RESUME        40011
+#define ID_CPU_STEP          40012
+#define ID_CPU_SAVESTATE     40013
+#define ID_CPU_LOADSTATE     40014
+#define ID_CPU_ABOUT         40015
 #define IDC_STATIC           -1
 #define IDC_STATICINFO       101
 
@@ -54,7 +57,7 @@
 #ifdef VERSION
 #define VPNES_VERSION VERSION
 #else
-#define VPNES_VERSION "0.3"
+#define VPNES_VERSION "0.4"
 #endif
 #endif
 

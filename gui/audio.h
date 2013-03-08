@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include <fstream>
 #include <SDL.h>
 #include "../nes/frontend.h"
 #if defined(VPNES_CONFIGFILE)
@@ -61,6 +62,30 @@ private:
 	bool PCMPlay;
 	/* Флаг работы */
 	bool Stop;
+	/* Флаг записи в WAV */
+	bool WriteWAV;
+	/* Файл записи */
+	std::ofstream WAVStream;
+
+	/* Формат WAV */
+#pragma pack(push, 1)
+	struct SWAVHeader {
+		char ChunkID[4]; /* RIFF */
+		uint32 ChunkDataSize;
+		char RIFFType[4]; /* WAVE */
+		char fmtID[4]; /* fmt  */
+		uint32 fmtSize; /* 16 */
+		uint16 Compression; /* 1 - PCM */
+		uint16 Channels; /* 1 - mono */
+		uint32 SampleRate; /* 44100 */
+		uint32 BytesPerSec; /* 44100 * 2 */
+		uint16 BlockAlign; /* 2 — sint16 */
+		uint16 BitsPerSample; /* 16 — sint16 */
+		uint16 ExtraBytes; /* 0 — PCM */
+		char dataID[4]; /* data */
+		uint32 Size; /* Data size */
+	} WAVHeader;
+#pragma pack(pop)
 
 	/* Callback */
 	static void AudioCallbackSDL(void *Data, Uint8 *Stream, int Len);
@@ -79,6 +104,10 @@ public:
 	void StopDevice();
 	/* Возобновить устройство */
 	void ResumeDevice();
+	/* Начать запись WAV */
+	bool StartWAVRecord(const char *FileName);
+	/* Остановить запись WAV */
+	bool StopWAVRecord();
 	/* Обновить устройство */
 	void UpdateDevice(double FrameLength);
 	/* Изменить внутреннюю скорость */
@@ -86,6 +115,9 @@ public:
 		Frequency = 44.1 / Rate;
 		RecalculateDecay();
 	}
+
+	/* Флаг записи WAV */
+	inline const bool &IsWritingWAV() const { return WriteWAV; }
 };
 
 }
