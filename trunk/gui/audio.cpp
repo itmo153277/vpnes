@@ -32,11 +32,26 @@ CAudio::CAudio() {
 	memset(PCMBuffers, 0, sizeof(sint16 *) * 4);
 	PCMPlay = false;
 	Stop = false;
+	WriteWAV = false;
+	memcpy(WAVHeader.ChunkID, "RIFF", 4 * sizeof(char));
+	memcpy(WAVHeader.RIFFType, "WAVE", 4 * sizeof(char));
+	memcpy(WAVHeader.fmtID, "fmt ", 4 * sizeof(char));
+	memcpy(WAVHeader.dataID, "data", 4 * sizeof(char));
+	WAVHeader.fmtSize = 18;
+	WAVHeader.Compression = 0x0001;
+	WAVHeader.Channels = 1;
+	WAVHeader.SampleRate = 44100;
+	WAVHeader.BytesPerSec = 44100 * 2;
+	WAVHeader.BlockAlign = 2;
+	WAVHeader.BitsPerSample = 16;
+	WAVHeader.ExtraBytes = 0;
 }
 
 CAudio::~CAudio() {
 	int i;
 
+	if (WriteWAV)
+		StopWAVRecord();
 	if (ObtainedAudio != NULL) {
 		::SDL_CloseAudio();
 		delete ObtainedAudio;
@@ -65,6 +80,11 @@ void CAudio::AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
 void CAudio::UpdateBuffer() {
 	int NextIndex;
 
+	if (WriteWAV) {
+		WAVHeader.ChunkDataSize += Size * sizeof(sint16);
+		WAVHeader.Size += Size * sizeof(sint16);
+		WAVStream.write((char *) Buf, Size * sizeof(sint16));
+	}
 	::SDL_LockAudio();
 	NextIndex = CurIndex + 1;
 	if (NextIndex > 2)
@@ -111,10 +131,47 @@ void CAudio::StopDevice() {
 
 /* Возобновить устройство */
 void CAudio::ResumeDevice() {
+	int i;
+
 	if (!Stop)
 		return;
 	Stop = false;
+	for (i = 0; i < 3; i++)
+		BuffersFull[i] = false; /* DROP SAMPLES !!! */
+	if (WriteWAV) {
+		WAVHeader.ChunkDataSize += Pos * sizeof(sint16);
+		WAVHeader.Size += Pos * sizeof(sint16);
+		WAVStream.write((char *) Buf, Pos * sizeof(sint16));
+	}
+	PCMIndex = CurIndex;
+	Pos = 0;
 	ResumeAudio();
+}
+
+/* Начать запись WAV */
+bool CAudio::StartWAVRecord(const char *FileName) {
+	if (WriteWAV)
+		StopWAVRecord();
+	WAVStream.clear();
+	WAVStream.open(FileName,  std::ios_base::out | std::ios_base::binary |
+		std::ios_base::trunc);
+	WAVHeader.ChunkDataSize = sizeof(SWAVHeader) - 8;
+	WAVHeader.Size = 0;
+	WAVStream.write((char *) &WAVHeader, sizeof(SWAVHeader));
+	WriteWAV = !WAVStream.fail();
+	Pos = 0; /* DROP SAMPLES !!! */
+	return WriteWAV;
+}
+
+/* Остановить запись WAV */
+bool CAudio::StopWAVRecord() {
+	if (!WriteWAV)
+		return false;
+	WriteWAV = false;
+	WAVStream.seekp(0);
+	WAVStream.write((char *) &WAVHeader, sizeof(SWAVHeader));
+	WAVStream.close();
+	return !WAVStream.fail();
 }
 
 /* Обновить устройство */
@@ -122,6 +179,8 @@ void CAudio::UpdateDevice(double FrameLength) {
 	SDL_AudioSpec DesiredAudio;
 	int i;
 
+	if (WriteWAV)
+		StopWAVRecord();
 	if (ObtainedAudio != NULL) {
 		::SDL_CloseAudio();
 		delete ObtainedAudio;
@@ -151,7 +210,6 @@ void CAudio::UpdateDevice(double FrameLength) {
 	PCMPlay = false;
 	Stop = false;
 	Buf = PCMBuffers[0];
-	ResetDAC();
 	ChangeSpeed(1.0);
 }
 

@@ -96,6 +96,8 @@ private:
 		waSaveState,
 		waLoadState,
 		waChangeSlot,
+		waWAVRecordStart,
+		waWAVRecordStop,
 		waPause,
 		waStep,
 		waResume,
@@ -111,6 +113,8 @@ private:
 	WindowState CurState;
 	/* Имя файла */
 	char FileName[VPNES_MAX_PATH];
+	/* WAV файл */
+	char WAVFile[VPNES_MAX_PATH];
 #ifdef _WIN32
 	/* Экземпляр */
 	HINSTANCE Instance;

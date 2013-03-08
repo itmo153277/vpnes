@@ -60,14 +60,6 @@ protected:
 	/* Обновить буфер */
 	virtual void UpdateBuffer() = 0;
 
-	/* Сброс параметров DAC */
-	inline void ResetDAC() {
-		TimeDiff = 0.0;
-		Time = 0.0;
-		Sum = 0.0;
-		x[0] = 0.0;
-		x[1] = 0.0;
-	}
 	/* Обновить параметры */
 	inline void RecalculateDecay() {
 		/* Выглядит довольно неплохо: */
@@ -86,7 +78,7 @@ protected:
 public:
 	inline explicit CAudioFrontend() {
 		Volume = 1.0;
-		ResetDAC();
+		Reset();
 	}
 	inline virtual ~CAudioFrontend() {}
 
@@ -94,6 +86,14 @@ public:
 	virtual void StopAudio() = 0;
 	/* Продолжить воспроизведение */
 	virtual void ResumeAudio() = 0;
+	/* Сброс параметров DAC */
+	inline void Reset() {
+		TimeDiff = 0.0;
+		Time = 0.0;
+		Sum = 0.0;
+		x[0] = 0.0;
+		x[1] = 0.0;
+	}
 	/* Поместить семпл в буфер */
 	inline void PushSample(sint16 Sample) {
 		Buf[Pos++] = Sample;
