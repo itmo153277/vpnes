@@ -123,19 +123,12 @@ void CAudio::ResumeAudio() {
 
 /* Остановить устройство */
 void CAudio::StopDevice() {
+	int i;
+
 	if (Stop)
 		return;
 	Stop = true;
 	StopAudio();
-}
-
-/* Возобновить устройство */
-void CAudio::ResumeDevice() {
-	int i;
-
-	if (!Stop)
-		return;
-	Stop = false;
 	for (i = 0; i < 3; i++)
 		BuffersFull[i] = false; /* DROP SAMPLES !!! */
 	if (WriteWAV) {
@@ -145,6 +138,13 @@ void CAudio::ResumeDevice() {
 	}
 	PCMIndex = CurIndex;
 	Pos = 0;
+}
+
+/* Возобновить устройство */
+void CAudio::ResumeDevice() {
+	if (!Stop)
+		return;
+	Stop = false;
 	ResumeAudio();
 }
 

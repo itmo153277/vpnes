@@ -130,6 +130,22 @@ struct StaticSolderPad {
 	}
 };
 
+/* SolderPad через чип (управляется маппером) */
+template <class _Bus>
+struct DynamicSolderPad: public StaticSolderPad {
+	/* Указатель на шину */
+	_Bus* Bus;
+
+	/* Чтение памяти PPU */
+	inline uint8 ReadPPUAddress(uint16 Address) {
+		return Bus->GetROM()->NTRead(Address);
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		Bus->GetROM()->NTWrite(Address, Src);
+	}
+};
+
 }
 
 #endif

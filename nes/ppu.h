@@ -290,7 +290,7 @@ private:
 	/* Загрузить спрайт */
 	inline void FetchSprite();
 	/* Загрузить фон */
-	inline void FetchBackground();
+	inline void FetchBackground(int Cycle);
 	/* Рисуем сканалайн */
 	inline void DrawPixel();
 	/* Точный рендер */
@@ -595,15 +595,15 @@ inline void CPPU<_Bus, _Settings>::FetchSprite() {
 			break;
 		case 4:
 			if (InternalData.SpriteAddr == 0xffff)
-				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
-					Registers.SpritePage | 0x0ff0 : 0x1ff0);
+				ReadWithA12((ControlRegisters.Size == Size8x8) ? Registers.SpritePage |
+					0x0ff0 : 0x1ff0);
 			else
 				Sprites[i].ShiftReg = ColourTable[ReadWithA12(InternalData.SpriteAddr)];
 			break;
 		case 6:
 			if (InternalData.SpriteAddr == 0xffff)
-				Bus->GetROM()->UpdatePPUAddress((ControlRegisters.Size == Size8x8) ?
-					Registers.SpritePage | 0x0ff8 : 0x1ff8);
+				ReadWithA12((ControlRegisters.Size == Size8x8) ? Registers.SpritePage |
+					0x0ff8 : 0x1ff8);
 			else
 				Sprites[i].ShiftReg |=
 					ColourTable[ReadWithA12(InternalData.SpriteAddr | 0x08)] << 1;
@@ -613,8 +613,8 @@ inline void CPPU<_Bus, _Settings>::FetchSprite() {
 
 /* Загрузка битовых образов фона */
 template <class _Bus, class _Settings>
-inline void CPPU<_Bus, _Settings>::FetchBackground() {
-	switch (CycleData.CurCycle & 7) {
+inline void CPPU<_Bus, _Settings>::FetchBackground(int Cycle) {
+	switch (Cycle & 7) {
 		case 0: /* Символ чара */
 			Registers.ReadNT(Bus->ReadPPUMemory(Registers.GetNTAddress()));
 			break;
@@ -705,7 +705,7 @@ inline void CPPU<_Bus, _Settings>::FineRender(int Cycles) {
 		if (ControlRegisters.RenderingEnabled()) {
 			if (~CycleData.CurCycle & 1) {
 				//EvaluateSprites();
-				FetchBackground();
+				FetchBackground(CycleData.CurCycle);
 			}
 			if (CycleData.CurCycle == 251)
 				Registers.IncrementY();
@@ -787,7 +787,7 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 		WAIT_CYCLE_RANGE(320, 336) {
 			if (ControlRegisters.RenderingEnabled())
 				while (CycleData.CurCycle < std::min(336, CycleData.CyclesLeft)) {
-					FetchBackground();
+					FetchBackground(CycleData.CurCycle);
 					CycleData.CurCycle += 2;
 					if ((CycleData.CurCycle & 7) == 0) {
 						InternalData.ShiftReg = (InternalData.ShiftReg << 16) |
@@ -844,16 +844,7 @@ inline void CPPU<_Bus, _Settings>::Render(int Cycles) {
 		if (CycleData.CurCycle < 341 + 256) {
 			if (ControlRegisters.RenderingEnabled()) {
 				while (CycleData.CurCycle < std::min(341 + 256, CycleData.CyclesLeft)) {
-					switch (CycleData.CurCycle & 7) {
-						case 5: /* Name Table */
-							break;
-						case 7: /* Attribute Table */
-							break;
-						case 1: /* Pattern Table */
-						case 3: /* Pattern Table */
-							Bus->GetROM()->UpdatePPUAddress(Registers.GetPTPage());
-							break;
-					}
+					FetchBackground(CycleData.CurCycle + 3);
 					CycleData.CurCycle += 2;
 				}
 			} else

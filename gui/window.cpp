@@ -507,15 +507,14 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					ofn.hInstance = Instance;
 					ofn.lpstrFilter = "WAV file (*.wav)\0*.wav\0"
 						"All Files (*.*)\0*.*\0";
-					ofn.lpstrFile = FileNameBuf;
+					WAVFile[0] = '\0';
+					ofn.lpstrFile = WAVFile;
 					ofn.nMaxFile = VPNES_MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_LONGNAMES |
 						OFN_HIDEREADONLY;
 					ofn.lpstrDefExt = "wav";
-					if (::GetSaveFileName(&ofn)) {
-						strncpy(WAVFile, FileNameBuf, VPNES_MAX_PATH - 1);
+					if (::GetSaveFileName(&ofn))
 						ProcessAction(waWAVRecordStart);
-					}
 					ResetMouse();
 					break;
 				case ID_FILE_RECORDSTOP:
