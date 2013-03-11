@@ -36,7 +36,7 @@ namespace vpnes {
 
 namespace MMC5ID {
 
-//typedef MapperGroup<'E'>::Name<1>::ID::NoBatteryID ;
+typedef MapperGroup<'E'>::Name<1>::ID::NoBatteryID InternalDataID;
 
 }
 
@@ -47,10 +47,10 @@ class CMMC5: public CNROM<_Bus> {
 	using CNROM<_Bus>::CHR;
 	using CNROM<_Bus>::ROM;
 public:
-	
+	typedef DynamicSolderPad<_Bus> SolderPad;
 private:
 	/* Внутренник данные */
-	struct SInternalData {
+	struct SInternalData: public ManagerID<MMC5ID::InternalDataID> {
 		/* Защита памяти */
 		uint8 EnableWrite;
 		/* Режим переключения банков PRG */
@@ -67,10 +67,95 @@ private:
 			CHRSwitch_2k,
 			CHRSwitch_1k
 		} CHRSwitch;
+		/* Следим за спрайтами */
+		int SpriteWatch;
+		/* Следим за состоянием рендера */
+		int RenderWatch;
+		/* Флаг фрема */
+		bool InFrame;
+		/* Счетчик сканлайнов */
+		int Scanline;
+		/* Фаза рендеринга */
+		int RenderPhase;
+		/* Следим за фетчами PPU */
+		enum {
+			PPUFetch_BG,
+			PPUFetch_SP
+		} PPUFetch;
+		/* IRQ */
+		bool IRQEnabled;
+		bool IRQPending;
+		int IRQScanline;
 	} InternalData;
 public:
 	inline explicit CMMC5(_Bus *pBus, const ines::NES_ROM_Data *Data):
 		CNROM<_Bus>(pBus, Data) {
+		/* Обратная ссылка */
+		Bus->GetSolderPad()->Bus = pBus;
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
+		memset(&InternalData, 0, sizeof(InternalData));
+		InternalData.Scanline = -1;
+	}
+
+	/* Управление памятью PPU */
+	inline uint8 NTRead(uint16 Address) {
+		return static_cast<StaticSolderPad *>(Bus->GetSolderPad())->ReadPPUAddress(Address);
+	}
+	inline void NTWrite(uint16 Address, uint8 Src) {
+		static_cast<StaticSolderPad *>(Bus->GetSolderPad())->WritePPUAddress(Address, Src);
+	}
+
+	/* Обновление адреса на шине CPU — следим за записью */
+	inline void UpdateCPUBus(uint16 Address) {
+	}
+	inline void UpdateCPUBus(uint16 Address, uint8 Src) {
+		switch (Address & 0xf007) { /* Следим за PPU */
+			case 0x2000:
+				InternalData.SpriteWatch = Src & 0x20;
+				break;
+			case 0x2001:
+				InternalData.RenderWatch = Src & 0x18;
+				if (!InternalData.RenderWatch) { /* Сбрасываем флаги мгновенно */
+					InternalData.InFrame = false;
+					InternalData.Scanline = -1;
+					InternalData.RenderPhase = 0;
+				}
+				break;
+		}
+	}
+	/* Обновление адреса на шине PPU — следим за чтением */
+	inline void UpdatePPUBus(uint16 Address) {
+		if (!InternalData.RenderWatch)
+			return;
+		InternalData.InFrame = true; /* Попали на считывание — начало фрейма */
+		if ((InternalData.RenderPhase == 0) &&
+			(InternalData.Scanline == InternalData.IRQScanline)) {
+			InternalData.IRQPending = true;
+			if (InternalData.IRQEnabled)
+				Bus->GetCPU()->GenerateIRQ(Bus->GetPPU()->GetCycles() *
+					_Bus::PPUClass::ClockDivider);
+		}
+		InternalData.RenderPhase++;
+		if (InternalData.RenderPhase <= 128) {
+			InternalData.PPUFetch = SInternalData::PPUFetch_BG;
+			return;
+		}
+		if (InternalData.RenderPhase <= (128 + 16)) {
+			InternalData.PPUFetch = SInternalData::PPUFetch_SP;
+			return;
+		} else
+			InternalData.PPUFetch = SInternalData::PPUFetch_BG;
+		if (InternalData.RenderPhase == (128 + 16 + 8)) {
+			InternalData.RenderPhase = 0; /* Конец сканлайна */
+			InternalData.Scanline++;
+			if (InternalData.Scanline == 240) { /* Начало VBlank */
+				InternalData.InFrame = false;
+				InternalData.Scanline = -1;
+				return;
+			}
+		}
+	}
+	inline void UpdatePPUBus(uint16 Address, uint8 Src) {
 	}
 };
 
