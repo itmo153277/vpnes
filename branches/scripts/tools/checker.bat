@@ -51,7 +51,7 @@ GoTo :EOF
 Set /A VPNES_DIR_LEVEL=%VPNES_DIR_LEVEL%+1
 Call :NewScriptPrefix
 
-Echo %VPNES_PREFIX% Entering directory: %~1 1>&2
+Echo %VPNES_PREFIX% Entering directory: %1 1>&2
 PushD "%~1"
 
 :: Сначала обрабатываем все *.nes файлы 
@@ -62,12 +62,12 @@ Call :ProcessArchive *.zip *.7z *.rar
 
 :: Обрабатываем субдирректории
 For /F "delims=" %%A In ('dir /o /ad /b') Do (
- Set VPNES_TREE=%VPNES_TREE%%%~nxA\
+ Call :ConCatTree "%%~nxA\"
  Call :GoToFolder "%%~fA"
  Set VPNES_TREE=%VPNES_TREE%
 )
 
-Echo %VPNES_PREFIX% Leaving directory: %~1 1>&2
+Echo %VPNES_PREFIX% Leaving directory: %1 1>&2
 PopD
 
 Set /A VPNES_DIR_LEVEL=%VPNES_DIR_LEVEL%-1
@@ -87,7 +87,8 @@ GoTo :EOF
 :: Получение информации о файле
 :ProcessROM
 
-Set VPNES_ROMFILE=%VPNES_TREE%%~nx1
+Call :ConCat %VPNES_TREE% "%~nx1"
+Set VPNES_ROMFILE=%Result%
 
 Echo %VPNES_PREFIX% Found ROM: %VPNES_ROMFILE% 1>&2
 Call :Command rominfo "%~1"
@@ -105,10 +106,10 @@ GoTo :EOF
 :ProcessArchive
 
 For %%A In (%*) Do (
- Echo %VPNES_PREFIX% Found Archive: %%~fA 1>&2
+ Echo %VPNES_PREFIX% Found Archive: "%%~fA" 1>&2
  MkDir "%%~dpA\%%~nxA-temp"
  Call :CommandAndCheck 7z e "%%~fA" -o"%%~fA-temp" -r
- Set VPNES_TREE=%VPNES_TREE%[%%~nxA]\
+ Call :ConCatTree "<%%~nxA>\"
  Call :GoToFolder "%%~fA-temp"
  Call :CommandAndCheck RD /S /Q "%%~fA-temp"
  Set VPNES_TREE=%VPNES_TREE%
@@ -186,6 +187,21 @@ GoTo EnsureNoQuotes_l1
 :EnsureNoQuotes_l2
 
 If Not "%Result%" == "" Set Result=%Result:~1%
+
+GoTo :EOF
+
+:: Склеить строку с кавычками и VPNES_TREE
+:ConCatTree
+
+Call :ConCat %VPNES_TREE% %1
+Set VPNES_TREE=%Result%
+
+GoTo :EOF
+
+:: Склеить две строки
+:ConCat
+
+Set Result="%~1%~2"
 
 GoTo :EOF
 
