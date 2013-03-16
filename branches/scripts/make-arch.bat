@@ -6,17 +6,17 @@ If ErrorLevel 1 GoTo End
 
 Title Creating zip file
 
-If Not Exist vpnes-0.3 (
+If Not Exist vpnes-0.4 (
  Echo Source is not ready
  GoTo Error
 )
-If Exist vpnes-0.3-win32.zip Call :Command Del vpnes-0.3-win32.zip
-Call :Command C:\Progra~1\7-zip\7z a -tzip -mx9 vpnes-0.3-win32.zip vpnes-0.3
+If Exist vpnes-0.4-win32.zip Call :Command Del vpnes-0.4-win32.zip
+Call :Command C:\Progra~1\7-zip\7z a -tzip -mx9 vpnes-0.4-win32.zip vpnes-0.4
 If ErrorLevel 1 (
  Echo Failed to create zip file
  GoTo Error
 )
-Call :Command RmDir /S /Q vpnes-0.3
+Call :Command RmDir /S /Q vpnes-0.4
 
 Set BuildNumber=0
 
@@ -29,7 +29,7 @@ If Exist win32-builds\BUILD (
 Set /A NextBuildNumber=%BuildNumber% + 1
 Echo %NextBuildNumber% 1> win32-builds\BUILD 2> nul
 
-Call :Command Copy vpnes-0.3-win32.zip win32-builds\vpnes-0.3-win32-%BuildNumber%.zip
+Call :Command Copy vpnes-0.4-win32.zip win32-builds\vpnes-0.4-win32-%BuildNumber%.zip
 
 :Error
 Pause > nul

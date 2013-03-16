@@ -30,13 +30,5 @@ int main(int argc, char *argv[]) {
 		((Data.CHR == NULL) ? " RAM, System " : ", System ") << Data.Header.TVSystem <<
 		", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
 		", no trainer" : ", have trainer 512") << std::endl;
-	switch (Data.Header.Mapper) {
-		case 0:
-		case 1:
-		case 2:
-		case 4:
-		case 7:
-			return 0;
-	}
-	return -1;
+	return Data.Header.Mapper;
 }
