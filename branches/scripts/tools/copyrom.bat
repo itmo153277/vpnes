@@ -33,14 +33,13 @@ If "%~2" == "" GoTo Usage
 If Not Exist "%~2" Call :Command MkDir "%~2"
 
 Set CleanOnExit=
+Set CleanOnExitSize=0
 
 For /F "usebackq delims=" %%A In ("%~f1") Do (
  Call :CopyRom "%~f2" %%A 
 )
 
-For %%A In (%CleanOnExit%) Do (
- Call :Command RD /S /Q "%%~fA"
-)
+Call :CleanFiles
 
 GoTo ExitScript
 
@@ -53,6 +52,50 @@ Echo %VPNES_PREFIX% Usage: %VPNES_SCRIPT_NAME% listfile folder 1>&2
 Pause>nul
 
 EndLocal
+GoTo :EOF
+
+:: Очистка
+:CleanFiles
+
+:: При попытке рубить корень он будет исключен из списка и не будет удален
+:: даже после выхода 
+For %%A In (%CleanOnExit%) Do (
+ Call :Command RD /S /Q "%%~fA"
+)
+
+GoTo :EOF
+
+:: Добавить для очистки
+:AddClean
+
+Set TmpInt=0
+
+SetLocal EnableDelayedExpansion
+
+Set TmpStr=%~1
+
+For %%A In (4096 2048 1024 512 256 128 64 32 16 8 4 2 1) Do (
+ If Not "!TmpStr:~%%A,1!" == "" (
+  Set /A TmpInt=!TmpInt!+%%A
+  Set TmpStr=!TmpStr:~%%A!
+ )
+)
+
+(
+ EndLocal
+ Set TmpInt=%TmpInt%
+)
+
+Set /A CleanOnExitSize=%CleanOnExitSize%+%TmpInt%+3
+
+If %CleanOnExitSize% GEQ 4096 (
+ Call :CleanFiles
+ Set CleanOnExit="%~1"
+ Set /A CleanOnExitSize=%TmpInt%+2
+) Else (
+ Set CleanOnExit="%~1" %CleanOnExit%
+)
+
 GoTo :EOF
 
 :: Копировать образ
@@ -100,7 +143,7 @@ GoTo :EOF
 If Not Exist "%~f2-temp" (
  MkDir "%~f2-temp"
  Call :Command 7z e "%~f2" -o"%~f2-temp" -r
- Set CleanOnExit="%~f2-temp" %CleanOnExit%
+ Call :AddClean "%~f2-temp"
 )
 PushD "%~f2-temp"
 Call :CopyROM %1 %3
