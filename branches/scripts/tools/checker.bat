@@ -15,6 +15,12 @@ Echo iNES sort 1>&2
 Echo Version: 0.1 1>&2
 Echo. 1>&2
 
+If "%~1" == "" (
+ PushD "%CD%"
+) Else (
+ PushD "%~1"
+)
+
 Set VPNES_SCRIPT_PATH=%~dp0
 Set VPNES_SCRIPT_NAME=%~n0
 Set VPNES_TARGET_PATH=%CD%
@@ -39,6 +45,8 @@ Echo. 1>&2
 Echo %VPNES_PREFIX% All done 1>&2
 Echo. 1>&2
 Echo %VPNES_PREFIX% List file: %VPNES_TARGET_PATH%\list.txt 1>&2
+
+PopD
 
 Pause>nul
 
@@ -107,7 +115,7 @@ GoTo :EOF
 
 For %%A In (%*) Do (
  Echo %VPNES_PREFIX% Found Archive: "%%~fA" 1>&2
- MkDir "%%~dpA\%%~nxA-temp"
+ MkDir "%%~fA-temp"
  Call :CommandAndCheck 7z e "%%~fA" -o"%%~fA-temp" -r
  Call :ConCatTree "<%%~nxA>\"
  Call :GoToFolder "%%~fA-temp"
