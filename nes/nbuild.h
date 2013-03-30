@@ -107,7 +107,7 @@ struct NTSC_Settings {
 		OddSkip = 1 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
-	static inline void SkipPPUClock(int &Clocks) { Clocks++; }
+	static inline void SkipPPUClock(int &Clocks, int &Start) { Clocks++; Start--; }
 };
 
 /* PAL NES */
@@ -136,7 +136,7 @@ struct PAL_Settings {
 		OddSkip = 0 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
-	static inline void SkipPPUClock(int &Clocks) { }
+	static inline void SkipPPUClock(int &Clocks, int &Start) { }
 };
 
 /* Dendy */
@@ -165,7 +165,7 @@ struct Dendy_Settings {
 		OddSkip = 0 /* Число пропускаемых тактов на нечетных фреймах */
 	};
 	/* Обработка 337 такта на пре-сканлайне */
-	static inline void SkipPPUClock(int &Clocks) { }
+	static inline void SkipPPUClock(int &Clocks, int &Start) { }
 };
 
 /* Собрать стандартный NES */

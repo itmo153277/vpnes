@@ -497,7 +497,7 @@ public:
 	inline int GetCycles() const { return CycleData.Cycles; }
 	/* Выполнить NMI */
 	inline void GenerateNMI(int Cycles) {
-		int Interrupt = GetInterruptCycles(Cycles);
+		int Interrupt = GetInterruptCycles(Cycles) + 1;
 			
 		if ((CycleData.NMI < 0) || (Interrupt < CycleData.NMI))
 			CycleData.NMI = Interrupt;
@@ -523,6 +523,8 @@ public:
 	}
 	/* RAM */
 	inline const uint8 *GetRAM() const { return RAM; }
+	inline const int GetCyclesBeforeCERise() const { return Bus->GetClock()->GetPreCycles() - ClockDivider / 3; }
+	inline const int GetCyclesBeforeCEFall() const { return Bus->GetClock()->GetPreCycles(); }
 private:
 	/* Команды CPU */
 

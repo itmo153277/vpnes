@@ -824,8 +824,8 @@ public:
 				InternalData.DMA = 1;
 				Preprocess();
 				InternalData.DMA = 0;
-				Bus->GetPPU()->EnableDMA(Src);
-				Bus->GetPPU()->DoDMA();
+//				Bus->GetPPU()->EnableDMA(Src);
+//				Bus->GetPPU()->DoDMA();
 				return;
 			case 0x4015: /* Управление каналами */
 				Channels.Write_4015(Src);
