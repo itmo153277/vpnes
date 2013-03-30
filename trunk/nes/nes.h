@@ -192,7 +192,7 @@ public:
 		APU.Reset();
 		PPU.Reset();
 		APU.Clock(CPU.GetCycles());
-		PPU.Clock(CPU.GetCycles());
+		PPU.Clock(CPU.GetCycles() * BusClass::PPUClass::ClockDivider);
 		return 0;
 	}
 
