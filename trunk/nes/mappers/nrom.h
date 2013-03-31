@@ -28,8 +28,6 @@
 
 #include "../../types.h"
 
-#include <cstdio>
-
 #include <cstring>
 #include "../manager.h"
 #include "../bus.h"
@@ -140,11 +138,6 @@ public:
 	}
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
-		if (Address >= 0x6004) {
-			if (Src != 0)
-				putc(Src, stdout);
-			fflush(stdout);
-		}
 		if (RAM == NULL)
 			return;
 		if ((Address >= 0x6000) && (Address <= 0x7fff))

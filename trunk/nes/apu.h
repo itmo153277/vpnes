@@ -30,7 +30,7 @@
 
 #include <algorithm>
 #include <cstring>
-#include "aputables.h"
+#include "tables.h"
 #include "manager.h"
 #include "frontend.h"
 #include "bus.h"
