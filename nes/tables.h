@@ -19,12 +19,14 @@
 
 \****************************************************************************/
 
-#ifndef __APUTABLES_H_
-#define __APUTABLES_H_
+#ifndef __TABLES_H_
+#define __TABLES_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include "../types.h"
 
 namespace vpnes {
 
@@ -62,6 +64,15 @@ struct PAL_Tables: public NTSC_Tables {
 	/* Таблица длин для ДМ-канала */
 	static const int DMTable[16];
 };
+
+}
+
+namespace ppu {
+
+/* Таблицы для оптимизации рендеринга */
+extern const uint16 ColourTable[256];
+extern const uint16 AttributeTable[4];
+extern const uint8 FlipTable[256];
 
 }
 

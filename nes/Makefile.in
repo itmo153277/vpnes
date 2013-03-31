@@ -68,8 +68,8 @@ AR = ar
 ARFLAGS = cru
 libvpnes_a_AR = $(AR) $(ARFLAGS)
 libvpnes_a_LIBADD =
-am_libvpnes_a_OBJECTS = aputables.$(OBJEXT) ines.$(OBJEXT) \
-	libvpnes.$(OBJEXT) axrom.$(OBJEXT) cnrom.$(OBJEXT) \
+am_libvpnes_a_OBJECTS = ines.$(OBJEXT) libvpnes.$(OBJEXT) \
+	tables.$(OBJEXT) axrom.$(OBJEXT) cnrom.$(OBJEXT) \
 	mmc1.$(OBJEXT) mmc3.$(OBJEXT) mmc5.$(OBJEXT) nrom.$(OBJEXT) \
 	uxrom.$(OBJEXT)
 libvpnes_a_OBJECTS = $(am_libvpnes_a_OBJECTS)
@@ -203,7 +203,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes.a
-libvpnes_a_SOURCES = aputables.cpp ines.cpp libvpnes.cpp \
+libvpnes_a_SOURCES = ines.cpp libvpnes.cpp tables.cpp \
 	mappers/axrom.cpp \
 	mappers/cnrom.cpp \
 	mappers/mmc1.cpp \
@@ -212,8 +212,8 @@ libvpnes_a_SOURCES = aputables.cpp ines.cpp libvpnes.cpp \
 	mappers/nrom.cpp \
 	mappers/uxrom.cpp
 
-noinst_HEADERS = apu.h aputables.h bus.h clock.h cpu.h frontend.h ines.h libvpnes.h \
-                 manager.h mapper.h nbuild.h nes.h ppu.h \
+noinst_HEADERS = apu.h bus.h clock.h cpu.h frontend.h ines.h libvpnes.h \
+                 manager.h mapper.h nbuild.h nes.h ppu.h tables.h \
 	mappers/axrom.h \
 	mappers/cnrom.h \
 	mappers/mmc1.h \
@@ -270,7 +270,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aputables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/axrom.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cnrom.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ines.Po@am__quote@
@@ -279,6 +278,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mmc3.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mmc5.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nrom.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uxrom.Po@am__quote@
 
 .cpp.o:
