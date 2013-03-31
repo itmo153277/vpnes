@@ -48,6 +48,7 @@ typedef PPUGroup<6>::ID::NoBatteryID OAMID;
 typedef PPUGroup<7>::ID::NoBatteryID OAMSecID;
 typedef PPUGroup<8>::ID::NoBatteryID RenderDataID;
 typedef PPUGroup<9>::ID::NoBatteryID SpriteDataID;
+typedef PPUGroup<10>::ID::NoBatteryID DMADataID;
 
 }
 
@@ -129,6 +130,18 @@ private:
 		/* Затемнение */
 		int Tint;
 
+		/* Спрайт в зоне видимости */
+		inline bool SpriteInRange(int Scanline) {
+			if (Scanline == -1)
+				return false;
+			if (OAMBuf > 240)
+				return false;
+			if (OAMBuf > Scanline)
+				return false;
+			if ((Scanline - OAMBuf) >= SpriteSize)
+				return false;
+			return true;
+		}
 		/* Бит для 0-object hit */
 		inline void SetSprite0Hit() { State |= 0x40; }
 		/* VBlank */
@@ -139,7 +152,6 @@ private:
 		inline void SetOverflow() { State |= 0x20; }
 		/* Получить статус */
 		inline void ReadState() { Buf_Write = (Buf_Write & 0x1f) | State; }
-
 		/* Состояние рендеринга */
 		inline bool RenderingEnabled() {
 			return ShowBackground || ShowSprites;
@@ -200,6 +212,46 @@ private:
 		inline uint16 Get2007Address() {
 			return Addr_v & 0x3fff;
 		}
+		/* Получить адрес для спрайта */
+		inline uint16 GetSpriteAddress(int Scanline, uint8 *SpriteData) {
+			switch (SpriteSize) {
+				case Size8x8:
+					if (SpriteData[0] > 240)
+						return SpritePage | 0x0ff0;
+					if (SpriteData[2] & 0x80)
+						return SpritePage | (SpriteData[1] << 4) | (7 +
+							SpriteData[0] - Scanline);
+					else	
+						return SpritePage | (SpriteData[1] << 4) | (Scanline -
+							SpriteData[0]);
+					break;
+				case Size8x16:
+					if (SpriteData[0] > 240)
+						return 0x1ff0;
+					if (SpriteData[2] & 0x80) {
+						if ((Scanline - SpriteData[0]) > 7)
+							return ((SpriteData[1] & 0x01) << 12) |
+								((SpriteData[1] & 0xfe) << 4) | (15 +
+								SpriteData[0] - Scanline);
+						else
+							return ((SpriteData[1] & 0x01) << 12) |
+								((SpriteData[1] | 0x01) << 4) | (7 +
+								SpriteData[0] - Scanline);
+					} else {
+						if ((Scanline - SpriteData[0]) > 7)
+							return ((SpriteData[1] & 0x01) << 12) |
+								((SpriteData[1] | 0x01) << 4) | (Scanline -
+								SpriteData[0] + 8);
+						else
+							return ((SpriteData[1] & 0x01) << 12) |
+								((SpriteData[1] & 0xfe) << 4) | (Scanline -
+								SpriteData[0]);
+					}
+					break;
+			}
+			return 0x0000;
+		}
+		/* Цвет при отсутствии рендеринга */
 		inline uint8 GetDropColour() {
 			if (~Addr_v & 0x3f00)
 				return 0x00;
@@ -234,7 +286,7 @@ private:
 			Addr_v &= 0x7fff;
 		}
 		inline void UpdateScroll() {
-			Addr_v = (Addr_v & 0xfbe0) | (Addr_t & 0x041f);
+			Addr_v = (Addr_v & 0x7be0) | (Addr_t & 0x041f);
 		}
 	} InternalData;
 
@@ -251,6 +303,7 @@ private:
 		int TotalCycles; /* Всего тактов */
 		int Scanline; /* Текущий сканлайн */
 		int hClock; /* Текушая точка */
+		int sClock; /* Текуший такт для спрайтов */
 		int hStart; /* Начало сканлайна */
 
 		/* Вычесть такты */
@@ -280,7 +333,7 @@ private:
 		uint8 AR; /* Даные для подгрузки */
 
 		/* Синхроимульс */
-		void Clock() {
+		inline void Clock() {
 			BGReg <<= 2;
 			ARReg <<= 2;
 			ShiftCount++;
@@ -291,10 +344,32 @@ private:
 			}
 		}
 	} RenderData;
+	
+	/* Данные для выборки спрайтов */
+	struct SSpriteData: public ManagerID<PPUID::SpriteDataID> {
+		int n;
+		int m;
+		int l;
+		int Mode;
+		bool Prim;
+
+		inline void Reset() {
+			n = 0;
+			m = 0;
+			l = 0;
+			Mode = 0;
+			Prim = false;
+		}
+	} SpriteData;
 
 	/* Данные для спрайтов */
 	struct SSprite {
-		
+		int y;
+		int x;
+		int cx;
+		int Top;
+		uint16 ShiftReg;
+		uint8 Attrib;
 	} Sprites[8];
 
 	/* Обработка кадра завершена */
@@ -308,6 +383,14 @@ private:
 				y - Screen::Top, Colour, InternalData.Tint);
 		}
 	}
+
+	/* Данные для обработки DMA */
+	struct SDMAData: public ManagerID<PPUID::DMADataID> {
+		uint8 Latch; /* Буфер */
+		uint16 Address; /* Текущий адрес */
+		bool UseLatch; /* Использовать буфер */
+		int Left; /* Осталось */
+	} DMAData;
 
 	/* Получить адрес для палитры */
 	inline uint8 GetPALAddress(uint8 Colour, uint8 Attribute) {
@@ -369,11 +452,13 @@ public:
 		memset(OAM, 0xff, 0x0100 * sizeof(uint8));
 		OAM_sec = (uint8 *)
 			Bus->GetManager()->template GetPointer<ManagerID<PPUID::OAMSecID> >(\
-				0x40 * sizeof(uint8));
-		memset(OAM_sec, 0xff, 0x40 * sizeof(uint8));
+				0x20 * sizeof(uint8));
+		memset(OAM_sec, 0xff, 0x20 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
 		Bus->GetManager()->template SetPointer<SRenderData>(&RenderData);
+		Bus->GetManager()->template SetPointer<SSpriteData>(&SpriteData);
+		Bus->GetManager()->template SetPointer<SDMAData>(&DMAData);
 	}
 	inline ~CPPU() {}
 
@@ -477,13 +562,13 @@ public:
 			case 0x0004: /* Записать байт OAM */
 				PreRenderBeforeCEFall();
 				RenderSprites();
-				if (!InternalData.OAMLock)
+				if (InternalData.OAMLock)
 					Buf = InternalData.OAMBuf;
 				else if ((InternalData.OAMIndex & 0x03) == 0x02)
 					Buf = Src & 0x3e;
 				else
 					Buf = Src;
-				OAM[InternalData.OAMIndex] = Buf;
+				OAM[InternalData.OAMIndex++] = Buf;
 				break;
 			case 0x0005: /* Скорллинг */
 				InternalData.Trigger = !InternalData.Trigger;
@@ -508,6 +593,38 @@ public:
 				break;
 		}
 		PreRenderBeforeCEFall();
+	}
+
+	/* Включить DMA */
+	inline void EnableDMA(uint8 Page) {
+		PreRender();
+		RenderSprites();
+		DMAData.Address = Page << 8;
+		DMAData.Left = 256;
+	}
+	
+	inline void DoDMA() {
+		if (DMAData.Address < 0x2000) {
+			DMAData.Address &= 0x07ff;
+			if (InternalData.OAMIndex > 0) {
+				memcpy(OAM + InternalData.OAMIndex, Bus->GetCPU()->GetRAM() +
+					DMAData.Address, (0x0100 - InternalData.OAMIndex) *
+					sizeof(uint8));
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address + (0x0100 -
+					InternalData.OAMIndex), InternalData.OAMIndex * sizeof(uint8));
+			} else {
+				memcpy(OAM, Bus->GetCPU()->GetRAM() + DMAData.Address,
+					0x0100 * sizeof(uint8));
+			}
+			DMAData.Left = 0;
+		} else
+			do {
+				OAM[InternalData.OAMIndex] =
+					Bus->ReadCPUMemory(DMAData.Address);
+				InternalData.OAMIndex++;
+				DMAData.Address++;
+				DMAData.Left--;
+			} while (DMAData.Left > 0);
 	}
 
 	/* Флаг окончания рендеринга фрейма */
@@ -711,9 +828,11 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 				CycleData.hClock = std::min(340, hCycles);
 		}
 		WAIT_CYCLE(340) {
+			RenderSprites();
 			CycleData.Scanline++;
 			if (CycleData.InRender()) {
 				CycleData.hClock = 0;
+				CycleData.sClock = 0;
 				hCycles -= 341;
 				CycleData.hStart += 341;
 				continue;
@@ -730,6 +849,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 			InternalData.State = 0;
 			CycleData.Scanline = -1;
 			CycleData.hClock = 0;
+			CycleData.sClock = 0;
 			CycleData.hStart += 341;
 			hCycles -= 341;
 			continue;
@@ -759,6 +879,105 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 /* Рендеринг спрайтов */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::RenderSprites() {
+	int sCycles, Target;
+
+	sCycles = CycleData.CurCycle - CycleData.hStart;
+	while (sCycles > CycleData.sClock) {
+		if (InternalData.RenderingEnabled() && CycleData.InRender() &&
+			(CycleData.sClock < 256)) {
+			InternalData.OAMLock = true;
+			if (CycleData.sClock < 64) {
+				memset(OAM_sec + CycleData.sClock, 0xff, (std::min(64, sCycles) -
+					CycleData.sClock) >> 1);
+				InternalData.OAMBuf = 0xff;
+				CycleData.sClock = std::min(64, sCycles);
+			}
+			if (sCycles <= 64)
+				continue;
+			if (CycleData.sClock == 64)
+				SpriteData.Reset();
+			if (CycleData.sClock < 256) {
+				Target = std::min(256, sCycles);
+				while (CycleData.sClock < Target) {
+					if (~CycleData.sClock & 1)
+						InternalData.OAMBuf = OAM[InternalData.OAMIndex];
+					else switch (SpriteData.Mode) {
+						case 0:
+							if (InternalData.SpriteInRange(CycleData.Scanline)) {
+								OAM_sec[SpriteData.l] = InternalData.OAMBuf;
+								if (SpriteData.n == 0)
+									SpriteData.Prim = true;
+								SpriteData.l++;
+								InternalData.OAMIndex++;
+								SpriteData.Mode = 1;
+							} else {
+								SpriteData.n++;
+								InternalData.OAMIndex += 4;
+								if (SpriteData.n == 64)
+									SpriteData.Mode = 4;
+							}
+							break;
+						case 1:
+							OAM_sec[SpriteData.l] = InternalData.OAMBuf;
+							SpriteData.l++;
+							InternalData.OAMIndex++;
+							if (!(SpriteData.l & 3)) {
+								SpriteData.n++;
+								if (SpriteData.n == 64)
+									SpriteData.Mode = 4;
+								else if (SpriteData.l < 32)
+									SpriteData.Mode = 0;
+								else {
+									SpriteData.m = 0;
+									SpriteData.Mode = 2;
+								}
+							}
+							break;
+						case 2:
+							SpriteData.l = 1;
+							if (InternalData.SpriteInRange(CycleData.Scanline)) {
+								InternalData.SetOverflow();
+								SpriteData.Mode = 3;
+							} else {
+								SpriteData.n++;
+								SpriteData.m++;
+								InternalData.OAMIndex += 5;
+								if (SpriteData.m == 4) {
+									SpriteData.m = 0;
+									InternalData.OAMIndex -= 4;
+								}
+								if (SpriteData.n == 64)
+									SpriteData.Mode = 4;
+							}
+							break;
+						case 3:
+							SpriteData.l++;
+							SpriteData.m++;
+							InternalData.OAMIndex++;
+							if (SpriteData.m == 4)
+								SpriteData.n++;
+							if (SpriteData.n == 64)
+								SpriteData.Mode = 4;
+							else if (SpriteData.l == 4)
+								SpriteData.Mode = 2;
+							break;
+						case 4:
+							InternalData.OAMIndex += 4;
+							break;
+					}
+					CycleData.sClock++;
+					if (CycleData.sClock == 256)
+						InternalData.OAMIndex = 0;
+				}
+			} else {
+				InternalData.OAMLock = false;
+				CycleData.sClock = sCycles;
+			}
+		} else {
+			InternalData.OAMLock = false;
+			CycleData.sClock = sCycles;
+		}
+	}
 }
 
 /* Фетчинг */
@@ -773,6 +992,45 @@ void CPPU<_Bus, _Settings>::FetchCycle() {
 /* Фетчинг спрайтов */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>:: FetchSprite() {
+	int Index, Ptr;
+
+	if (~CycleData.hClock & 1)
+		UpdateAddressBus();
+	else  {
+		Index = (CycleData.hClock & 0xf8) >> 3;
+		Ptr = Index << 2;
+		switch (CycleData.hClock & 6) {
+			case 0:
+				break;
+			case 2:
+				InternalData.CalcAddr = InternalData.GetSpriteAddress(CycleData.Scanline,
+					OAM_sec + Ptr);
+				Sprites[Index].y = OAM_sec[Ptr];
+				Sprites[Index].x = OAM_sec[Ptr | 0x03];
+				Sprites[Index].Attrib = OAM_sec[Ptr | 0x02];
+				Sprites[Index].Top = ~OAM_sec[Ptr | 0x02] & 0x20;
+				if (Sprites[Index].y > 240)
+					Sprites[Index].cx = -1;
+				else
+					Sprites[Index].cx = 8;
+				break;
+			case 4:
+				if (OAM_sec[Ptr | 0x02] & 0x40)
+					Sprites[Index].ShiftReg = ppu::ColourTable[\
+						ppu::FlipTable[Bus->ReadPPUMemory(InternalData.CurAddrLine)]];
+				else
+					Sprites[Index].ShiftReg = ppu::ColourTable[\
+						Bus->ReadPPUMemory(InternalData.CurAddrLine)];
+				break;
+			case 6:
+				if (OAM_sec[Ptr | 0x02] & 0x40)
+					Sprites[Index].ShiftReg |= ppu::ColourTable[ppu::FlipTable[\
+						Bus->ReadPPUMemory(InternalData.CurAddrLine)]] << 1;
+				else
+					Sprites[Index].ShiftReg |= ppu::ColourTable[\
+						Bus->ReadPPUMemory(InternalData.CurAddrLine)] << 1;
+		}
+	}
 }
 
 /* Фетчинг фона */
@@ -800,7 +1058,9 @@ void CPPU<_Bus, _Settings>::FetchBackground() {
 /* Рендеринг точки */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::RenderPixel() {
+	int i, SIndex;
 	uint8 Colour;
+	uint8 Sprite;
 	uint16 Addr;
 
 	if (InternalData.ShowBackground && (InternalData.BackgroundClip ||
@@ -810,6 +1070,30 @@ void CPPU<_Bus, _Settings>::RenderPixel() {
 	} else {
 		Colour = 0;
 		Addr = 0;
+	}
+	Sprite = 0x10;
+	SIndex = 0;
+	for (i = 0; i < 8; i++)
+		if (Sprites[i].cx < 0)
+			break;
+		else if (Sprites[i].x == CycleData.hClock) {
+			if (Sprites[i].cx == 0)
+				continue;
+			Sprites[i].cx--;
+			Sprites[i].x++;
+			if (Sprite == 0x10) {
+				Sprite |= (Sprites[i].ShiftReg >> 14) & 0x03;
+				SIndex = i;
+			}
+			Sprites[i].ShiftReg <<= 2;
+		}
+	if ((Sprite != 0x10) && InternalData.ShowSprites &&
+		(InternalData.SpriteClip || (CycleData.hClock > 7))) {
+		if (!SIndex && SpriteData.Prim && (Colour != 0) && (CycleData.hClock < 255)) {
+			InternalData.SetSprite0Hit();
+		}
+		if ((Colour == 0) || Sprites[SIndex].Top)
+			Addr = GetPALAddress(Sprite, Sprites[SIndex].Attrib);
 	}
 	Colour = PalMem[Addr];
 	if (InternalData.Grayscale)
