@@ -49,6 +49,7 @@ typedef PPUGroup<7>::ID::NoBatteryID OAMSecID;
 typedef PPUGroup<8>::ID::NoBatteryID RenderDataID;
 typedef PPUGroup<9>::ID::NoBatteryID SpriteDataID;
 typedef PPUGroup<10>::ID::NoBatteryID DMADataID;
+typedef PPUGroup<11>::ID::NoBatteryID SpritesID;
 
 }
 
@@ -82,6 +83,8 @@ private:
 		uint16 CurAddrLine;
 		/* Рассчитанный адрес */
 		uint16 CalcAddr;
+		/* Байт для сохранения NT */
+		uint8 NTByte;
 		/* Адрес */
 		uint16 Addr_v;
 		/* Буфер адреса */
@@ -192,8 +195,8 @@ private:
 			Addr_t = (Addr_t & 0x7f00) | Src;
 		}
 		/* Чтение Nametable */
-		inline void ReadNT(uint8 Src) {
-			CalcAddr = BGPage | (Src << 4) | (Addr_v >> 12); 
+		inline void ReadNT() {
+			CalcAddr = BGPage | (NTByte << 4) | (Addr_v >> 12); 
 		}
 		/* Чтение атрибутов */
 		inline uint8 ReadAT(uint8 Src) {
@@ -459,6 +462,8 @@ public:
 		Bus->GetManager()->template SetPointer<SRenderData>(&RenderData);
 		Bus->GetManager()->template SetPointer<SSpriteData>(&SpriteData);
 		Bus->GetManager()->template SetPointer<SDMAData>(&DMAData);
+		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
+			&Sprites, sizeof(SSprite) * 8);
 	}
 	inline ~CPPU() {}
 
@@ -515,8 +520,11 @@ public:
 				RenderSprites();
 				if (InternalData.OAMLock)
 					InternalData.Buf_Write = InternalData.OAMBuf;
-				else
+				else {
 					InternalData.Buf_Write = OAM[InternalData.OAMIndex];
+					if ((InternalData.OAMIndex & 0x03) == 0x02)
+						InternalData.Buf_Write &= 0xe3;
+				}
 				break;
 			case 0x0007: /* PPU RAM I/O */
 				PreRenderBeforeCERise();
@@ -541,6 +549,7 @@ public:
 		InternalData.Buf_Write = Src;
 		switch (Address & 0x0007) {
 			case 0x0000: /* Управляющий регистр 1 */
+				RenderSprites();
 				OldNMI = !InternalData.GenerateNMI;
 				InternalData.Write2000(Src);
 				UpdateAddressBus();
@@ -563,8 +572,6 @@ public:
 				RenderSprites();
 				if (InternalData.OAMLock)
 					Buf = InternalData.OAMBuf;
-				else if ((InternalData.OAMIndex & 0x03) == 0x02)
-					Buf = Src & 0x3e;
 				else
 					Buf = Src;
 				OAM[InternalData.OAMIndex++] = Buf;
@@ -664,9 +671,15 @@ void CPPU<_Bus, _Settings>::UpdateAddressBus() {
 					InternalData.SetNTAddr();
 				break;
 			case 4:
+				if (((CycleData.hClock < 256) && (CycleData.Scanline != -1)) ||
+					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
+					InternalData.ReadNT();
 				InternalData.CurAddrLine = InternalData.CalcAddr & 0x3ff7;
 				break;
 			case 6:
+				if (((CycleData.hClock < 256) && (CycleData.Scanline != -1)) ||
+					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
+					InternalData.ReadNT();
 				InternalData.CurAddrLine = InternalData.CalcAddr | 0x0008;
 				break;
 		}
@@ -789,7 +802,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 			WAIT_CYCLE_RANGE(336, 340) {
 				Count = std::min(340, hCycles) - CycleData.hClock;
 				while (Count > 0) {
-					if ((CycleData.Scanline == -1) && (CycleData.hClock == 337) &&
+					if ((CycleData.Scanline == -1) && (CycleData.hClock == 338) &&
 						CycleData.OddFrame)
 						_Settings::SkipPPUClock(hCycles, CycleData.hStart);
 					FetchCycle();
@@ -883,7 +896,7 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 	if (InternalData.RenderingEnabled()) {
 		InternalData.OAMLock = true;
 		if (CycleData.sClock < 64) {
-			memset(OAM_sec + CycleData.sClock, 0xff, (std::min(64, sCycles) -
+			memset(OAM_sec + (CycleData.sClock >> 1), 0xff, (std::min(64, sCycles) -
 				CycleData.sClock) >> 1);
 			InternalData.OAMBuf = 0xff;
 			CycleData.sClock = std::min(64, sCycles);
@@ -1041,7 +1054,7 @@ void CPPU<_Bus, _Settings>::FetchBackground() {
 		UpdateAddressBus();
 	else switch (CycleData.hClock & 6) {
 		case 0:
-			InternalData.ReadNT(Bus->ReadPPUMemory(InternalData.CurAddrLine));
+			InternalData.NTByte = Bus->ReadPPUMemory(InternalData.CurAddrLine);
 			break;
 		case 2:
 			RenderData.AR = InternalData.ReadAT(Bus->ReadPPUMemory(InternalData.CurAddrLine));
