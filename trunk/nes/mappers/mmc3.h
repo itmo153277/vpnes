@@ -89,8 +89,7 @@ private:
 				else
 					IRQCounter--;
 				if ((IRQCounter == 0) && IRQEnable) {
-					pBus->GetCPU()->GenerateIRQ(pBus->GetPPU()->GetCycles() *
-						_Bus::PPUClass::ClockDivider);
+					pBus->GetCPU()->GenerateIRQ(pBus->GetPPU()->GetCycles());
 				}
 			} else
 				IgnoreAccess = false;
