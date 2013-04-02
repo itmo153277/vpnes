@@ -372,8 +372,33 @@ private:
 		int cx;
 		int Top;
 		uint16 ShiftReg;
+		uint16 Address;
 		uint8 Attrib;
 	} Sprites[8];
+	
+	/* Обновить информацию о спрайтах */
+	inline void RefillSprites() {
+		int Index;
+
+		for (Index = 0; Index < 8; Index++) {
+			Sprites[Index].Address = InternalData.GetSpriteAddress(\
+				CycleData.Scanline, OAM_sec + (Index << 2));
+		}
+	}
+	/* Регистры сдвига у спрайтов */
+	inline void ClockSprites() {
+		int Index;
+
+		for (Index = 0; Index < 8; Index++) {
+			if (Sprites[Index].cx < 0)
+				break;
+			if ((Sprites[Index].cx < 8) && (Sprites[Index].cx > 0)) {
+				Sprites[Index].cx--;
+				Sprites[Index].x++;
+				Sprites[Index].ShiftReg <<= 2;
+			}
+		}
+	}
 
 	/* Обработка кадра завершена */
 	bool FrameReady;
@@ -552,7 +577,10 @@ public:
 				RenderSprites();
 				OldNMI = !InternalData.GenerateNMI;
 				InternalData.Write2000(Src);
-				UpdateAddressBus();
+				if (InternalData.RenderingEnabled() && CycleData.InRender()) {
+					RefillSprites();
+					UpdateAddressBus();
+				}
 				PreRenderBeforeCEFall();
 				if (InternalData.GenerateNMI && OldNMI && InternalData.GetVBlank())
 					Bus->GetCPU()->GenerateNMI(GetCycles());
@@ -590,7 +618,8 @@ public:
 				else
 					InternalData.Write2006_2(Src);
 				PreRenderBeforeCEFall();
-				CycleData.Cycle2006 = CycleData.CurCycle + 1;
+				if (!InternalData.Trigger)
+					CycleData.Cycle2006 = CycleData.CurCycle + 1;
 				break;
 			case 0x0007: /* PPU RAM I/O */
 				PreRenderBeforeCEFall();
@@ -674,12 +703,18 @@ void CPPU<_Bus, _Settings>::UpdateAddressBus() {
 				if (((CycleData.hClock < 256) && (CycleData.Scanline != -1)) ||
 					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
 					InternalData.ReadNT();
+				else
+					InternalData.CalcAddr =
+						Sprites[(CycleData.hClock & 0xf8) >> 3].Address;
 				InternalData.CurAddrLine = InternalData.CalcAddr & 0x3ff7;
 				break;
 			case 6:
 				if (((CycleData.hClock < 256) && (CycleData.Scanline != -1)) ||
 					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
 					InternalData.ReadNT();
+				else
+					InternalData.CalcAddr =
+						Sprites[(CycleData.hClock & 0xf8) >> 3].Address;
 				InternalData.CurAddrLine = InternalData.CalcAddr | 0x0008;
 				break;
 		}
@@ -820,6 +855,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 					Count = std::min(256, hCycles) - CycleData.hClock;
 					while (Count > 0) {
 						RenderData.Clock();
+						ClockSprites();
 						OutputPixel(CycleData.hClock, CycleData.Scanline, Colour);
 						Count--;
 						CycleData.hClock++;
@@ -888,7 +924,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 /* Рендеринг спрайтов */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::RenderSprites() {
-	int sCycles, Target;
+	int sCycles, Target, Index, Ptr;
 
 	if (CycleData.sClock >= 256)
 		return;
@@ -981,6 +1017,18 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 			if (CycleData.sClock == 256) {
 				InternalData.OAMIndex = 0;
 				InternalData.OAMLock = false;
+				RefillSprites();
+				Ptr = 0;
+				for (Index = 0; Index < 8; Index++, Ptr += 4)  {
+					Sprites[Index].y = OAM_sec[Ptr];
+					Sprites[Index].x = OAM_sec[Ptr | 0x03];
+					Sprites[Index].Attrib = OAM_sec[Ptr | 0x02];
+					Sprites[Index].Top = ~OAM_sec[Ptr | 0x02] & 0x20;
+					if (Sprites[Index].y > 240)
+						Sprites[Index].cx = -1;
+					else
+						Sprites[Index].cx = 8;
+				}
 			}
 		}
 	} else {
@@ -1014,20 +1062,6 @@ void CPPU<_Bus, _Settings>:: FetchSprite() {
 		Index = (CycleData.hClock & 0xf8) >> 3;
 		Ptr = Index << 2;
 		switch (CycleData.hClock & 6) {
-			case 0:
-				break;
-			case 2:
-				InternalData.CalcAddr = InternalData.GetSpriteAddress(CycleData.Scanline,
-					OAM_sec + Ptr);
-				Sprites[Index].y = OAM_sec[Ptr];
-				Sprites[Index].x = OAM_sec[Ptr | 0x03];
-				Sprites[Index].Attrib = OAM_sec[Ptr | 0x02];
-				Sprites[Index].Top = ~OAM_sec[Ptr | 0x02] & 0x20;
-				if (Sprites[Index].y > 240)
-					Sprites[Index].cx = -1;
-				else
-					Sprites[Index].cx = 8;
-				break;
 			case 4:
 				if (OAM_sec[Ptr | 0x02] & 0x40)
 					Sprites[Index].ShiftReg = ppu::ColourTable[\
