@@ -157,7 +157,7 @@ public:
 				if (InternalData.MuxAddr > 5) /* PRG select */
 					InternalData.PRGBanks[InternalData.MuxAddr & 0x01] = Src << 13;
 				else {
-					Bus->GetPPU()->PreRender();
+					Bus->GetPPU()->PreRenderBeforeCERise();
 					Src &= CHRMask;
 					if (InternalData.MuxAddr < 2) {
 						InternalData.CHRBanks[InternalData.MuxAddr << 1] =
@@ -170,7 +170,7 @@ public:
 							Src << 10;
 				}
 			} else { /* Bank Select */
-				Bus->GetPPU()->PreRender();
+				Bus->GetPPU()->PreRenderBeforeCERise();
 				if (Src & 0x80)
 					InternalData.CHRSwitch = SInternalData::CHRSwitch_42;
 				else
@@ -187,7 +187,7 @@ public:
 					InternalData.EnableRAM = Src & 0x80;
 					InternalData.EnableWrite = ~Src & 0x40;
 				} else { /* Mirroring */
-					Bus->GetPPU()->PreRender();
+					Bus->GetPPU()->PreRenderBeforeCERise();
 					if (Src & 0x01)
 						Bus->GetSolderPad()->Mirroring = ines::Horizontal;
 					else
@@ -195,7 +195,7 @@ public:
 				}
 			}
 		} else {
-			Bus->GetPPU()->PreRender();
+			Bus->GetPPU()->PreRenderBeforeCERise();
 			if (Address < 0xe000) {
 				if (Address & 0x0001) { /* IRQ Clear */
 					IRQCircuit.IRQCounter = 0;
