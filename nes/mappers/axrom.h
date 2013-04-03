@@ -52,7 +52,7 @@ public:
 		else {
 			PRGData.PRGLow = ((Src & 0x07) << 15);
 			PRGData.PRGHi = PRGData.PRGLow + 0x4000;
-			Bus->GetPPU()->PreRender();
+			Bus->GetPPU()->PreRenderBeforeCERise();
 			if (Src & 0x10)
 				Bus->GetSolderPad()->Mirroring = ines::SingleScreen_2;
 			else

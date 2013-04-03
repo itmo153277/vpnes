@@ -205,6 +205,7 @@ private:
 		/* Установить адрес для NT */
 		inline void SetNTAddr() {
 			CurAddrLine = (Addr_v & 0x0fff) | 0x2000;
+			NTByte = 0x00;
 		}
 		/* Установить адрес для AT */
 		inline void SetATAddr() {
@@ -344,6 +345,8 @@ private:
 				ShiftCount = 0;
 				BGReg |= ppu::ColourTable[TileA] | (ppu::ColourTable[TileB] << 1);
 				ARReg |= ppu::AttributeTable[AR];
+				TileA = 0x00;
+				TileB = 0x00;
 			}
 		}
 	} RenderData;
@@ -507,8 +510,7 @@ public:
 	}
 	/* Предобработка полного цикла записи CPU */
 	inline void PreRender() {
-		PreRenderBeforeCERise();
-		PreRenderBeforeCEFall();
+		Render(Bus->GetClock()->GetPreCycles(), false);
 	}
 
 	/* Текущий такт (относительно CPU) */
@@ -586,8 +588,8 @@ public:
 					Bus->GetCPU()->GenerateNMI(GetCycles());
 				break;
 			case 0x0001: /* Управляющий регистр 2 */
-				PreRenderBeforeCEFall();
 				InternalData.Write2001(Src);
+				PreRenderBeforeCEFall();
 				UpdateAddressBus();
 				break;
 			case 0x0003: /* Установить указатель OAM */

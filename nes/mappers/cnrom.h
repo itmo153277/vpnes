@@ -64,8 +64,10 @@ public:
 	inline void WriteAddress(uint16 Address, uint8 Src) {
 		if (Address < 0x8000)
 			CNROM<_Bus>::WriteAddress(Address, Src);
-		else
+		else {
+			Bus->GetPPU()->PreRenderBeforeCERise();
 			CHRBank = ((Src & SwitchMask) << 13);
+		}
 	}
 
 	/* Чтение памяти PPU */

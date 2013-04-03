@@ -181,7 +181,7 @@ public:
 			InternalData.ShiftReg |= (Src & 0x01) << InternalData.ShiftCounter;
 			InternalData.ShiftCounter++;
 			if (InternalData.ShiftCounter == 5) {
-				Bus->GetPPU()->PreRender();
+				Bus->GetPPU()->PreRenderBeforeCERise();
 				InternalData.ShiftCounter = 0;
 				if (Address < 0xa000) { /* Control */
 					if (InternalData.ShiftReg & 0x10) {
