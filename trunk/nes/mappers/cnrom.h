@@ -57,7 +57,7 @@ public:
 		Bus->GetManager()->template SetPointer<ManagerID<CNROMID::CHRBankID> >(&CHRBank,
 			sizeof(int));
 		SwitchMask = mapper::GetMask(ROM->Header.CHRSize) >> 13;
-		CHRBank = SwitchMask;
+		CHRBank = 0;
 	}
 
 	/* Запись памяти */
