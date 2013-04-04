@@ -184,15 +184,10 @@ public:
 				Bus->GetPPU()->PreRenderBeforeCERise();
 				InternalData.ShiftCounter = 0;
 				if (Address < 0xa000) { /* Control */
-					if (InternalData.ShiftReg & 0x10) {
-						if (InternalData.CHRSwitch == SInternalData::CHRSwitch_8k)
-							InternalData.CHRBanks[1] = InternalData.CHRBanks[0] | 0x1000;
+					if (InternalData.ShiftReg & 0x10)
 						InternalData.CHRSwitch = SInternalData::CHRSwitch_4k;
-					} else {
-						if (InternalData.CHRSwitch == SInternalData::CHRSwitch_4k)
-							InternalData.CHRBanks[0] &= ~0x1000;
+					else 
 						InternalData.CHRSwitch = SInternalData::CHRSwitch_8k;
-					}
 					switch (InternalData.ShiftReg & 0x0c) {
 						case 0x00:
 						case 0x04:
