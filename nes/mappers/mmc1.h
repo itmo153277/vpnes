@@ -218,9 +218,6 @@ public:
 					switch (InternalData.Mode) {
 						case SInternalData::MMC1_Normal:
 							InternalData.CHRBanks[0] = InternalData.ShiftReg << 12;
-							if (InternalData.CHRSwitch ==
-								SInternalData::CHRSwitch_8k)
-								InternalData.CHRBanks[0] &= ~0x1000;
 							break;
 						case SInternalData::MMC1_SNROM:
 							if (InternalData.CHRSwitch ==
@@ -307,7 +304,8 @@ public:
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		if (Address < 0x1000)
-			return CHR[(InternalData.CHRBanks[0] | Address) & CHRMask];
+			return CHR[(InternalData.CHRBanks[0] | Address) &
+				~(InternalData.CHRSwitch << 12) & CHRMask];
 		else
 			return CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
 				(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) & CHRMask];
@@ -316,7 +314,8 @@ public:
 	inline void WritePPUAddress(uint16 Address, uint8 Src) {
 		if (ROM->CHR == NULL) {
 			if (Address < 0x1000)
-				CHR[(InternalData.CHRBanks[0] | Address) & CHRMask] = Src;
+				CHR[(InternalData.CHRBanks[0] | Address) &
+					~(InternalData.CHRSwitch << 12) & CHRMask] = Src;
 			else
 				CHR[(InternalData.CHRBanks[InternalData.CHRSwitch ^ 1] |
 					(InternalData.CHRSwitch << 12) | (Address & 0x0fff)) &

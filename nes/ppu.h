@@ -353,18 +353,22 @@ private:
 	
 	/* Данные для выборки спрайтов */
 	struct SSpriteData: public ManagerID<PPUID::SpriteDataID> {
-		int n;
-		int m;
-		int l;
-		int Mode;
-		bool Prim;
+		bool Stress; /* Стрессовая ситуация */
+		int Count; /* Число спрайтов */
+		int Index; /* Индекс при записи */
+		int Mode; /* Режим поиска */
+		int Delay; /* Пропустили тактов при заполнении OAM_sec */
+		bool Overflow; /* Переход за пределы */
+		bool Prim; /* Флаг 0-object на этом сканлайне */
+		bool PrimNext; /* Флаг 0-object для следующего сканлайна */
 
+		/* Сброс значений */
 		inline void Reset() {
-			n = 0;
-			m = 0;
-			l = 0;
+			Count = 0;
 			Mode = 0;
-			Prim = false;
+			Index = 0;
+			Overflow = false;
+			PrimNext = false;
 		}
 	} SpriteData;
 
@@ -393,7 +397,7 @@ private:
 
 		for (Index = 0; Index < 8; Index++) {
 			if (Sprites[Index].cx < 0)
-				break;
+				continue;
 			if ((Sprites[Index].cx < 8) && (Sprites[Index].cx > 0)) {
 				Sprites[Index].cx--;
 				Sprites[Index].x++;
@@ -529,6 +533,7 @@ public:
 		memset(&InternalData, 0, sizeof(SInternalData));
 		InternalData.FHIndex = 0x1e;
 		memset(&RenderData, 0, sizeof(SRenderData));
+		memset(&SpriteData, 0, sizeof(SSpriteData));
 	}
 
 	/* Чтение памяти */
@@ -593,9 +598,12 @@ public:
 				UpdateAddressBus();
 				break;
 			case 0x0003: /* Установить указатель OAM */
-				PreRenderBeforeCEFall();
 				RenderSprites();
 				InternalData.OAMIndex = Src;
+				SpriteData.Stress = true;
+				PreRenderBeforeCEFall();
+				RenderSprites();
+				SpriteData.Stress = false;
 				break;
 			case 0x0004: /* Записать байт OAM */
 				PreRenderBeforeCEFall();
@@ -884,6 +892,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 			if (CycleData.InRender()) {
 				CycleData.hClock = 0;
 				CycleData.sClock = 0;
+				SpriteData.Delay = 0;
 				hCycles -= 341;
 				CycleData.hStart += 341;
 				continue;
@@ -901,6 +910,7 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 			CycleData.Scanline = -1;
 			CycleData.hClock = 0;
 			CycleData.sClock = 0;
+			SpriteData.Delay = 0;
 			CycleData.hStart += 341;
 			hCycles -= 341;
 			continue;
@@ -934,8 +944,8 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 	if (InternalData.RenderingEnabled()) {
 		InternalData.OAMLock = true;
 		if (CycleData.sClock < 64) {
-			memset(OAM_sec + (CycleData.sClock >> 1), 0xff, (std::min(64, sCycles) -
-				CycleData.sClock) >> 1);
+			memset(OAM_sec + ((CycleData.sClock - SpriteData.Delay) >> 1), 0xff,
+				(std::min(64, sCycles) - CycleData.sClock) >> 1);
 			InternalData.OAMBuf = 0xff;
 			CycleData.sClock = std::min(64, sCycles);
 		}
@@ -946,72 +956,88 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 		if (CycleData.sClock < 256) {
 			Target = std::min(256, sCycles);
 			while (CycleData.sClock < Target) {
-				if (~CycleData.sClock & 1)
-					InternalData.OAMBuf = OAM[InternalData.OAMIndex];
-				else switch (SpriteData.Mode) {
-					case 0:
+				if (~CycleData.sClock & 1) {
+					if (SpriteData.Stress) /* При стрессе сходим с ума */
+						switch (SpriteData.Mode) {
+						case 0:
+						case 2:
+						case 4:
+							InternalData.OAMBuf = *OAM; /* addr = 0?! */
+							break;
+						case 1:
+						case 3: /* addr &= 0xf0?! */
+							InternalData.OAMBuf = OAM[InternalData.OAMIndex & 0xf0];
+							break;
+						}
+					else
+						InternalData.OAMBuf = OAM[InternalData.OAMIndex];
+				} else switch (SpriteData.Mode) {
+					case 0: /* Режим поиска видимых спрайтов */
 						if (InternalData.SpriteInRange(CycleData.Scanline)) {
-							OAM_sec[SpriteData.l] = InternalData.OAMBuf;
-							if (SpriteData.n == 0)
-								SpriteData.Prim = true;
-							SpriteData.l++;
-							InternalData.OAMIndex++;
+							OAM_sec[SpriteData.Index] = InternalData.OAMBuf;
+							if (CycleData.sClock == 65)
+								SpriteData.PrimNext = true;
+							if (!SpriteData.Stress)
+								InternalData.OAMIndex++;
+							SpriteData.Index++;
 							SpriteData.Mode = 1;
-						} else {
-							SpriteData.n++;
-							InternalData.OAMIndex += 4;
-							if (SpriteData.n == 64)
+						} else if (!SpriteData.Stress) {
+							InternalData.OAMIndex = (InternalData.OAMIndex & 0xfc) + 4;
+							if (InternalData.OAMIndex < 4)
 								SpriteData.Mode = 4;
 						}
 						break;
-					case 1:
-						OAM_sec[SpriteData.l] = InternalData.OAMBuf;
-						SpriteData.l++;
-						InternalData.OAMIndex++;
-						if (!(SpriteData.l & 3)) {
-							SpriteData.n++;
-							if (SpriteData.n == 64)
+					case 1: /* Копирование данных в буфер */
+						OAM_sec[SpriteData.Index] = InternalData.OAMBuf;
+						SpriteData.Index++;
+						if (!SpriteData.Stress) {
+							InternalData.OAMIndex++;
+							if (InternalData.OAMIndex == 0)
+								SpriteData.Overflow = true;
+						}
+						if (!(SpriteData.Index & 3)) {
+							if (SpriteData.Overflow)
 								SpriteData.Mode = 4;
-							else if (SpriteData.l < 32)
+							else if (SpriteData.Index < 32)
 								SpriteData.Mode = 0;
 							else {
-								SpriteData.m = 0;
+								SpriteData.Index = 0;
 								SpriteData.Mode = 2;
 							}
 						}
 						break;
-					case 2:
-						SpriteData.l = 1;
+					case 2: /* Режим переполнения */
 						if (InternalData.SpriteInRange(CycleData.Scanline)) {
 							InternalData.SetOverflow();
 							SpriteData.Mode = 3;
+							SpriteData.Index = 0;
 						} else {
-							SpriteData.n++;
-							SpriteData.m++;
-							if (SpriteData.m == 4) {
-								SpriteData.m = 0;
-								InternalData.OAMIndex++;
-							} else
-								InternalData.OAMIndex += 5;
-							if (SpriteData.n == 64)
-								SpriteData.Mode = 4;
+							if (SpriteData.Stress) {
+								SpriteData.Index++;
+								if (SpriteData.Index == 4)
+									SpriteData.Index = 0;
+							} else {
+								SpriteData.Index++;
+								if (SpriteData.Index == 4) {
+									SpriteData.Index = 0;
+									InternalData.OAMIndex++;
+								} else
+									InternalData.OAMIndex += 5;
+								if (InternalData.OAMIndex < 4)
+									SpriteData.Mode = 4;
+							}
 						}
 						break;
-					case 3:
-						SpriteData.l++;
-						SpriteData.m++;
-						InternalData.OAMIndex++;
-						if (SpriteData.m == 4) {
-							SpriteData.m = 0;
-							SpriteData.n++;
-						}
-						if (SpriteData.n == 64)
+					case 3: /* Режим нерабочего копирования */
+						SpriteData.Index++;
+						if (!SpriteData.Stress)
+							InternalData.OAMIndex++;
+						if (SpriteData.Index == 3)
 							SpriteData.Mode = 4;
-						else if (SpriteData.l == 4)
-							SpriteData.Mode = 2;
 						break;
-					case 4:
-						InternalData.OAMIndex += 4;
+					case 4: /* Режим отсечения */
+						if (!SpriteData.Stress)
+							InternalData.OAMIndex = (InternalData.OAMIndex & 0xfc) + 4;
 						break;
 				}
 				CycleData.sClock++;
@@ -1030,14 +1056,18 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 						Sprites[Index].cx = 8;
 				}
 				RefillSprites();
+				SpriteData.Prim = SpriteData.PrimNext;
 			}
 		}
 	} else {
 		InternalData.OAMLock = false;
 		if (CycleData.sClock < 64) {
+			SpriteData.Delay += sCycles - CycleData.sClock;
 			CycleData.sClock = std::min(64, sCycles);
-			if (CycleData.sClock == 64)
+			if (CycleData.sClock == 64) {
 				SpriteData.Reset();
+				SpriteData.Mode = 4; /* Не можем определять спрайты, если пропустили такт */
+			}
 		}
 		CycleData.sClock = sCycles;
 	}
@@ -1124,7 +1154,7 @@ void CPPU<_Bus, _Settings>::RenderPixel() {
 	SIndex = 0;
 	for (i = 0; i < 8; i++)
 		if (Sprites[i].cx < 0)
-			break;
+			continue;
 		else if (Sprites[i].x == CycleData.hClock) {
 			if (Sprites[i].cx == 0)
 				continue;
