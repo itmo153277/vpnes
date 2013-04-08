@@ -77,6 +77,19 @@ private:
 	uint8 *OAM;
 	/* Видимые спрайты */
 	uint8 *OAM_sec;
+
+	/* Данные для спрайтов */
+	struct SSprite {
+		int y;
+		int x;
+		int sx;
+		int cx;
+		int Top;
+		uint16 ShiftReg;
+		uint8 Attrib;
+		uint8 Tile;
+	} Sprites[8];
+
 	/* Внутренние данные */
 	struct SInternalData: public ManagerID<PPUID::InternalDataID> {
 		/* Текущий адрес на шине */
@@ -217,39 +230,39 @@ private:
 			return Addr_v & 0x3fff;
 		}
 		/* Получить адрес для спрайта */
-		inline uint16 GetSpriteAddress(int Scanline, uint8 *SpriteData) {
+		inline uint16 GetSpriteAddress(int Scanline, SSprite &Sprite) {
 			switch (SpriteSize) {
 				case Size8x8:
-					if (SpriteData[0] > 240)
+					if (Sprite.y > 240)
 						return SpritePage | 0x0ff0;
-					if (SpriteData[2] & 0x80)
-						return SpritePage | (SpriteData[1] << 4) | (7 +
-							SpriteData[0] - Scanline);
+					if (Sprite.Attrib & 0x80)
+						return SpritePage | (Sprite.Tile << 4) | (7 +
+							Sprite.y - Scanline);
 					else	
-						return SpritePage | (SpriteData[1] << 4) | (Scanline -
-							SpriteData[0]);
+						return SpritePage | (Sprite.Tile << 4) | (Scanline -
+							Sprite.y);
 					break;
 				case Size8x16:
-					if (SpriteData[0] > 240)
+					if (Sprite.y > 240)
 						return 0x1ff0;
-					if (SpriteData[2] & 0x80) {
-						if ((Scanline - SpriteData[0]) > 7)
-							return ((SpriteData[1] & 0x01) << 12) |
-								((SpriteData[1] & 0xfe) << 4) | (15 +
-								SpriteData[0] - Scanline);
+					if (Sprite.Attrib & 0x80) {
+						if ((Scanline - Sprite.y) > 7)
+							return ((Sprite.Tile & 0x01) << 12) |
+								((Sprite.Tile & 0xfe) << 4) | (15 +
+								Sprite.y - Scanline);
 						else
-							return ((SpriteData[1] & 0x01) << 12) |
-								((SpriteData[1] | 0x01) << 4) | (7 +
-								SpriteData[0] - Scanline);
+							return ((Sprite.Tile & 0x01) << 12) |
+								((Sprite.Tile | 0x01) << 4) | (7 +
+								Sprite.y - Scanline);
 					} else {
-						if ((Scanline - SpriteData[0]) > 7)
-							return ((SpriteData[1] & 0x01) << 12) |
-								((SpriteData[1] | 0x01) << 4) | (Scanline -
-								SpriteData[0] + 8);
+						if ((Scanline - Sprite.y) > 7)
+							return ((Sprite.Tile & 0x01) << 12) |
+								((Sprite.Tile | 0x01) << 4) | (Scanline -
+								Sprite.y + 8);
 						else
-							return ((SpriteData[1] & 0x01) << 12) |
-								((SpriteData[1] & 0xfe) << 4) | (Scanline -
-								SpriteData[0]);
+							return ((Sprite.Tile & 0x01) << 12) |
+								((Sprite.Tile & 0xfe) << 4) | (Scanline -
+								Sprite.y);
 					}
 					break;
 			}
@@ -372,25 +385,6 @@ private:
 		}
 	} SpriteData;
 
-	/* Данные для спрайтов */
-	struct SSprite {
-		int x;
-		int cx;
-		int Top;
-		uint16 ShiftReg;
-		uint16 Address;
-		uint8 Attrib;
-	} Sprites[8];
-	
-	/* Обновить информацию о спрайтах */
-	inline void RefillSprites() {
-		int Index;
-
-		for (Index = 0; Index < 8; Index++) {
-			Sprites[Index].Address = InternalData.GetSpriteAddress(\
-				CycleData.Scanline, OAM_sec + (Index << 2));
-		}
-	}
 	/* Регистры сдвига у спрайтов */
 	inline void ClockSprites() {
 		int Index;
@@ -534,6 +528,7 @@ public:
 		InternalData.FHIndex = 0x1e;
 		memset(&RenderData, 0, sizeof(SRenderData));
 		memset(&SpriteData, 0, sizeof(SSpriteData));
+		memset(Sprites, 0, sizeof(SSprite) * 8);
 	}
 
 	/* Чтение памяти */
@@ -584,9 +579,6 @@ public:
 				RenderSprites();
 				OldNMI = !InternalData.GenerateNMI;
 				InternalData.Write2000(Src);
-				if (InternalData.RenderingEnabled() && CycleData.InRender() &&
-					(CycleData.hClock >= 256))
-					RefillSprites();
 				UpdateAddressBus();
 				PreRenderBeforeCEFall();
 				if (InternalData.GenerateNMI && OldNMI && InternalData.GetVBlank())
@@ -713,18 +705,24 @@ void CPPU<_Bus, _Settings>::UpdateAddressBus() {
 				if ((CycleData.hClock < 256) ||
 					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
 					InternalData.ReadNT();
-				else
+				else {
+					RenderSprites();
 					InternalData.CalcAddr =
-						Sprites[(CycleData.hClock & 0xf8) >> 3].Address;
+						InternalData.GetSpriteAddress(CycleData.Scanline,
+							Sprites[(CycleData.hClock & 0xf8) >> 3]);
+				}
 				InternalData.CurAddrLine = InternalData.CalcAddr & 0x3ff7;
 				break;
 			case 6:
 				if ((CycleData.hClock < 256) ||
 					((CycleData.hClock >= 320) && (CycleData.hClock < 336)))
 					InternalData.ReadNT();
-				else
+				else {
+					RenderSprites();
 					InternalData.CalcAddr =
-						Sprites[(CycleData.hClock & 0xf8) >> 3].Address;
+						InternalData.GetSpriteAddress(CycleData.Scanline,
+							Sprites[(CycleData.hClock & 0xf8) >> 3]);
+				}
 				InternalData.CurAddrLine = InternalData.CalcAddr | 0x0008;
 				break;
 		}
@@ -936,12 +934,12 @@ void CPPU<_Bus, _Settings>::RenderBG(int Cycles) {
 /* Рендеринг спрайтов */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::RenderSprites() {
-	int sCycles, Target, Index, Ptr;
+	int sCycles, Target, Index, Ptr, Clock;
 
-	if (CycleData.sClock >= 256)
+	if (CycleData.sClock >= 341)
 		return;
 	sCycles = CycleData.CurCycle - CycleData.hStart;
-	if (InternalData.RenderingEnabled()) {
+	if (InternalData.RenderingEnabled() && CycleData.InRender()) {
 		InternalData.OAMLock = true;
 		if (CycleData.sClock < 64) {
 			memset(OAM_sec + ((CycleData.sClock - SpriteData.Delay) >> 1), 0xff,
@@ -957,20 +955,12 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 			Target = std::min(256, sCycles);
 			while (CycleData.sClock < Target) {
 				if (~CycleData.sClock & 1) {
-					if (SpriteData.Stress) /* При стрессе сходим с ума */
-						switch (SpriteData.Mode) {
-						case 0:
-						case 2:
-						case 4:
-							InternalData.OAMBuf = *OAM; /* addr = 0?! */
-							break;
-						case 1:
-						case 3: /* addr &= 0xf0?! */
-							InternalData.OAMBuf = OAM[InternalData.OAMIndex & 0xf0];
-							break;
-						}
-					else
-						InternalData.OAMBuf = OAM[InternalData.OAMIndex];
+					/* В стрессовой ситуации OAMIndex &= 0x0f или OAMIndex &= 0xf0 */
+					/* Не уверен, что это способно повлиять на чтение (адрес к тому */
+					/* времени будет перезаписан) */
+					InternalData.OAMBuf = OAM[InternalData.OAMIndex];
+					if ((InternalData.OAMIndex & 0x03) == 0x02)
+						InternalData.OAMBuf &= 0xe3;
 				} else switch (SpriteData.Mode) {
 					case 0: /* Режим поиска видимых спрайтов */
 						if (InternalData.SpriteInRange(CycleData.Scanline)) {
@@ -998,12 +988,12 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 						if (!(SpriteData.Index & 3)) {
 							if (SpriteData.Overflow)
 								SpriteData.Mode = 4;
-							else if (SpriteData.Index < 32)
+							else if (SpriteData.Index < 32) {
 								SpriteData.Mode = 0;
-							else {
-								SpriteData.Index = 0;
+								if (!SpriteData.Stress)
+									InternalData.OAMIndex &= 0xfc;
+							} else
 								SpriteData.Mode = 2;
-							}
 						}
 						break;
 					case 2: /* Режим переполнения */
@@ -1012,17 +1002,10 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 							SpriteData.Mode = 3;
 							SpriteData.Index = 0;
 						} else {
-							if (SpriteData.Stress) {
-								SpriteData.Index++;
-								if (SpriteData.Index == 4)
-									SpriteData.Index = 0;
-							} else {
-								SpriteData.Index++;
-								if (SpriteData.Index == 4) {
-									SpriteData.Index = 0;
-									InternalData.OAMIndex++;
-								} else
-									InternalData.OAMIndex += 5;
+							if (!SpriteData.Stress) {
+								InternalData.OAMIndex++;
+								if (InternalData.OAMIndex & 0x03)
+									InternalData.OAMIndex += 4;
 								if (InternalData.OAMIndex < 4)
 									SpriteData.Mode = 4;
 							}
@@ -1036,6 +1019,7 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 							SpriteData.Mode = 4;
 						break;
 					case 4: /* Режим отсечения */
+						InternalData.OAMBuf = OAM_sec[0x00];
 						if (!SpriteData.Stress)
 							InternalData.OAMIndex = (InternalData.OAMIndex & 0xfc) + 4;
 						break;
@@ -1044,21 +1028,50 @@ void CPPU<_Bus, _Settings>::RenderSprites() {
 			}
 			if (CycleData.sClock == 256) {
 				InternalData.OAMIndex = 0;
-				InternalData.OAMLock = false;
-				Ptr = 0;
-				for (Index = 0; Index < 8; Index++, Ptr += 4)  {
-					Sprites[Index].x = OAM_sec[Ptr | 0x03];
-					Sprites[Index].Attrib = OAM_sec[Ptr | 0x02];
-					Sprites[Index].Top = ~OAM_sec[Ptr | 0x02] & 0x20;
-					if (OAM_sec[Ptr] > 240)
-						Sprites[Index].cx = -1;
-					else
-						Sprites[Index].cx = 8;
-				}
-				RefillSprites();
 				SpriteData.Prim = SpriteData.PrimNext;
+				for (Index = 0; Index < 8; Index++) {
+					Sprites[Index].cx = -1;
+					Sprites[Index].x = Sprites[Index].sx;
+					Sprites[Index].ShiftReg = 0;
+				}
 			}
 		}
+		if ((sCycles > 256) && (sCycles <= 320)) {
+			Target = std::min(320, sCycles);
+			while (CycleData.sClock < Target) {
+				if (~CycleData.sClock & 0x04) {
+					Index = (CycleData.sClock & 0xf8) >> 3;
+					Ptr = Index << 2;
+					Clock = 256 + (Index << 3);
+					if (CycleData.sClock == Clock) {
+						Sprites[Index].y = OAM_sec[Ptr];
+						if (Sprites[Index].y <= 240)
+							Sprites[Index].cx = 8;
+						CycleData.sClock++;
+					}
+					Clock++;
+					if ((CycleData.sClock == Clock) && (Target > Clock)) {
+						Sprites[Index].Tile = OAM_sec[Ptr | 0x01];
+						CycleData.sClock++;
+					}
+					Clock++;
+					if ((CycleData.sClock == Clock) && (Target > Clock)) {
+						Sprites[Index].Attrib = OAM_sec[Ptr | 0x02];
+						Sprites[Index].Top = ~OAM_sec[Ptr | 0x02] & 0x20;
+						CycleData.sClock++;
+					}
+					Clock++;
+					if ((CycleData.sClock == Clock) && (Target > Clock)) {
+						Sprites[Index].sx = OAM_sec[Ptr | 0x03];
+						Sprites[Index].x = Sprites[Index].sx;
+						CycleData.sClock++;
+					}
+					InternalData.OAMBuf = OAM_sec[Ptr + ((CycleData.sClock - 1) & 0x03)];
+				} else
+					CycleData.sClock = (CycleData.sClock & 0x1fc) + 4;
+			}
+		} else
+			InternalData.OAMBuf = OAM_sec[0x00];
 	} else {
 		InternalData.OAMLock = false;
 		if (CycleData.sClock < 64) {
@@ -1085,16 +1098,15 @@ void CPPU<_Bus, _Settings>::FetchCycle() {
 /* Фетчинг спрайтов */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>:: FetchSprite() {
-	int Index, Ptr;
+	int Index;
 
 	if (~CycleData.hClock & 1)
 		UpdateAddressBus();
 	else  {
 		Index = (CycleData.hClock & 0xf8) >> 3;
-		Ptr = Index << 2;
 		switch (CycleData.hClock & 6) {
 			case 4:
-				if (OAM_sec[Ptr | 0x02] & 0x40)
+				if (Sprites[Index].Attrib & 0x40)
 					Sprites[Index].ShiftReg = ppu::ColourTable[\
 						ppu::FlipTable[Bus->ReadPPUMemory(InternalData.CurAddrLine)]];
 				else
@@ -1102,7 +1114,7 @@ void CPPU<_Bus, _Settings>:: FetchSprite() {
 						Bus->ReadPPUMemory(InternalData.CurAddrLine)];
 				break;
 			case 6:
-				if (OAM_sec[Ptr | 0x02] & 0x40)
+				if (Sprites[Index].Attrib & 0x40)
 					Sprites[Index].ShiftReg |= ppu::ColourTable[ppu::FlipTable[\
 						Bus->ReadPPUMemory(InternalData.CurAddrLine)]] << 1;
 				else
