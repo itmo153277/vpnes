@@ -19,13 +19,4 @@
 
 \****************************************************************************/
 
-#include "uxrom.h"
-#include "../nbuild.h"
-
-namespace vpnes {
-
-CNESConfig *UxROM_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type) {
-	return BuildStdNES<CUxROM>(Data, Type);
-}
-
-}
+#include "neslib.h"

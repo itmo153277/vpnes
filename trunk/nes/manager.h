@@ -266,9 +266,6 @@ struct ManagerID {
 			return 0;
 		}
 		static inline int SaveMemory(std::ostream &State, void *p, size_t Size) {
-			uint32 s = Size;
-
-			State.write((char *) &s, sizeof(s));
 			State.write((char *) p, Size);
 			return 0;
 		}
@@ -325,7 +322,6 @@ inline int CMemoryManager::LoadMemory(std::istream &State) {
 	MemoryVec::iterator iter;
 	char ID[7];
 	uint32 Size;
-	bool Skip;
 	int Res = 0;
 
 	for (;;) {
@@ -337,16 +333,14 @@ inline int CMemoryManager::LoadMemory(std::istream &State) {
 		State.read((char *) &Size, sizeof(Size));
 		if (State.fail())
 			return -1;
-		Skip = true;
 		if (CompareID<_ID>(ID))
 			for (iter = MemoryBlocks.begin(); iter != MemoryBlocks.end(); iter++)
 				if (((*iter)->p != NULL) && (!strcmp(ID, (*iter)->ID)) &&
 					((*iter)->Size == Size)) {
 					(*iter)->LoadMemory(State);
-					Skip = false;
 					break;
 				}
-		if (Skip) {
+		if (iter == MemoryBlocks.end()) {
 			State.seekg(Size, std::ios_base::cur);
 			Res = -1;
 		}
@@ -358,6 +352,7 @@ inline int CMemoryManager::LoadMemory(std::istream &State) {
 template <class _ID>
 inline int CMemoryManager::SaveMemory(std::ostream &State) {
 	MemoryVec::iterator iter;
+	uint32 Size;
 
 	for (iter = MemoryBlocks.begin();; iter++) {
 		iter = find_if(iter, MemoryBlocks.end(), MemoryCompare<_ID>);
@@ -366,6 +361,8 @@ inline int CMemoryManager::SaveMemory(std::ostream &State) {
 		if ((*iter)->p == NULL)
 			continue;
 		State.write((*iter)->ID, (strlen((*iter)->ID) + 1) * sizeof(char));
+		Size = (*iter)->Size;
+		State.write(&Size, sizeof(uint32));
 		(*iter)->SaveMemory(State);
 	}
 	return State.fail() ? -1 : 0;

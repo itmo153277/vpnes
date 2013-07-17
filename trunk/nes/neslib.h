@@ -19,13 +19,11 @@
 
 \****************************************************************************/
 
-#include "axrom.h"
-#include "../nbuild.h"
+#ifndef __NESLIB_H_
+#define __NESLIB_H_
 
-namespace vpnes {
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-CNESConfig *AxROM_Config (const ines::NES_ROM_Data *Data, ines::NES_Type Type) {
-	return BuildStdNES<CAxROM>(Data, Type);
-}
-
-}
+#endif

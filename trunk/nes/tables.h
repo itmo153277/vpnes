@@ -65,6 +65,12 @@ struct PAL_Tables: public NTSC_Tables {
 	static const int DMTable[16];
 };
 
+/* Таблицы для клонов */
+struct Buggy_Tables: public NTSC_Tables {
+	/* Таблица формы */
+	static const bool DutyTable[32];
+};
+
 }
 
 namespace ppu {
