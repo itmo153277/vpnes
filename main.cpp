@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
 	std::clog << "License: GPL v2" << std::endl;
 #endif
 	std::clog << std::internal << std::hex << std::showbase;
+	std::cout << std::internal << std::hex << std::showbase;
 	if (argc >= 2)
 		FileName = argv[1];
 	try {

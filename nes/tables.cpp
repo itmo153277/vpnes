@@ -127,6 +127,15 @@ const int PAL_Tables::DMTable[16] = {
 	176, 148, 132, 118,  98,  78,  66,  50
 };
 
+/* Buggy clones */
+
+/* Таблица формы */
+const bool Buggy_Tables::DutyTable[32] = {
+	false, true,  false, false, false, false, false, false, false, true,  true,  true,
+	true,  false, false, false, false, true,  true,  false, false, false, false, false,
+	true,  false, false, true,  true,  true,  true,  true
+};
+
 }
 
 namespace ppu {
@@ -161,7 +170,7 @@ const uint16 ColourTable[256] = {
 	0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555
 };
 
-/* Таблица для преобразования аттрибутов */
+/* Таблица для преобразования атрибутов */
 const uint16 AttributeTable[4] = {
 	0x0000, 0x5555, 0xaaaa, 0xffff
 };

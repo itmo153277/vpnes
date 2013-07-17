@@ -76,7 +76,7 @@ protected:
 		b[1] = 1 - RA * (RC + 0.0226779 * RS);
 	}
 public:
-	inline explicit CAudioFrontend() {
+	inline CAudioFrontend() {
 		Volume = 1.0;
 		Reset();
 	}
@@ -141,7 +141,7 @@ protected:
 	/* Палитра */
 	uint32 *Pal;
 public:
-	inline explicit CVideoFrontend() {}
+	inline CVideoFrontend() {}
 	inline virtual ~CVideoFrontend() {}
 
 	/* Вывести картинку на экран */
@@ -165,23 +165,37 @@ protected:
 	uint8 OutputMask;
 	/* Буфер ввода */
 	uint8 *Buf;
+	/* Буфер для турбо */
+	bool *Turbo;
 	/* Длина буфера */
 	int Length;
 	/* Текущая позиция */
 	int *Pos;
+	/* Значение открытой шины */
+	int DefaultValue;
+	/* Значение для турбо */
+	int TurboValue;
+	/* Инкремент */
+	int *Increment;
 	/* Внутренняя память */
 	SInternalMemory InternalMemory;
 public:
-	inline explicit CInputFrontend() {}
+	inline CInputFrontend() {}
 	inline virtual ~CInputFrontend() {}
 
 	/* Стробирующий сигнал */
 	virtual void InputSignal(uint8 Signal) = 0;
 	/* Чтение устройства */
 	inline uint8 ReadState() {
+		uint8 RetVal;
+
 		if (*Pos >= Length)
-			return 0x40 | OutputMask; /* Открытая шина */
-		return (0x40 & ~OutputMask) | (Buf[(*Pos)++] & OutputMask);
+			return DefaultValue; /* Открытая шина */
+		RetVal = Buf[*Pos];
+		if (Turbo[*Pos])
+			Buf[*Pos] ^= TurboValue;
+		*Pos += *Increment;
+		return RetVal;
 	}
 	/* Параметры внутреннней памяти */
 	inline const SInternalMemory * const GetInternalMemory() const { return &InternalMemory; }
@@ -202,21 +216,31 @@ public:
 		ButtonRight = 7
 	};
 private:
+	/* Крестовина */
+	uint8 Cross[2];
+	/* Память контроллера */
 	struct SInternalData {
 		int Pos;
+		int Increment;
 		uint8 Strobe;
 	} InternalData;
 public:
-	inline explicit CStdController() {
+	inline CStdController() {
 		InternalMemory.RAM = &InternalData;
 		InternalMemory.Size = sizeof(SInternalData);
 		Buf = new uint8[8];
-		memset(Buf, 0x00, 8 * sizeof(uint8));
+		memset(Buf, 0x40, 8 * sizeof(uint8));
+		memset(Cross, 0x40, 2 * sizeof(uint8));
+		Turbo = new bool[8];
+		memset(Turbo, 0x00, 8 * sizeof(bool));
 		Pos = &InternalData.Pos;
+		Increment = &InternalData.Increment;
 		InternalData.Pos = 0;
-		Length = 8;
-		OutputMask = 0x01;
+		InternalData.Increment = 1;
 		InternalData.Strobe = 0x00;
+		Length = 8;
+		TurboValue = 0x01;
+		DefaultValue = 0x41;
 	}
 	inline ~CStdController() {
 		delete [] Buf;
@@ -224,43 +248,67 @@ public:
 
 	/* Стробирующий сигнал */
 	void InputSignal(uint8 Signal) {
-		if (!(Signal & 0x01) && (InternalData.Strobe & 0x01))
+		if (Signal & 0x01) {
 			InternalData.Pos = 0;
+			InternalData.Increment = 0;
+		} else if (InternalData.Strobe & 0x01)
+			InternalData.Increment = 1;
 		InternalData.Strobe = Signal;
 	}
 
 	/* Управление кнопками */
 	inline void PushButton(ButtonName Button) {
+		if (Turbo[Button])
+			return;
 		Buf[Button] |= 0x01;
 		if (Button >= ButtonUp) {
 			/* Запрещаем нажимать на весь крестик */
 			if (Buf[ButtonUp] && Buf[ButtonDown]) {
-				Buf[ButtonUp] = 0x02;
-				Buf[ButtonDown] = 0x02;
+				Buf[ButtonUp] = 0x40;
+				Buf[ButtonDown] = 0x40;
+				Cross[0] = 0x41;
 			}
 			if (Buf[ButtonLeft] && Buf[ButtonRight]) {
-				Buf[ButtonLeft] = 0x02;
-				Buf[ButtonRight] = 0x02;
+				Buf[ButtonLeft] = 0x40;
+				Buf[ButtonRight] = 0x40;
+				Cross[1] = 0x41;
 			}
 		}
 	}
 	inline void PopButton(ButtonName Button) {
-		Buf[Button] &= 0xfc;
+		if (Turbo[Button])
+			return;
+		Buf[Button] &= 0xfe;
 		switch (Button) {
 			case ButtonUp:
-				Buf[ButtonDown] >>= 1;
+				Buf[ButtonDown] = Cross[0];
+				Cross[0] = 0x40;
 				break;
 			case ButtonDown:
-				Buf[ButtonUp] >>= 1;
+				Buf[ButtonUp] = Cross[0];
+				Cross[0] = 0x40;
 				break;
 			case ButtonLeft:
-				Buf[ButtonRight] >>= 1;
+				Buf[ButtonRight] = Cross[1];
+				Cross[1] = 0x40;
 				break;
 			case ButtonRight:
-				Buf[ButtonLeft] >>= 1;
+				Buf[ButtonLeft] = Cross[1];
+				Cross[1] = 0x40;
 				break;
 			default:
 				break;
+		}
+	}
+	/* Турбо кнопки */
+	inline void PushTurboButton(ButtonName Button) {
+		if ((Button == ButtonA) || (Button == ButtonB)) {
+			Turbo[Button] = true;
+		}
+	}
+	inline void PopTurboButton(ButtonName Button) {
+		if ((Button == ButtonA) || (Button == ButtonB)) {
+			Turbo[Button] = false;
 		}
 	}
 };
@@ -277,7 +325,7 @@ protected:
 	/* Интерфейс ввода 2 */
 	CInputFrontend *Input2Frontend;
 public:
-	inline explicit CNESFrontend() {}
+	inline CNESFrontend() {}
 	inline virtual ~CNESFrontend() {}
 
 	/* Интерфейс аудио */
