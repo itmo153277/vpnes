@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include "manager.h"
+#include "clock.h"
 #include "frontend.h"
 
 namespace vpnes {
@@ -43,6 +44,8 @@ class CBasicNES {
 protected:
 	/* Мендеджер памяти */
 	CMemoryManager Manager;
+	/* Часы */
+	CClock Clock;
 public:
 	inline CBasicNES() {}
 	inline virtual ~CBasicNES() {
@@ -60,7 +63,11 @@ public:
 	}
 	/* Загрузить энергонезависимую память */
 	inline int LoadButteryBackedMemory(std::istream &RamFile) {
-		return Manager.LoadMemory<BatteryGroupID>(RamFile);
+		int RetVal = Manager.LoadMemory<BatteryGroupID>(RamFile);
+
+		/* Обновление списка исходя из новых данных*/
+		Clock.UpdateList();
+		return RetVal;
 	}
 	/* Сохранить текущее состояние */
 	inline int SaveState(std::ostream &RamFile) {
@@ -68,7 +75,11 @@ public:
 	}
 	/* Загрузить текущее состояние */
 	inline int LoadState(std::istream &RamFile) {
-		return Manager.LoadMemory<DynamicGroupID>(RamFile);
+		int RetVal = Manager.LoadMemory<DynamicGroupID>(RamFile);
+
+		/* Обновление списка исходя из новых данных*/
+		Clock.UpdateList();
+		return RetVal;
 	}
 };
 
