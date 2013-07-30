@@ -48,6 +48,9 @@ private:
 		/* Memory Dump */
 		virtual int LoadMemory(std::istream &State) = 0;
 		virtual int SaveMemory(std::ostream &State) = 0;
+
+		inline SMemory() {}
+		inline virtual ~SMemory() {}
 	};
 	/* Adapter */
 	template <class T>
@@ -362,7 +365,7 @@ inline int CMemoryManager::SaveMemory(std::ostream &State) {
 			continue;
 		State.write((*iter)->ID, (strlen((*iter)->ID) + 1) * sizeof(char));
 		Size = (*iter)->Size;
-		State.write(&Size, sizeof(uint32));
+		State.write((char *) &Size, sizeof(uint32));
 		(*iter)->SaveMemory(State);
 	}
 	return State.fail() ? -1 : 0;

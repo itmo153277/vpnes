@@ -26,4 +26,73 @@
 #include "config.h"
 #endif
 
+#include <vector>
+
+namespace vpnes {
+
+/* Данные события */
+struct SEventData {
+	bool Enabled; /* Активно */
+	int Time; /* Время события */
+};
+
+/* Событие */
+struct SEvent {
+	SEvent *Previous; /* Предыдущее событие */
+	SEvent *Next; /* Следующее событие */
+	SEventData *Data; /* Данные события */
+	/* Выполнить */
+	virtual void Execute() = 0;
+
+	inline SEvent() {}
+	inline virtual ~SEvent() {}
+};
+
+/* Часы */
+class CClock {
+public:
+	typedef std::vector<SEvent *> EventCollection;
+private:
+	/* Коллекция событий */
+	EventCollection Events;
+	/* Последнее активное событие */
+	SEvent *Last;
+	/* Первое активное событие */
+	SEvent *First;
+	/* Флаг остановки */
+	bool Terminated;
+	/* Текущее время */
+	int Time;
+	/* Ближайшее событие */
+	int NextEventTime;
+public:
+	CClock();
+	virtual ~CClock();
+
+	/* Зарегестрировать событие */
+	void RegisterEvent(SEvent *Event);
+	/* Активировать событие */
+	void EnableEvent(SEvent *Event);
+	/* Деактивировать событие */
+	void DisableEvent(SEvent *Event);
+	/* Установить время */
+	inline void SetEventTime(SEvent *Event, int Time) {
+		Event->Data->Time = Time;
+		if (NextEventTime > Time)
+			NextEventTime = Time;
+	}
+	/* Обновить список */
+	void UpdateList();
+	/* Запустить часы */
+	void Start();
+	/* Сбросить часы */
+	void Reset(int ResetTime);
+
+	inline void Terminate() { Terminated = true; }
+	inline const bool &IsTerminated() const { return Terminated; }
+	inline const int &GetTime() const { return Time; }
+};
+
+}
+
 #endif
