@@ -26,4 +26,86 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include "frontend.h"
+#include "manager.h"
+#include "clock.h"
+
+namespace vpnes {
+
+/* Базовый класс шины */
+template <class _CPU,
+          class _APU,
+          class _PPU,
+          class _MMC>
+class CBus_Basic {
+public:
+	typedef _CPU CPUClass;
+	typedef _APU APUClass;
+	typedef _PPU PPUClass;
+	typedef _MMC MMCClass;
+private:
+	/* Интерфейс NES */
+	CNESFrontend *Frontend;
+	/* Менеджер памяти */
+	CMemoryManager *Manager;
+	/* Часы */
+	CClock *Clock;
+	/* CPU */
+	CPUClass *CPU;
+	/* APU */
+	APUClass *APU;
+	/* PPU */
+	PPUClass *PPU;
+	/* MMC */
+	MMCClass *MMC;
+public:
+	inline CBus_Basic(CNESFrontend *pFrontend, CMemoryManager *pManager, CClock *pClock):
+		Frontend(pFrontend), Manager(pManager), Clock(pClock) {
+	}
+	inline virtual ~CBus_Basic() {}
+
+	/* Обращение к памяти CPU */
+	inline uint8 ReadCPU(uint16 Address) {
+		MMC->UpdateCPUBus(Address);
+		if (Address < 0x2000) /* CPU internal RAM */
+			return CPU->ReadByte(Address);
+		if (Address < 0x4000) /* PPU registers */
+			return PPU->ReadByte(Address);
+		if (Address < 0x4018) /* APU registers */
+			return APU->ReadByte(Address);
+		else /* Mapper */
+			return MMC->ReadByte(Address);
+	}
+	inline void WriteCPU(uint16 Address, uint8 Src) {
+		MMC->UpdateCPUBus(Address, Src);
+		if (Address < 0x2000) /* CPU internal RAM */
+			CPU->WriteByte(Address, Src);
+		else if (Address < 0x4000) /* PPU registers */
+			PPU->WriteByte(Address, Src);
+		else if (Address < 0x4018) /* APU registers */
+			APU->WriteByte(Address, Src);
+		/* MMC */
+		MMC->WriteByte(Address, Src);
+	}
+
+	/* Интерфейс NES */
+	inline CNESFrontend * const &GetFrontend() const { return Frontend; }
+	/* Менеджер памяти */
+	inline CMemoryManager * const &GetManager() const { return Manager; }
+	/* Часы */
+	inline CClock * const &GetClock() { return Clock; }
+	/* CPU */
+	inline CPUClass *&GetCPU() { return CPU; }
+	/* APU */
+	inline APUClass *&GetAPU() { return APU; }
+	/* PPU */
+	inline PPUClass *&GetPPU() { return PPU; }
+	/* MMC */
+	inline MMCClass *&GetMMC() { return MMC; }
+};
+
+}
+
 #endif
