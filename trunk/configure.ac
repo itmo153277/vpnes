@@ -1,11 +1,12 @@
 AC_PREREQ([2.68])
 
 AC_INIT([vpnes], [0.4], [viktprog@gmail.com])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
-AC_COPYRIGHT([Copyright (c) 2012-2013 Ivanov Viktor])
-AC_REVISION([rev15])
+AC_COPYRIGHT([Copyright (c) 2012-2014 Ivanov Viktor])
+AC_REVISION([rev16])
 
 AC_CANONICAL_HOST
 
@@ -31,6 +32,8 @@ case ${host_os} in
 	CFLAGS="-mwin32 $CFLAGS"
 	CXXFLAGS="-mwin32 $CXXFLAGS"
 esac
+
+AX_CXX_COMPILE_STDCXX_11([], [optional])
 
 AC_ARG_VAR([RCC], [resource compiler command])
 AC_ARG_VAR([RCFLAGS], [resource compiler flags])
@@ -92,14 +95,18 @@ AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
 
 dnl C++ standards
 AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib algorithm vector istream \
-	iostream iomanip fstream sstream], [], [AC_MSG_ERROR([required headers not found])], [ ])
+	iostream iomanip fstream sstream], [], [AC_MSG_ERROR([required headers not found])], [])
 
 if test "x$host_os_windows" = "xyes" ; then
 	LIBS="-luser32 $LIBS"
-	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])], [ ])
+	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])], [])
 fi
 
 #Compilator characterics
+
+if test "x$HAVE_CXX11" = "x1" ; then
+	AX_CXX_HAVE_FUNCTION
+fi
 
 #Functions
 
