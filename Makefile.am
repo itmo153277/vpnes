@@ -1,3 +1,4 @@
+ACLOCAL_AMFLAGS=-I m4
 SUBDIRS = gui nes
 bin_PROGRAMS = vpnes
 vpnes_SOURCES = main.cpp
