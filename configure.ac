@@ -6,7 +6,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012-2014 Ivanov Viktor])
-AC_REVISION([rev16])
+AC_REVISION([rev17])
 
 AC_CANONICAL_HOST
 
@@ -46,6 +46,12 @@ fi
 dnl Проверки не работают с C++
 
 AC_LANG_PUSH([C])
+
+can_use_check="no"
+
+AM_PATH_CHECK([0.9.0], [can_use_check="yes"], [PKG_CHECK_MODULES([CHECK], [CHECK >= 0.9.0],
+	[can_use_check="yes"], [AC_MSG_WARN([Check not found; cannot run unit tests!])])])
+AM_CONDITIONAL([CHECK], [test "x$can_use_check" = "xyes"])
 
 AM_PATH_SDL([1.2.14], [], [PKG_CHECK_MODULES([SDL], [SDL >= 1.2.14], [],
 	[AC_MSG_ERROR([SDL >= 1.2.14 required])])])
@@ -91,7 +97,7 @@ AC_LANG_POP
 
 #Headers
 
-AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [ ])
+AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [])
 
 dnl C++ standards
 AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib algorithm vector istream \
@@ -152,5 +158,6 @@ AC_ARG_ENABLE(fskip, AS_HELP_STRING([--disable-fskip], [disable frame skipping])
 
 AC_CONFIG_FILES([Makefile
                  gui/Makefile
-                 nes/Makefile])
+                 nes/Makefile
+                 tests/Makefile])
 AC_OUTPUT

@@ -27,6 +27,7 @@
 #endif
 
 #include <vector>
+#include <functional>
 
 namespace vpnes {
 
@@ -42,7 +43,7 @@ struct SEvent {
 	SEvent *Next; /* Следующее событие */
 	SEventData *Data; /* Данные события */
 	/* Выполнить */
-	virtual void Execute() = 0;
+	std::function<void()> Execute;
 
 	inline SEvent() {}
 	inline virtual ~SEvent() {}
@@ -59,6 +60,8 @@ private:
 	SEvent *Last;
 	/* Первое активное событие */
 	SEvent *First;
+	/* Безопасный указатель на следующее событие */
+	SEvent *SafeNext;
 	/* Флаг остановки */
 	bool Terminated;
 	/* Текущее время */
@@ -76,10 +79,10 @@ public:
 	/* Деактивировать событие */
 	void DisableEvent(SEvent *Event);
 	/* Установить время */
-	inline void SetEventTime(SEvent *Event, int Time) {
-		Event->Data->Time = Time;
-		if (NextEventTime > Time)
-			NextEventTime = Time;
+	inline void SetEventTime(SEvent *Event, int EventTime) {
+		Event->Data->Time = EventTime;
+		if (NextEventTime > EventTime)
+			NextEventTime = EventTime;
 	}
 	/* Обновить список */
 	void UpdateList();
