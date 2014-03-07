@@ -71,9 +71,9 @@ CONFIG_CLEAN_VPATH_FILES =
 am_nesclock_OBJECTS = nesclock-nes-clock.$(OBJEXT) \
 	nesclock-clock.$(OBJEXT)
 nesclock_OBJECTS = $(am_nesclock_OBJECTS)
-nesclock_LDADD = $(LDADD)
+nesclock_DEPENDENCIES =
 nesclock_LINK = $(CXXLD) $(nesclock_CXXFLAGS) $(CXXFLAGS) \
-	$(nesclock_LDFLAGS) $(LDFLAGS) -o $@
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -216,7 +216,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 nesclock_CXXFLAGS = @CHECK_CFLAGS@
-nesclock_LDFLAGS = @CHECK_LIBS@
+nesclock_LDADD = @CHECK_LIBS@
 nesclock_SOURCES = nes-clock.cpp $(top_builddir)/nes/clock.cpp $(top_builddir)/nes/clock.h
 all: all-am
 

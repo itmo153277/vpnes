@@ -61,6 +61,7 @@ START_TEST (nes_clock_basic) {
 		~EmulateClass() {}
 
 		inline void Func0() {
+			Clock->SetEventTime(EventChain[EVENT_FUNC0], Clock->GetTime() + 10);
 			if (CurT == 0) {
 				*Flag = 1;
 				CurT++;
@@ -70,6 +71,7 @@ START_TEST (nes_clock_basic) {
 			}
 		}
 		inline void Func1() {
+			Clock->SetEventTime(EventChain[EVENT_FUNC1], Clock->GetTime() + 10);
 			if (CurT == 1) {
 				*Flag = 2;
 				CurT++;
@@ -78,11 +80,26 @@ START_TEST (nes_clock_basic) {
 		}
 	} Emulation(&TestClock, &Flag);
 	TestClock.Start();
-	ck_assert(Flag == 3);
+	ck_assert_int_eq(Flag, 3);
 }
 
 END_TEST
 
+Suite *NesClockSuite() {
+	Suite *s = suite_create("vpnes::CClock");
+	TCase *tc_core = tcase_create("Core");
+
+	tcase_add_test(tc_core, nes_clock_basic);
+	suite_add_tcase(s, tc_core);
+	return s;
+}
+
 int main(int argc, char *argv[]) {
-	return 0;
+	int number_failed;
+	Suite *s = NesClockSuite();
+	SRunner *sr = srunner_create(s);
+	srunner_run_all(sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed(sr);
+	srunner_free(sr);
+	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
