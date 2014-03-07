@@ -67,6 +67,8 @@ void CClock::EnableEvent(SEvent *Event) {
 /* Деактивировать событие */
 void CClock::DisableEvent(SEvent *Event) {
 	if (Event->Data->Enabled) {
+		if (SafeNext == Event)
+			SafeNext = Event->Next;
 		if (Event->Next != NULL) {
 			Event->Next->Previous = Event->Previous;
 			if (Event->Previous != NULL)
@@ -109,12 +111,13 @@ void CClock::Start() {
 			CurEvent = First;
 			Time = NextEventTime;
 		}
+		SafeNext = CurEvent->Next;
 		if (CurEvent->Data->Time > Time) {
 			if ((NextEventTime > CurEvent->Data->Time) || (NextEventTime == Time))
 				NextEventTime = CurEvent->Data->Time;
 		} else
 			CurEvent->Execute();
-		CurEvent = CurEvent->Next;
+		CurEvent = SafeNext;
 	}
 }
 
@@ -127,4 +130,5 @@ void CClock::Reset(int ResetTime) {
 		CurEvent = CurEvent->Next;
 	}
 	NextEventTime -= ResetTime;
+	Time -= ResetTime;
 }

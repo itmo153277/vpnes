@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS=-I m4
-SUBDIRS = gui nes
+SUBDIRS = gui nes tests
 bin_PROGRAMS = vpnes
 vpnes_SOURCES = main.cpp
 noinst_HEADERS = types.h
