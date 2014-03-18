@@ -25,7 +25,7 @@
 
 #include "../nes/ines.h"
 #include "../nes/nes.h"
-#include "../nes/libvpnes.h"
+#include "../nes/neslib.h"
 
 #include <exception>
 #include <iostream>
@@ -105,17 +105,6 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Audio->UpdateDevice(NESConfig->GetFrameLength());
 
-			std::stringstream InfoStr;
-
-			InfoStr << "ROM: " << Data.Header.Mapper << " mapper, PRG " <<
-				Data.Header.PRGSize << ", W-RAM " << Data.Header.RAMSize <<
-				(Data.Header.HaveBattery ? " (battery backed), CHR " :
-				" (no battery), CHR " ) << Data.Header.CHRSize << ((Data.CHR == NULL) ?
-				" RAM, System " : ", System ") << Data.Header.TVSystem <<
-				", Mirroring " << Data.Header.Mirroring << ((Data.Trainer == NULL) ?
-				", no trainer" : ", have trainer");
-			InfoString = InfoStr.str();
-			std::clog << InfoString << std::endl;
 #if defined(VPNES_INTERACTIVE)
 			Window->GetInfoText() = InfoString.c_str();
 #endif
@@ -127,7 +116,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 					Name += ".vpram";
 					State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
 					if (!State.fail()) {
-						NES->LoadState(State);
+						NES->LoadButteryBackedMemory(State);
 						State.close();
 					}
 				}
@@ -193,7 +182,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 					State.open(Name.c_str(), std::ios_base::out |
 						std::ios_base::binary | std::ios_base::trunc);
 					if (!State.fail()) {
-						NES->PowerOff(State);
+						NES->SaveButteryBackedMemory(State);
 						State.close();
 					}
 				}

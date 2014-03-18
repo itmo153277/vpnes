@@ -20,3 +20,11 @@
 \****************************************************************************/
 
 #include "neslib.h"
+
+using namespace std;
+using namespace vpnes;
+
+/* Открыть образ */
+CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {
+	return NULL;
+}

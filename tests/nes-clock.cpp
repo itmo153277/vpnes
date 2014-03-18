@@ -84,12 +84,10 @@ int NesClock_Test() {
 				*Flag = 4;
 		}
 	} Emulation(&TestClock, &Flag);
-	TestClock.Start([&TestClock, &EmulatedClocks](int Clocks) -> int {
+	TestClock.Start([&TestClock, &EmulatedClocks](int Clocks) {
 		if ((EmulatedClocks += Clocks) >= EmulationTime) {
 			TestClock.Terminate();
-			return 0;
 		}
-		return Clocks;
 	});
 	return Flag;
 }

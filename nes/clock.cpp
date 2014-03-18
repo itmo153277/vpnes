@@ -100,7 +100,7 @@ void CClock::UpdateList() {
 }
 
 /* Запустить часы */
-void CClock::Start(const std::function<int(int)> &WaitFunc) {
+void CClock::Start(const std::function<void (int)> &WaitFunc) {
 	SEvent *CurEvent = NULL;
 
 	Terminated = false;
@@ -108,10 +108,11 @@ void CClock::Start(const std::function<int(int)> &WaitFunc) {
 		if (CurEvent == NULL) {
 			if (Terminated)
 				break;
-			CurEvent = First;
-			Time += WaitFunc(NextEventTime - Time);
+			WaitFunc(NextEventTime - Time);
+			Time = NextEventTime;
 			if (Terminated)
 				break;
+			CurEvent = First;
 		}
 		SafeNext = CurEvent->Next;
 		if (CurEvent->Data->Time > Time) {
