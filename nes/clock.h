@@ -87,7 +87,7 @@ public:
 	/* Обновить список */
 	void UpdateList();
 	/* Запустить часы */
-	void Start();
+	void Start(const std::function<int(int)> &WaitFunc);
 	/* Сбросить часы */
 	void Reset(int ResetTime);
 

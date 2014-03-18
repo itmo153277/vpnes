@@ -24,8 +24,11 @@
 #include <string.h>
 #include "../nes/clock.h"
 
-START_TEST (nes_clock_basic) {
+/* Общая функция для проверки */
+template <int EmulationTime, int EventTime1, int EventTime2, int EventPeriod1, int EventPeriod2, int Reset = 0>
+int NesClock_Test() {
 	int Flag = 0;
+	int EmulatedClocks = 0;
 	vpnes::CClock TestClock;
 
 	struct EmulateClass {
@@ -55,13 +58,13 @@ START_TEST (nes_clock_basic) {
 			EventChain[EVENT_FUNC1] = NewEvent;
 			Clock->EnableEvent(EventChain[EVENT_FUNC0]);
 			Clock->EnableEvent(EventChain[EVENT_FUNC1]);
-			Clock->SetEventTime(EventChain[EVENT_FUNC0], 10);
-			Clock->SetEventTime(EventChain[EVENT_FUNC1], 15);
+			Clock->SetEventTime(EventChain[EVENT_FUNC0], EventTime1);
+			Clock->SetEventTime(EventChain[EVENT_FUNC1], EventTime2);
 		}
 		~EmulateClass() {}
 
 		inline void Func0() {
-			Clock->SetEventTime(EventChain[EVENT_FUNC0], Clock->GetTime() + 10);
+			Clock->SetEventTime(EventChain[EVENT_FUNC0], Clock->GetTime() + EventPeriod1);
 			if (CurT == 0) {
 				*Flag = 1;
 				CurT++;
@@ -71,25 +74,65 @@ START_TEST (nes_clock_basic) {
 			}
 		}
 		inline void Func1() {
-			Clock->SetEventTime(EventChain[EVENT_FUNC1], Clock->GetTime() + 10);
+			Clock->SetEventTime(EventChain[EVENT_FUNC1], Clock->GetTime() + EventPeriod2);
 			if (CurT == 1) {
 				*Flag = 2;
 				CurT++;
+				if (Reset != 0)
+					Clock->Reset(Clock->GetTime());
 			} else
 				*Flag = 4;
 		}
 	} Emulation(&TestClock, &Flag);
-	TestClock.Start();
-	ck_assert_int_eq(Flag, 3);
+	TestClock.Start([&TestClock, &EmulatedClocks](int Clocks) -> int {
+		if ((EmulatedClocks += Clocks) >= EmulationTime) {
+			TestClock.Terminate();
+			return 0;
+		}
+		return Clocks;
+	});
+	return Flag;
 }
 
+/* Обычная работа */
+START_TEST (nes_clock_basic1) {
+	ck_assert_int_eq((NesClock_Test<30, 10, 15, 10, 10>()), 3);
+}
+END_TEST
+
+/* Преждевременное завершение */
+START_TEST (nes_clock_basic2) {
+	ck_assert_int_eq((NesClock_Test<20, 10, 15, 10, 10>()), 2);
+}
+END_TEST
+
+/* Разный период */
+START_TEST (nes_clock_basic3) {
+	ck_assert_int_eq((NesClock_Test<25, 10, 15, 10, 5>()), 4);
+}
+END_TEST
+
+/* Выход сразу после vpnes::CClock::Terminated */
+START_TEST (nes_clock_basic4) {
+	ck_assert_int_eq((NesClock_Test<0, 10, 15, 10, 10>()), 0);
+}
+END_TEST
+
+/* Вызов vpnes::CClock::Reset не влияет на работу */
+START_TEST (nes_clock_basic5) {
+	ck_assert_int_eq((NesClock_Test<30, 10, 15, 10, 10, 1>()), 3);
+}
 END_TEST
 
 Suite *NesClockSuite() {
 	Suite *s = suite_create("vpnes::CClock");
 	TCase *tc_core = tcase_create("Core");
 
-	tcase_add_test(tc_core, nes_clock_basic);
+	tcase_add_test(tc_core, nes_clock_basic1);
+	tcase_add_test(tc_core, nes_clock_basic2);
+	tcase_add_test(tc_core, nes_clock_basic3);
+	tcase_add_test(tc_core, nes_clock_basic4);
+	tcase_add_test(tc_core, nes_clock_basic5);
 	suite_add_tcase(s, tc_core);
 	return s;
 }
