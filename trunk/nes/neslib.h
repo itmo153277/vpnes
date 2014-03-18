@@ -26,4 +26,15 @@
 #include "config.h"
 #endif
 
+#include <istream>
+#include "ines.h"
+#include "nes.h"
+
+namespace vpnes {
+
+/* Открыть образ */
+CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type);
+
+}
+
 #endif
