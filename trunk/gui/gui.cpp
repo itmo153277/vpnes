@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -105,9 +105,9 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Audio->UpdateDevice(NESConfig->GetFrameLength());
 
-#if defined(VPNES_INTERACTIVE)
+/*#if defined(VPNES_INTERACTIVE)
 			Window->GetInfoText() = InfoString.c_str();
-#endif
+#endif*/
 			do {
 				Audio->Reset();
 				NES = NESConfig->GetNES(this);

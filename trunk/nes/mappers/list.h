@@ -19,21 +19,30 @@
 
 \****************************************************************************/
 
-#ifndef __NESLIB_H_
-#define __NESLIB_H_
+#ifndef __MAPPERS_LIST_H_
+#define __MAPPERS_LIST_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <istream>
-#include "ines.h"
-#include "nes.h"
+#include "../ines.h"
+#include "../nes.h"
 
 namespace vpnes {
 
-/* Открыть образ */
-CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type);
+namespace mappers {
+
+/* Обработчик маппера */
+typedef CNESConfig *(*MapperHandler)(ines::NES_ROM_Data *);
+
+/* Список мапперов по номерам */
+extern const ines::MapperID MapperIDList[256];
+
+/* Список обработчиков мапперов */
+extern const MapperHandler MapperHandlerList[ines::MappersCount];
+
+}
 
 }
 

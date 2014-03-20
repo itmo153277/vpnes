@@ -74,7 +74,8 @@ ARFLAGS = cru
 libvpnes_a_AR = $(AR) $(ARFLAGS)
 libvpnes_a_LIBADD =
 am_libvpnes_a_OBJECTS = clock.$(OBJEXT) ines.$(OBJEXT) \
-	neslib.$(OBJEXT) tables.$(OBJEXT)
+	neslib.$(OBJEXT) tables.$(OBJEXT) list.$(OBJEXT) \
+	nrom.$(OBJEXT)
 libvpnes_a_OBJECTS = $(am_libvpnes_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -213,9 +214,14 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libvpnes.a
-libvpnes_a_SOURCES = clock.cpp ines.cpp neslib.cpp tables.cpp
+libvpnes_a_SOURCES = clock.cpp ines.cpp neslib.cpp tables.cpp \
+	mappers/list.cpp \
+	mappers/nrom.cpp
+
 noinst_HEADERS = apu.h bus.h clock.h cpu.h frontend.h ines.h manager.h \
-	nes.h neslib.h ppu.h tables.h
+	mapper.h nes.h neslib.h ppu.h tables.h \
+	mappers/list.h \
+	mappers/nrom.h
 
 all: all-am
 
@@ -267,7 +273,9 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clock.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ines.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/list.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/neslib.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nrom.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tables.Po@am__quote@
 
 .cpp.o:
@@ -283,6 +291,34 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+list.o: mappers/list.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT list.o -MD -MP -MF $(DEPDIR)/list.Tpo -c -o list.o `test -f 'mappers/list.cpp' || echo '$(srcdir)/'`mappers/list.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/list.Tpo $(DEPDIR)/list.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/list.cpp' object='list.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o list.o `test -f 'mappers/list.cpp' || echo '$(srcdir)/'`mappers/list.cpp
+
+list.obj: mappers/list.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT list.obj -MD -MP -MF $(DEPDIR)/list.Tpo -c -o list.obj `if test -f 'mappers/list.cpp'; then $(CYGPATH_W) 'mappers/list.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/list.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/list.Tpo $(DEPDIR)/list.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/list.cpp' object='list.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o list.obj `if test -f 'mappers/list.cpp'; then $(CYGPATH_W) 'mappers/list.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/list.cpp'; fi`
+
+nrom.o: mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT nrom.o -MD -MP -MF $(DEPDIR)/nrom.Tpo -c -o nrom.o `test -f 'mappers/nrom.cpp' || echo '$(srcdir)/'`mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/nrom.Tpo $(DEPDIR)/nrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/nrom.cpp' object='nrom.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o nrom.o `test -f 'mappers/nrom.cpp' || echo '$(srcdir)/'`mappers/nrom.cpp
+
+nrom.obj: mappers/nrom.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT nrom.obj -MD -MP -MF $(DEPDIR)/nrom.Tpo -c -o nrom.obj `if test -f 'mappers/nrom.cpp'; then $(CYGPATH_W) 'mappers/nrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/nrom.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/nrom.Tpo $(DEPDIR)/nrom.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mappers/nrom.cpp' object='nrom.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o nrom.obj `if test -f 'mappers/nrom.cpp'; then $(CYGPATH_W) 'mappers/nrom.cpp'; else $(CYGPATH_W) '$(srcdir)/mappers/nrom.cpp'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \

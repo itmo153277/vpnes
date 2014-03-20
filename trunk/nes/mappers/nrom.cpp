@@ -19,22 +19,11 @@
 
 \****************************************************************************/
 
-#ifndef __NESLIB_H_
-#define __NESLIB_H_
+#include "nrom.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+using namespace vpnes;
 
-#include <istream>
-#include "ines.h"
-#include "nes.h"
-
-namespace vpnes {
-
-/* Открыть образ */
-CNESConfig *OpenROM(std::istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type);
-
+/* Обработчик */
+CNESConfig *vpnes::NROMHandler(ines::NES_ROM_Data *Data) {
+	return NULL;
 }
-
-#endif
