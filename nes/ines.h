@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,6 +67,13 @@ enum NES_Type {
 	NES_Dendy = 0x03
 };
 
+/* Список мапперов */
+enum MapperID {
+	NROM = 0,
+	UNKNOWN,
+	MappersCount
+};
+
 /* Header Data */
 struct NES_Header_Data {
 	int PRGSize; /* Размер PRG ROM */
@@ -78,9 +85,16 @@ struct NES_Header_Data {
 	int TVSystem; /* Система */
 };
 
+/* Параметры */
+struct NES_Parameters {
+	NES_Type Type;
+	MapperID Mapper;
+};
+
 /* NES ROM Data */
 struct NES_ROM_Data {
 	NES_Header_Data Header; /* Заголовок */
+	NES_Parameters Parameters; /* Параметры NES */
 	uint8 *PRG;     /* PRG ROM */
 	uint8 *CHR;     /* CHR ROM */
 	uint8 *Trainer; /* Trainer */
@@ -89,16 +103,9 @@ struct NES_ROM_Data {
 }
 
 /* Прочитать образ */
-int ReadROM(std::istream &ROM, ines::NES_ROM_Data *Data);
+int ReadROM(std::istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type PerfferedType);
 /* Освободить память */
-inline void FreeROMData(ines::NES_ROM_Data *Data) {
-	delete [] Data->PRG;
-	Data->PRG = NULL;
-	delete [] Data->CHR;
-	Data->CHR = NULL;
-	delete [] Data->Trainer;
-	Data->Trainer = NULL;
-}
+void FreeROMData(ines::NES_ROM_Data *Data);
 
 }
 

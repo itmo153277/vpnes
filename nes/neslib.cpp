@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -20,11 +20,15 @@
 \****************************************************************************/
 
 #include "neslib.h"
+#include "mappers/list.h"
 
 using namespace std;
 using namespace vpnes;
+using namespace mappers;
 
 /* Открыть образ */
 CNESConfig *vpnes::OpenROM(istream &ROM, ines::NES_ROM_Data *Data, ines::NES_Type Type) {
-	return NULL;
+	if (ReadROM(ROM, Data, Type) < 0)
+		return NULL;
+	return (*MapperHandlerList[Data->Parameters.Mapper])(Data);
 }

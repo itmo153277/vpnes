@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,13 +19,15 @@
 
 \****************************************************************************/
 
-#include "ines.h"
 #include <cstring>
+#include "ines.h"
+#include "mappers/list.h"
 
 using namespace vpnes;
 using namespace ines;
+using namespace mappers;
 
-int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
+int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data, NES_Type PerfferedType) {
 	const char *NesHeader = "NES\032";
 	iNES_Header Header;
 
@@ -75,5 +77,23 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data) {
 		FreeROMData(Data);
 		return -1;
 	}
+	Data->Parameters.Mapper = MapperIDList[Data->Header.Mapper];
+	if (PerfferedType == NES_Auto) {
+		if (Data->Header.TVSystem)
+			Data->Parameters.Type = NES_PAL;
+		else
+			Data->Parameters.Type = NES_NTSC;
+	} else
+		Data->Parameters.Type = PerfferedType;
 	return 0;
+}
+
+/* Освободить память */
+void vpnes::FreeROMData(ines::NES_ROM_Data *Data) {
+	delete [] Data->PRG;
+	Data->PRG = NULL;
+	delete [] Data->CHR;
+	Data->CHR = NULL;
+	delete [] Data->Trainer;
+	Data->Trainer = NULL;
 }
