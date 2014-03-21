@@ -89,7 +89,7 @@ public:
 	/* Запустить часы */
 	void Start(const std::function<void (int)> &WaitFunc);
 	/* Сбросить часы */
-	void Reset(int ResetTime);
+	void Reset();
 
 	inline void Terminate() { Terminated = true; }
 	inline const bool &IsTerminated() const { return Terminated; }

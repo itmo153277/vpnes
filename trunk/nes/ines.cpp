@@ -78,6 +78,7 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data, NES_Type PerfferedType
 		return -1;
 	}
 	Data->Parameters.Mapper = MapperIDList[Data->Header.Mapper];
+	//Db::FixRomData(Data);
 	if (PerfferedType == NES_Auto) {
 		if (Data->Header.TVSystem)
 			Data->Parameters.Type = NES_PAL;

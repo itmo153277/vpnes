@@ -95,6 +95,8 @@ void CClock::UpdateList() {
 	for (EventIter = Events.begin(); EventIter != Events.end(); EventIter++)
 		if ((*EventIter)->Data->Enabled) { /* Обновить регистрацию */
 			(*EventIter)->Data->Enabled = false;
+			if ((First == NULL) || (NextEventTime > (*EventIter)->Data->Time))
+				NextEventTime = (*EventIter)->Data->Time;				
 			EnableEvent(*EventIter);
 		}
 }
@@ -106,12 +108,10 @@ void CClock::Start(const std::function<void (int)> &WaitFunc) {
 	Terminated = false;
 	for (;;) {
 		if (CurEvent == NULL) {
-			if (Terminated)
-				break;
 			WaitFunc(NextEventTime - Time);
-			Time = NextEventTime;
 			if (Terminated)
 				break;
+			Time = NextEventTime;
 			CurEvent = First;
 		}
 		SafeNext = CurEvent->Next;
@@ -125,13 +125,13 @@ void CClock::Start(const std::function<void (int)> &WaitFunc) {
 }
 
 /* Сбросить часы */
-void CClock::Reset(int ResetTime) {
+void CClock::Reset() {
 	SEvent *CurEvent = First;
 
 	while (CurEvent != NULL) {
-		CurEvent->Data->Time -= ResetTime;
+		CurEvent->Data->Time -= Time;
 		CurEvent = CurEvent->Next;
 	}
-	NextEventTime -= ResetTime;
-	Time -= ResetTime;
+	NextEventTime -= Time;
+	Time = 0;
 }

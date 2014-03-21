@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,27 +67,42 @@ public:
 	inline virtual ~CBus_Basic() {}
 
 	/* Обращение к памяти CPU */
-	inline uint8 ReadCPU(uint16 Address) {
+	inline uint8 ReadCPU(uint16 Address) const {
 		MMC->UpdateCPUBus(Address);
-		if (Address < 0x2000) /* CPU internal RAM */
-			return CPU->ReadByte(Address);
-		if (Address < 0x4000) /* PPU registers */
-			return PPU->ReadByte(Address);
-		if (Address < 0x4018) /* APU registers */
-			return APU->ReadByte(Address);
-		else /* Mapper */
-			return MMC->ReadByte(Address);
+		switch (Address & 0x2000) {
+			case 0x0000: /* CPU internal RAM */
+				return CPU->ReadByte(Address);
+			case 0x2000: /* PPU registers */
+				return PPU->ReadByte(Address);
+			else
+				if (Address < 0x4018) /* APU registers */
+					return APU->ReadByte(Address);
+				else /* Mapper */
+					return MMC->ReadByte(Address);
+		}
 	}
-	inline void WriteCPU(uint16 Address, uint8 Src) {
+	inline void WriteCPU(uint16 Address, uint8 Src) const {
 		MMC->UpdateCPUBus(Address, Src);
-		if (Address < 0x2000) /* CPU internal RAM */
-			CPU->WriteByte(Address, Src);
-		else if (Address < 0x4000) /* PPU registers */
-			PPU->WriteByte(Address, Src);
-		else if (Address < 0x4018) /* APU registers */
-			APU->WriteByte(Address, Src);
+		switch (Address & 0x2000) {
+			case 0x0000: /* CPU internal RAM */
+				CPU->WriteByte(Address, Src);
+				break;
+			case 0x2000: /* PPU registers */
+				PPU->WriteByte(Address, Src);
+				break;
+			else
+				if (Address < 0x4018) /* APU registers */
+					APU->WriteByte(Address, Src);
+		}
 		/* MMC */
 		MMC->WriteByte(Address, Src);
+	}
+
+	/* Сброс */
+	inline void Reset() const {
+		CPU->Reset();
+		APU->Reset();
+		PPU->Reset();
 	}
 
 	/* Интерфейс NES */
@@ -95,15 +110,15 @@ public:
 	/* Менеджер памяти */
 	inline CMemoryManager * const &GetManager() const { return Manager; }
 	/* Часы */
-	inline CClock * const &GetClock() { return Clock; }
+	inline CClock * const &GetClock() const { return Clock; }
 	/* CPU */
-	inline CPUClass *&GetCPU() { return CPU; }
+	inline CPUClass * const &GetCPU() const { return CPU; }
 	/* APU */
-	inline APUClass *&GetAPU() { return APU; }
+	inline APUClass * const &GetAPU() const { return APU; }
 	/* PPU */
-	inline PPUClass *&GetPPU() { return PPU; }
+	inline PPUClass * const &GetPPU() const { return PPU; }
 	/* MMC */
-	inline MMCClass *&GetMMC() { return MMC; }
+	inline MMCClass * const &GetMMC() const { return MMC; }
 };
 
 }
