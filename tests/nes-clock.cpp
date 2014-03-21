@@ -79,7 +79,7 @@ int NesClock_Test() {
 				*Flag = 2;
 				CurT++;
 				if (Reset != 0)
-					Clock->Reset(Clock->GetTime());
+					Clock->Reset();
 			} else
 				*Flag = 4;
 		}

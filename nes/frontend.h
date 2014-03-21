@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -140,6 +140,8 @@ protected:
 	uint32 *Buf;
 	/* Палитра */
 	uint32 *Pal;
+	/* Текущий пиксель */
+	uint32 *Pixel;
 public:
 	inline CVideoFrontend() {}
 	inline virtual ~CVideoFrontend() {}
@@ -147,8 +149,9 @@ public:
 	/* Вывести картинку на экран */
 	virtual bool UpdateFrame(double FrameTime) = 0;
 	/* Поместить пиксель в буфер */
-	inline void PutPixel(int x, int y, int Colour, int Tint) {
-		Buf[x + (y << 8)] = Pal[Colour + (Tint << 6)];
+	inline void PutPixel(int Colour, int Tint) {
+		*Pixel = Pal[Colour + (Tint << 6)];
+		Pixel++;
 	}
 };
 

@@ -110,6 +110,52 @@ public:
 	virtual CBasicNES *GetNES(CNESFrontend *Frontend) = 0;
 };
 
+/* Стандартный NES */
+template <class _Bus>
+class CNES: public CBasicNES {
+public:
+	typedef _Bus BusClass;
+private:
+	/* Шина */
+	BusClass Bus;
+public:
+	inline explicit CNES(CNESFrontend *Frontend):
+		Bus(Frontend, &Clock, &Manager) {
+	}
+	inline ~CNES() {
+	}
+
+	/* Запустить цикл эмуляции */
+	int PowerOn() {
+		bool Quit;
+
+		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
+		Clock.Start([&, this, Quit](int Clocks) {
+			if (this->Bus.GetPPU()->IsFrameReady()) {
+				this->Bus.GetAPU()->FlushBuffer();
+				Quit = !this->Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(this->Bus.GetPPU()->GetFrameTime());
+				this->Clock.Reset();
+				if (Quit) {
+					this->Clock.Terminate();
+					return;
+				}
+			}
+			this->Bus.GetCPU()->Execute(Clocks);
+		});
+		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
+		return 0;
+	}
+
+	/* Программный сброс */
+	int Reset() {
+		Bus.Reset();
+		return 0;
+	}
+
+	/* Доступ к шине */
+	inline BusClass * const GetBus() const { return &Bus; }
+};
+
 }
 
 #endif
