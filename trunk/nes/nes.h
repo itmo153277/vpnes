@@ -130,17 +130,17 @@ public:
 		bool Quit;
 
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
-		Clock.Start([&, this, Quit](int Clocks) {
+		Clock.Start([this, &Quit]() {
 			if (this->Bus.GetPPU()->IsFrameReady()) {
-				this->Bus.GetAPU()->FlushBuffer();
-				Quit = !this->Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(this->Bus.GetPPU()->GetFrameTime());
-				this->Clock.Reset();
+				Bus.GetAPU()->FlushBuffer();
+				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(Bus.GetPPU()->GetFrameTime());
+				Clock.Reset();
 				if (Quit) {
-					this->Clock.Terminate();
+					Clock.Terminate();
 					return;
 				}
 			}
-			this->Bus.GetCPU()->Execute(Clocks);
+			this->Bus.GetCPU()->Execute();
 		});
 		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
 		return 0;
@@ -153,7 +153,7 @@ public:
 	}
 
 	/* Доступ к шине */
-	inline BusClass * const GetBus() const { return &Bus; }
+	inline BusClass &GetBus() { return Bus; }
 };
 
 }

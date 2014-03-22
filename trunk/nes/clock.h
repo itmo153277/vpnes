@@ -87,13 +87,14 @@ public:
 	/* Обновить список */
 	void UpdateList();
 	/* Запустить часы */
-	void Start(const std::function<void (int)> &WaitFunc);
+	void Start(const std::function<void ()> &WaitFunc);
 	/* Сбросить часы */
 	void Reset();
 
 	inline void Terminate() { Terminated = true; }
 	inline const bool &IsTerminated() const { return Terminated; }
 	inline const int &GetTime() const { return Time; }
+	inline const int GetWaitClocks() const { return NextEventTime - Time; }
 };
 
 }

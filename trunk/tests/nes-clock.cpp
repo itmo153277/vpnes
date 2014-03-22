@@ -48,12 +48,12 @@ int NesClock_Test() {
 			memset(LocalEvents, 0, sizeof(vpnes::SEventData) * MAX_EVENTS);
 			NewEvent = new vpnes::SEvent;
 			NewEvent->Data = &LocalEvents[EVENT_FUNC0];
-			NewEvent->Execute = [this]{this->Func0();};
+			NewEvent->Execute = [this]{Func0();};
 			EventChain[EVENT_FUNC0] = NewEvent;
 			Clock->RegisterEvent(NewEvent);
 			NewEvent = new vpnes::SEvent;
 			NewEvent->Data = &LocalEvents[EVENT_FUNC1];
-			NewEvent->Execute = [this]{this->Func1();};
+			NewEvent->Execute = [this]{Func1();};
 			Clock->RegisterEvent(NewEvent);
 			EventChain[EVENT_FUNC1] = NewEvent;
 			Clock->EnableEvent(EventChain[EVENT_FUNC0]);
@@ -84,8 +84,8 @@ int NesClock_Test() {
 				*Flag = 4;
 		}
 	} Emulation(&TestClock, &Flag);
-	TestClock.Start([&TestClock, &EmulatedClocks](int Clocks) {
-		if ((EmulatedClocks += Clocks) >= EmulationTime) {
+	TestClock.Start([&TestClock, &EmulatedClocks]() {
+		if ((EmulatedClocks += TestClock.GetWaitClocks()) >= EmulationTime) {
 			TestClock.Terminate();
 		}
 	});
