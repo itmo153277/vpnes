@@ -102,13 +102,13 @@ void CClock::UpdateList() {
 }
 
 /* Запустить часы */
-void CClock::Start(const std::function<void (int)> &WaitFunc) {
+void CClock::Start(const std::function<void ()> &WaitFunc) {
 	SEvent *CurEvent = NULL;
 
 	Terminated = false;
 	for (;;) {
 		if (CurEvent == NULL) {
-			WaitFunc(NextEventTime - Time);
+			WaitFunc();
 			if (Terminated)
 				break;
 			Time = NextEventTime;
