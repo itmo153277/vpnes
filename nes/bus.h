@@ -60,6 +60,8 @@ private:
 	PPUClass *PPU;
 	/* MMC */
 	MMCClass *MMC;
+	/* Внутренние часы */
+	int InternalClock;
 public:
 	inline CBus_Basic(CNESFrontend *pFrontend, CMemoryManager *pManager, CClock *pClock):
 		Frontend(pFrontend), Manager(pManager), Clock(pClock) {
@@ -74,7 +76,7 @@ public:
 				return CPU->ReadByte(Address);
 			case 0x2000: /* PPU registers */
 				return PPU->ReadByte(Address);
-			else
+			default:
 				if (Address < 0x4018) /* APU registers */
 					return APU->ReadByte(Address);
 				else /* Mapper */
@@ -90,7 +92,7 @@ public:
 			case 0x2000: /* PPU registers */
 				PPU->WriteByte(Address, Src);
 				break;
-			else
+			default:
 				if (Address < 0x4018) /* APU registers */
 					APU->WriteByte(Address, Src);
 		}
@@ -103,6 +105,19 @@ public:
 		CPU->Reset();
 		APU->Reset();
 		PPU->Reset();
+		MMC->Reset();
+	}
+
+	/* Внутренние часы */
+	inline void ResetInternalClock() {
+		InternalClock = 0;
+	}
+	inline void Synchronize(int ActualClock) {
+		InternalClock = ActualClock;
+		MMC->CPUDependencies();
+	}
+	inline void IncrementClock(int Increment) {
+		InternalClock += Increment;
 	}
 
 	/* Интерфейс NES */
@@ -119,6 +134,8 @@ public:
 	inline PPUClass * const &GetPPU() const { return PPU; }
 	/* MMC */
 	inline MMCClass * const &GetMMC() const { return MMC; }
+	/* Внутренние часы */
+	inline const int &GetInternalClock() const { return InternalClock; }
 };
 
 }

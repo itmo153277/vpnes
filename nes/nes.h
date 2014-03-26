@@ -133,7 +133,8 @@ public:
 		Clock.Start([this, &Quit]() {
 			if (this->Bus.GetPPU()->IsFrameReady()) {
 				Bus.GetAPU()->FlushBuffer();
-				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(Bus.GetPPU()->GetFrameTime());
+				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(\
+					Bus.GetPPU()->GetFrameTime());
 				Clock.Reset();
 				if (Quit) {
 					Clock.Terminate();
