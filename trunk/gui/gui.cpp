@@ -111,7 +111,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			do {
 				Audio->Reset();
 				NES = NESConfig->GetNES(this);
-				if (Data.Header.HaveBattery) {
+				if (Data.Header.BatterySize > 0) {
 					Name = RomName;
 					Name += ".vpram";
 					State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
@@ -176,7 +176,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 							break;
 					}
 				} while (!Quit);
-				if (Data.Header.HaveBattery) {
+				if (Data.Header.BatterySize > 0) {
 					Name = RomName;
 					Name += ".vpram";
 					State.open(Name.c_str(), std::ios_base::out |

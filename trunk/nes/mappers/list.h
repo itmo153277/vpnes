@@ -28,6 +28,7 @@
 
 #include "../ines.h"
 #include "../nes.h"
+#include "../cpu.h"
 
 namespace vpnes {
 

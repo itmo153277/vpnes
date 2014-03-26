@@ -46,7 +46,7 @@ template <class _Bus, class _Settings>
 class CCPU {
 public:
 	/* Делитель частоты */
-	enum { ClockDivier = _Settings::CPU_Divider };
+	enum { ClockDivider = _Settings::CPU_Divider };
 private:
 	/* Шина */
 	_Bus *Bus;
@@ -79,11 +79,11 @@ private:
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
-		Bus->IncrementClock(ClockDivier);
+		Bus->IncrementClock(ClockDivider);
 		return Bus->ReadCPUMemory(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
-		Bus->IncrementClock(ClockDivier);
+		Bus->IncrementClock(ClockDivider);
 		Bus->WriteCPUMemory(Address, Src);
 	}
 
@@ -124,7 +124,7 @@ void CCPU<_Bus, _Settings>::Execute() {
 	SOpcode *NextOpcode;
 	int ClockCounter;
 
-	if (InternalData.Satet == SInternalData::Halt)
+	if (InternalData.State == SInternalData::Halt)
 		return;
 	Bus->ResetInternalClock();
 	ClockCounter = 0;

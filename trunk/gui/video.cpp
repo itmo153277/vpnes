@@ -1,7 +1,7 @@
 /****************************************************************************\
 
 	NES Emulator
-	Copyright (C) 2012-2013  Ivanov Viktor
+	Copyright (C) 2012-2014  Ivanov Viktor
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ void CVideo::UpdateSizes(int Width, int Height) {
 	_Width = Width;
 	_Height = Height;
 	InternalSurface = UpdateSurface();
-	Buf = (uint32 *) InternalSurface->pixels;
+	Buf = static_cast<uint32 *>(InternalSurface->pixels);
 	Pixel = Buf;
 }
 
@@ -171,7 +171,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 				SDL_SWSURFACE);
 			::SDL_FreeSurface(InternalSurface);
 			InternalSurface = NewSurface;
-			Buf = (uint32 *) InternalSurface->pixels;
+			Buf = static_cast<uint32 *>(InternalSurface->pixels);
 		}
 		Screen = pWindow->GetSurface();
 #if defined(VPNES_USE_TTF)
