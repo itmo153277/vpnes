@@ -79,9 +79,9 @@ struct NES_Header_Data {
 	int PRGSize; /* Размер PRG ROM */
 	int CHRSize; /* Размер CHR ROM */
 	int RAMSize; /* Размер PRG RAM */
+	int BatterySize; /* Размер энергонезависимой памяти */
 	int Mapper;  /* Номер маппера */
 	SolderPad Mirroring; /* Отображение */
-	bool HaveBattery; /* Сохранять память */
 	int TVSystem; /* Система */
 };
 

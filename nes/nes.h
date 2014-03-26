@@ -120,7 +120,7 @@ private:
 	BusClass Bus;
 public:
 	inline explicit CNES(CNESFrontend *Frontend):
-		Bus(Frontend, &Clock, &Manager) {
+		Bus(Frontend, &Manager, &Clock) {
 	}
 	inline ~CNES() {
 	}
@@ -131,7 +131,7 @@ public:
 
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
 		Clock.Start([this, &Quit]() {
-			if (this->Bus.GetPPU()->IsFrameReady()) {
+			if (Bus.GetPPU()->IsFrameReady()) {
 				Bus.GetAPU()->FlushBuffer();
 				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(\
 					Bus.GetPPU()->GetFrameTime());
@@ -141,7 +141,7 @@ public:
 					return;
 				}
 			}
-			this->Bus.GetCPU()->Execute();
+			Bus.GetCPU()->Execute();
 		});
 		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
 		return 0;
