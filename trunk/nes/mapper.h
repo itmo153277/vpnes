@@ -26,6 +26,10 @@
 #include "config.h"
 #endif
 
+#include "../types.h"
+
+#include "cpu.h"
+
 namespace vpnes {
 
 }
