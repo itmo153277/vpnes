@@ -30,6 +30,7 @@
 
 #include <cstring>
 #include "manager.h"
+#include "frontend.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -102,10 +103,14 @@ public:
 
 	/* Обработать такты */
 	void Execute();
-
 	/* Сброс */
 	inline void Reset() {
 		InternalData.State = SInternalData::Reset;
+	}
+	/* Начать панику */
+	inline void Panic() {
+		InternalData.State = SInternalData::Halt;
+		Bus->GetFrontend()->Panic();
 	}
 
 	/* Чтение памяти */
