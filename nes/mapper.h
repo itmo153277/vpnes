@@ -30,6 +30,7 @@
 
 #include "ines.h"
 #include "manager.h"
+#include "cpu.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -240,6 +241,27 @@ public:
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		int i = _Settings::PagedCHRIndex(PagedData, Address);
 		return CHR->PRG[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
+	}
+};
+
+/* Конфликт шины */
+template <class _Parent>
+class BusConflict: public _Parent {
+	using typename _Parent::BusClass;
+	using _Parent::Bus;
+public:
+	BusConflict(BusClass *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
+	}
+	inline ~BusConflict() {}
+
+	/* Запись памяти */
+	inline void WriteAddress(uint16 Address, uint8 Src) {
+		uint8 BusR = _Parent::ReadAddress(Address) & Src;
+
+		_Parent::WriteAddress(Address, BusR);
+		if ((_Parent::ReadAddress(Address) & Src) != BusR)
+			/* Невозможно определить результат действия */
+			Bus->GetCPU()->Panic();
 	}
 };
 
