@@ -184,7 +184,9 @@ public:
 	}
 	/* Запись памяти */
 	inline void WriteAddress(uint16 Address, uint8 Src) {
-		if ((RAM == NULL) || (Address < 0x6000) || (Address >= 0x8000))
+		if (Address < 0x6000)
+			return;
+		if ((RAM == NULL) || (Address >= 0x8000))
 			_Parent::WriteAddress(Address, Src);
 		else
 			RAM[Address & 0x1fff] = Src;
@@ -198,7 +200,8 @@ class PagedPRG: public _Parent {
 	using _Parent::Bus;
 	using _Parent::Data;
 private:
-	typedef typename _Settings::PagedCHRData SPagedData;
+	typedef typename _Settings::PagedPRGData SPagedData;
+	typedef typename _Settings::PagedPRGDataPar SPagedDataPar;
 
 	SPagedData PagedData;
 public:
@@ -215,6 +218,11 @@ public:
 		int i = _Settings::PagedPRGIndex(PagedData, Address);
 		return Data->PRG[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
 	}
+
+	/* Обновление данных страниц */
+	inline void UpdatePagedPRGData(SPagedDataPar &PagedDataPar) {
+		_Settings::UpdatePagedPRG(PagedData, PagedDataPar);
+	}
 };
 
 /* Картридж со страничной CHR */
@@ -226,6 +234,7 @@ class PagedCHR: public _Parent {
 	using _Parent::CHR;
 private:
 	typedef typename _Settings::PagedCHRData SPagedData;
+	typedef typename _Settings::PagedCHRDataPar SPagedDataPar;
 
 	SPagedData PagedData;
 public:
@@ -241,6 +250,11 @@ public:
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		int i = _Settings::PagedCHRIndex(PagedData, Address);
 		return CHR->PRG[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
+	}
+
+	/* Обновление данных страниц */
+	inline void UpdatePagedCHRData(SPagedDataPar &PagedDataPar) {
+		_Settings::UpdatePagedCHR(PagedData, PagedDataPar);
 	}
 };
 
