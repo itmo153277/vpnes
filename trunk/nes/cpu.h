@@ -31,6 +31,7 @@
 #include <cstring>
 #include "manager.h"
 #include "frontend.h"
+#include "clock.h"
 #include "bus.h"
 
 namespace vpnes {
@@ -41,6 +42,7 @@ typedef CPUGroup<1>::ID::NoBatteryID RAMID;
 typedef CPUGroup<2>::ID::NoBatteryID InternalDataID;
 typedef CPUGroup<3>::ID::NoBatteryID StateID;
 typedef CPUGroup<4>::ID::NoBatteryID RegistersID;
+typedef CPUGroup<5>::ID::NoBatteryID CycleDataID;
 
 }
 
@@ -75,8 +77,22 @@ private:
 			NotReady,
 			Run
 		} State; /* Текущее состояние */
-		int AddCycles; /* Дополнительные циклы */ 
+		enum {
+			IRQLow = 0,
+			IRQReady,
+			IRQExecute,
+			IRQDelay
+		} IRQState; /* Состояние IRQ */
+		int IRQ; /* Флаг IRQ */
 	} InternalData;
+
+	/* Данные о тактах */
+	struct SCycleData: public ManagerID<CPUID::CycleDataID> {
+		int NMI; /* Такт распознавания NMI */
+		int IRQ; /* Такт распознавания IRQ */
+		int Cycles; /* Всего тактов */
+		int AddCycles;
+	} CycleData;
 
 	/* Регистр состояния */
 	struct SState: public ManagerID<CPUID::StateID> {
@@ -106,9 +122,6 @@ private:
 		uint8 s; /* S */
 		uint16 pc; /* PC */
 	} Registers;
-
-	/* Внутренние часы */
-	int InternalClock;
 
 	/* Встроенная память */
 	uint8 *RAM;
@@ -141,8 +154,19 @@ private:
 		return PopByte() | (PopByte() << 8);
 	}
 
+	/* Обновление состояния IRQ в соответстии с флагом */
+	inline void UpdateIRQState() {
+		if (State.Interrupt)
+			InternalData.IRQState = SInternalData::IRQLow;
+		else
+			InternalData.IRQState = SInternalData::IRQReady;
+	}
+
 	/* Декодер операции */
-	SOpcode *GetNextOpcode();
+	const SOpcode *GetNextOpcode();
+
+	/* Обработать IRQ */
+	void ProcessIRQ();
 
 	/* Проверка IRQ */
 	bool DetectIRQ();
@@ -235,7 +259,7 @@ private:
 			if ((Res & 0xff00) != (CPU.Registers.pc & 0xff00))
 				CPU.InternalClock += 2 * ClockDivider;
 			else
-				CPU.InternalData.AddCycles += ClockDivider;
+				CPU.CycleData.AddCycles += ClockDivider;
 			return Res;
 		}
 	};
@@ -252,7 +276,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) { /* Перепрыгнули страницу */
 				CPU.ReadMemory(Address - 0x0100); /* Промазал Ha-Ha */
-				CPU.InternalClock += ClockDivider;
+				CPU.CycleData.Cycles += ClockDivider;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -448,6 +472,10 @@ public:
 		memset(&State, 0, sizeof(State));
 		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
 		memset(&Registers, 0, sizeof(Registers));
+		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
+		memset(&CycleData, 0, sizeof(CycleData));
+		CycleData.IRQ = -1;
+		CycleData.NMI = -1;
 	}
 	inline ~CCPU() {}
 
@@ -479,12 +507,22 @@ private:
 	void OpNotReady();
 	/* Неизвестная команда */
 	void OpIllegal();
+	/* Сброс */
+	void OpReset();
+	/* Векторизация */
+	void OpIRQVector();
+	/* Нет операции */
+	template <class _Addr>
+	void OpNOP();
+	/* Вызвать прерывание */
+	template <class _Addr>
+	void OpBRK();
 };
 
 /* Обработчик тактов */
 template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::Execute() {
-	SOpcode *NextOpcode;
+	const SOpcode *NextOpcode;
 	int ClockCounter;
 
 	if (InternalData.State == SInternalData::Halt)
@@ -495,52 +533,84 @@ void CCPU<_Bus, _Settings>::Execute() {
 		NextOpcode = GetNextOpcode();
 		if (NextOpcode == NULL)
 			break;
-		InternalClock += NextOpcode->Cycles;
+		CycleData.Cycles += NextOpcode->Cycles;
 		(this->*(NextOpcode->Handler))();
-		ClockCounter += InternalClock;
+		ClockCounter += CycleData.Cycles;
 		Bus->Synchronize(ClockCounter);
 	}
 }
 
 /* Декодер операции */
 template <class _Bus, class _Settings>
-typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode() {
+const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode() {
 	uint8 opcode;
 	static const SOpcode NotReadyOpcode = {
 		0, 0, &OpNotReady
 	};
+	static const SOpcode ResetOpcode = {
+		7 * ClockDivider, 0, &OpReset
+	};
+	static const SOpcode IRQOpcode = {
+		3 * ClockDivider, 0, &OpIRQVector
+	};
 
-	switch (InternalData.State) {
-		case SInternalData::Halt:
-			return NULL;
-		case SInternalData::NotReady:
-			return NotReadyOpcode;
-		default:
-			break;
-	}
-	if (InternalData.AddCycles > 0) {
-		Bus->IncrementClock(InternalData.AddCycles);
-		InternalClock = InternalData.AddCycles;
-		InternalData.AddCycles = 0;
-	} else
-		InternalClock = 0;
+	ProcessIRQ();
+	if (InternalData.State == SInternalData::NotReady)
+		return &NotReadyOpcode;
+	if (InternalData.IRQState == SInternalData::IRQExecute)
+		return &IRQOpcode;
 	switch (InternalData.State) {
 		case SInternalData::Reset:
-			return &Opcodes[0];
-		case SInternalData::Run:
+			return &ResetOpcode;
+		case SInternalData::Halt:
+			return NULL;
 		default:
+			opcode = ReadMemory(Registers.pc);
 			if (DetectIRQ())
 				return &Opcodes[0];
-			opcode = ReadMemory(Registers.pc);
-			Registers.pc += Opcodes[opcode].Length;
+			else
+				Registers.pc += Opcodes[opcode].Length;
 			return &Opcodes[opcode];
 	}
 	return NULL;
 }
 
+/* Обработка IRQ */
+template <class _Bus, class _Settings>
+void CCPU<_Bus, _Settings>::ProcessIRQ() {
+	/* Отсчитываем такты до прерываний */
+	if (CycleData.IRQ > 0) {
+		CycleData.IRQ -= CycleData.Cycles;
+		if (CycleData.IRQ < 0)
+			CycleData.IRQ = 0;
+	}
+	if (CycleData.NMI > 0) {
+		CycleData.NMI -= CycleData.Cycles;
+		if (CycleData.NMI < 0)
+			CycleData.NMI = 0;
+	}
+	if (CycleData.AddCycles > 0) {
+		Bus->IncrementClock(CycleData.AddCycles);
+		CycleData.Cycles = CycleData.AddCycles;
+		CycleData.AddCycles = 0;
+	} else
+		CycleData.Cycles = 0;
+}
+
 /* Проверка на IRQ */
 template <class _Bus, class _Settings>
 bool CCPU<_Bus, _Settings>::DetectIRQ() {
+	if (InternalData.IRQState == SInternalData::IRQDelay) {
+		/* Пропускаем на этой операции */
+		UpdateIRQState();
+		return false;
+	}
+	if ((CycleData.NMI == 0) || (CycleData.IRQ == 0 &&
+		InternalData.IRQState == SInternalData::IRQReady)) {
+		ReadMemory(Registers.pc);
+		InternalData.IRQState = SInternalData::IRQExecute;
+		return true;
+	}
 	return false;
 }
 
@@ -549,7 +619,30 @@ bool CCPU<_Bus, _Settings>::DetectIRQ() {
 /* Переход управления к APU */
 template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::OpNotReady() {
-	InternalClock += Bus->GetAPU()->Execute();
+	CycleData.Cycles += Bus->GetAPU()->Execute();
+	InternalData.State = SInternalData::Run;
+}
+
+/* Сброс */
+template <class _Bus, class _Settings>
+void CCPU<_Bus, _Settings>::OpReset() {
+	Registers.s -= 3; /* Игнорируем чтение из RAM */
+	State.Interrupt = 0x04;
+	Bus->IncrementClock(5 * ClockDivider); /* Игнорируем провереку векторизации */
+	Registers.pc = ReadMemory(0xfffc) | (ReadMemory(0xfffd) << 8);
+	InternalData.State = SInternalData::Run;
+}
+
+/* Векторизация */
+template <class _Bus, class _Settings>
+void CCPU<_Bus, _Settings>::OpIRQVector() {
+	if (CycleData.IRQ < 3)
+		CycleData.IRQ = -1;
+	if (CycleData.NMI == 0) {
+		Registers.pc = ReadMemory(0xfffa) | (ReadMemory(0xfffb) << 8);
+		CycleData.NMI = -1;
+	} else
+		Registers.pc = ReadMemory(0xfffe) | (ReadMemory(0xffff) << 8);
 }
 
 /* Неизвестный опкод */
@@ -557,6 +650,29 @@ template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::OpIllegal() {
 	/* Зависание */
 	Panic();
+}
+
+/* Нет операции */
+template <class _Bus, class _Settings>
+template <class _Addr>
+void CCPU<_Bus, _Settings>::OpNOP() {
+}
+
+/* Вызвать прерывание */
+template <class _Bus, class _Settings>
+template <class _Addr>
+void CCPU<_Bus, _Settings>::OpBRK() {
+	uint8 src = State.GetState();
+
+	/* BRK использует только 5 тактов. Все остальное в главном цикле */
+	if (InternalData.IRQState != SInternalData::IRQExecute) {
+		ReadMemory(Registers.pc++);
+		src |= 0x10;
+		InternalData.IRQState = SInternalData::IRQExecute;
+	}
+	State.Interrupt = 0x04;
+	PushWord(Registers.pc);
+	PushByte(src);
 }
 
 }
