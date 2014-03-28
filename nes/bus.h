@@ -35,16 +35,16 @@
 namespace vpnes {
 
 /* Базовый класс шины */
-template <class _CPU,
-          class _APU,
-          class _PPU,
-          class _MMC>
+template <template<class> class _CPU,
+          template<class> class _APU,
+          template<class> class _PPU,
+          template<class> class _MMC>
 class CBus_Basic {
 public:
-	typedef _CPU CPUClass;
-	typedef _APU APUClass;
-	typedef _PPU PPUClass;
-	typedef _MMC MMCClass;
+	typedef _CPU<CBus_Basic> CPUClass;
+	typedef _APU<CBus_Basic> APUClass;
+	typedef _PPU<CBus_Basic> PPUClass;
+	typedef _MMC<CBus_Basic> MMCClass;
 private:
 	/* Интерфейс NES */
 	CNESFrontend *Frontend;
@@ -71,7 +71,7 @@ public:
 	/* Обращение к памяти CPU */
 	inline uint8 ReadCPU(uint16 Address) const {
 		MMC->UpdateCPUBus(Address);
-		switch (Address & 0x2000) {
+		switch (Address & 0xe000) {
 			case 0x0000: /* CPU internal RAM */
 				return CPU->ReadByte(Address);
 			case 0x2000: /* PPU registers */
@@ -85,7 +85,7 @@ public:
 	}
 	inline void WriteCPU(uint16 Address, uint8 Src) const {
 		MMC->UpdateCPUBus(Address, Src);
-		switch (Address & 0x2000) {
+		switch (Address & 0xe000) {
 			case 0x0000: /* CPU internal RAM */
 				CPU->WriteByte(Address, Src);
 				break;
@@ -128,12 +128,16 @@ public:
 	inline CClock * const &GetClock() const { return Clock; }
 	/* CPU */
 	inline CPUClass * const &GetCPU() const { return CPU; }
+	inline void SetCPU(CPUClass *pCPU) { CPU = pCPU; }
 	/* APU */
 	inline APUClass * const &GetAPU() const { return APU; }
+	inline void SetAPU(APUClass *pAPU) { APU = pAPU; }
 	/* PPU */
 	inline PPUClass * const &GetPPU() const { return PPU; }
+	inline void SetPPU(PPUClass *pPPU) { PPU = pPPU; }
 	/* MMC */
 	inline MMCClass * const &GetMMC() const { return MMC; }
+	inline void SetMMC(MMCClass *pMMC) { MMC = pMMC; }
 	/* Внутренние часы */
 	inline const int &GetInternalClock() const { return InternalClock; }
 };

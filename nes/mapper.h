@@ -66,8 +66,6 @@ struct MMCChain_Adapter {
 /* Пустой картридж */
 template <class _Bus>
 class BasicMMC {
-public:
-	typedef _Bus BusClass;
 protected:
 	/* Шина */
 	_Bus *Bus;
@@ -121,11 +119,11 @@ public:
 	inline void UpdateCPUBus(uint16 Address, uint8 Src) {
 	}
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) {
+	inline uint8 ReadByte(uint16 Address) {
 		return 0x40;
 	}
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {
+	inline void WriteByte(uint16 Address, uint8 Src) {
 	}
 	/* Выполнить зависимости CPU */
 	inline void CPUDependencies() {
@@ -156,20 +154,20 @@ public:
 };
 
 /* Картридж со стандартной картой RAM */
-template <class _Parent>
+template <class _Bus, class _Parent>
 class StandardPRG: public _Parent {
-	using typename _Parent::BusClass;
+protected:
 	using _Parent::Bus;
 	using _Parent::Data;
 	using _Parent::RAM;
 public:
-	StandardPRG(BusClass *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
+	StandardPRG(_Bus *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
 	}
 	inline ~StandardPRG() {
 	}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) {
+	inline uint8 ReadByte(uint16 Address) {
 		if (Address < 0x6000) /* Регистры */
 			return 0x40;
 		if (Address < 0x8000) { /* SRAM */
@@ -180,23 +178,23 @@ public:
 				return Data->Trainer[Address & 0x01ff];
 			return 0x40;
 		}
-		return _Parent::ReadAddress(Address);
+		return _Parent::ReadByte(Address);
 	}
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {
+	inline void WriteByte(uint16 Address, uint8 Src) {
 		if (Address < 0x6000)
 			return;
 		if ((RAM == NULL) || (Address >= 0x8000))
-			_Parent::WriteAddress(Address, Src);
+			_Parent::WriteByte(Address, Src);
 		else
 			RAM[Address & 0x1fff] = Src;
 	}
 };
 
 /* Картридж со страничной PRG */
-template <class _Settings, class _Parent>
+template <class _Bus, class _Settings, class _Parent>
 class PagedPRG: public _Parent {
-	using typename _Parent::BusClass;
+protected:
 	using _Parent::Bus;
 	using _Parent::Data;
 private:
@@ -205,7 +203,7 @@ private:
 
 	SPagedData PagedData;
 public:
-	PagedPRG(BusClass *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
+	PagedPRG(_Bus *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
 		Bus->GetManager()->template SetPointer<ManagerID<MiscID::PagedPRGID> >(\
 			&PagedData, sizeof(SPagedData));
 		_Settings::InitPagedPRG(PagedData, Data);
@@ -214,7 +212,7 @@ public:
 	}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) {
+	inline uint8 ReadByte(uint16 Address) {
 		int i = _Settings::PagedPRGIndex(PagedData, Address);
 		return Data->PRG[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
 	}
@@ -226,9 +224,9 @@ public:
 };
 
 /* Картридж со страничной CHR */
-template <class _Settings, class _Parent>
+template <class _Bus, class _Settings, class _Parent>
 class PagedCHR: public _Parent {
-	using typename _Parent::BusClass;
+protected:
 	using _Parent::Bus;
 	using _Parent::Data;
 	using _Parent::CHR;
@@ -238,7 +236,7 @@ private:
 
 	SPagedData PagedData;
 public:
-	PagedCHR(BusClass *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
+	PagedCHR(_Bus *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
 		Bus->GetManager()->template SetPointer<ManagerID<MiscID::PagedCHRID> >(\
 			&PagedData, sizeof(SPagedData));
 		_Settings::InitPagedCHR(PagedData, Data);
@@ -249,7 +247,16 @@ public:
 	/* Чтение памяти PPU */
 	inline uint8 ReadPPUAddress(uint16 Address) {
 		int i = _Settings::PagedCHRIndex(PagedData, Address);
-		return CHR->PRG[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
+		return CHR[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
+	}
+	/* Запись памяти PPU */
+	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+		if (Data->CHR != NULL)
+			return;
+
+		int i = _Settings::PagedCHRIndex(PagedData, Address);
+
+		CHR[PagedData.Addr[i] | (Address & PagedData.Mask[i])] = Src;
 	}
 
 	/* Обновление данных страниц */
@@ -259,21 +266,21 @@ public:
 };
 
 /* Конфликт шины */
-template <class _Parent>
+template <class _Bus, class _Parent>
 class BusConflict: public _Parent {
-	using typename _Parent::BusClass;
+protected:
 	using _Parent::Bus;
 public:
-	BusConflict(BusClass *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
+	BusConflict(_Bus *pBus, ines::NES_ROM_Data *pData): _Parent(pBus, pData) {
 	}
 	inline ~BusConflict() {}
 
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {
-		uint8 BusR = _Parent::ReadAddress(Address) & Src;
+	inline void WriteByte(uint16 Address, uint8 Src) {
+		uint8 BusR = _Parent::ReadByte(Address) & Src;
 
-		_Parent::WriteAddress(Address, BusR);
-		if ((_Parent::ReadAddress(Address) & Src) != BusR)
+		_Parent::WriteByte(Address, BusR);
+		if ((_Parent::ReadByte(Address) & Src) != BusR)
 			/* Невозможно определить результат действия */
 			Bus->GetCPU()->Panic();
 	}

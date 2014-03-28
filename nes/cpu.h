@@ -129,11 +129,11 @@ private:
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
 		Bus->IncrementClock(ClockDivider);
-		return Bus->ReadCPUMemory(Address);
+		return Bus->ReadCPU(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
 		Bus->IncrementClock(ClockDivider);
-		Bus->WriteCPUMemory(Address, Src);
+		Bus->WriteCPU(Address, Src);
 	}
 
 	/* Положить в стек */
@@ -266,7 +266,7 @@ private:
 			Res = CPU.Registers.pc + (sint8) CPU.ReadMemory(CPU.Registers.pc - 1);
 			if ((Res & 0xff00) != (CPU.Registers.pc & 0xff00)) {
 				CPU.ReadMemory((CPU.Registers.pc & 0xff00) | (Res & 0x00ff));
-				CPU.InternalClock += 2 * ClockDivider;
+				CPU.CycleData.Cycles += 2 * ClockDivider;
 			} else
 				CPU.CycleData.AddCycles += ClockDivider;
 			return Res;
@@ -502,11 +502,11 @@ public:
 	}
 
 	/* Чтение памяти */
-	inline uint8 ReadAddress(uint16 Address) {
+	inline uint8 ReadByte(uint16 Address) {
 		return RAM[Address & 0x07ff];
 	}
 	/* Запись памяти */
-	inline void WriteAddress(uint16 Address, uint8 Src) {
+	inline void WriteByte(uint16 Address, uint8 Src) {
 		RAM[Address & 0x07ff] = Src;
 	}
 private:
@@ -749,13 +749,13 @@ template <class _Bus, class _Settings>
 const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode() {
 	uint8 opcode;
 	static const SOpcode NotReadyOpcode = {
-		0, 0, &OpNotReady
+		0, 0, &CCPU<_Bus, _Settings>::OpNotReady
 	};
 	static const SOpcode ResetOpcode = {
-		7 * ClockDivider, 0, &OpReset
+		7 * ClockDivider, 0, &CCPU<_Bus, _Settings>::OpReset
 	};
 	static const SOpcode IRQOpcode = {
-		3 * ClockDivider, 0, &OpIRQVector
+		3 * ClockDivider, 0, &CCPU<_Bus, _Settings>::OpIRQVector
 	};
 
 	ProcessIRQ();
