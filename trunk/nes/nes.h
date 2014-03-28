@@ -120,9 +120,19 @@ private:
 	BusClass Bus;
 public:
 	inline explicit CNES(CNESFrontend *Frontend):
-		Bus(Frontend, &Manager, &Clock) {
+		CBasicNES(), Bus(Frontend, &Manager, &Clock) {
+		typename BusClass::CPUClass *CPU = new typename BusClass::CPUClass(&Bus);
+		typename BusClass::APUClass *APU = new typename BusClass::APUClass(&Bus);
+		typename BusClass::PPUClass *PPU = new typename BusClass::PPUClass(&Bus);
+		Bus.SetCPU(CPU);
+		Bus.SetAPU(APU);
+		Bus.SetPPU(PPU);
 	}
 	inline ~CNES() {
+		delete Bus.GetMMC();
+		delete Bus.GetPPU();
+		delete Bus.GetAPU();
+		delete Bus.GetCPU();
 	}
 
 	/* Запустить цикл эмуляции */
