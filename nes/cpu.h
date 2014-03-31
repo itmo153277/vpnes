@@ -84,6 +84,8 @@ private:
 			IRQDelay
 		} IRQState; /* Состояние IRQ */
 		int IRQ; /* Флаг IRQ */
+		bool BranchTaken; /* Изменить логику получения опкода */
+		sint8 BranchOperand; /* Параметр для перехода */
 	} InternalData;
 
 	/* Данные о тактах */
@@ -91,7 +93,6 @@ private:
 		int NMI; /* Такт распознавания NMI */
 		int IRQ; /* Такт распознавания IRQ */
 		int Cycles; /* Всего тактов */
-		int AddCycles;
 	} CycleData;
 
 	/* Регистр состояния */
@@ -259,17 +260,10 @@ private:
 
 	/* PC + значение */
 	struct Relative {
-		inline static uint16 GetAddr(CCPU &CPU) {
-			uint16 Res;
-
-			//CPU.Bus->GetClock()->Clock(??); /* Неизвестное поведение */
-			Res = CPU.Registers.pc + (sint8) CPU.ReadMemory(CPU.Registers.pc - 1);
-			if ((Res & 0xff00) != (CPU.Registers.pc & 0xff00)) {
-				CPU.ReadMemory((CPU.Registers.pc & 0xff00) | (Res & 0x00ff));
-				CPU.CycleData.Cycles += 2 * ClockDivider;
-			} else
-				CPU.CycleData.AddCycles += ClockDivider;
-			return Res;
+		inline static void SetupBranch(CCPU &CPU, int Flag) {
+			CPU.InternalData.BranchOperand = (sint8) CPU.ReadMemory(CPU.Registers.pc - 1);
+			if (Flag)
+				CPU.InternalData.BranchTaken = true;
 		}
 	};
 
@@ -770,6 +764,20 @@ const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpc
 			return NULL;
 		default:
 			opcode = ReadMemory(Registers.pc);
+			if (InternalData.BranchTaken) {
+				uint16 Res;
+
+				InternalData.BranchTaken = false;
+				Res = Registers.pc + InternalData.BranchOperand;
+				if ((Res & 0xff00) != (Registers.pc & 0xff00)) {
+					ReadMemory((Registers.pc & 0xff00) | (Res & 0x00ff));
+					CycleData.Cycles += 2 * ClockDivider;
+					ProcessIRQ();
+				} else
+					CycleData.Cycles += ClockDivider;
+				Registers.pc = Res;
+				opcode = ReadMemory(Registers.pc);
+			}
 			if (DetectIRQ())
 				return &Opcodes[0];
 			else
@@ -793,12 +801,7 @@ void CCPU<_Bus, _Settings>::ProcessIRQ() {
 		if (CycleData.NMI < 0)
 			CycleData.NMI = 0;
 	}
-	if (CycleData.AddCycles > 0) {
-		Bus->IncrementClock(CycleData.AddCycles);
-		CycleData.Cycles = CycleData.AddCycles;
-		CycleData.AddCycles = 0;
-	} else
-		CycleData.Cycles = 0;
+	CycleData.Cycles = 0;
 }
 
 /* Проверка на IRQ */
@@ -1178,72 +1181,56 @@ void CCPU<_Bus, _Settings>::OpBIT() {
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBCC() {
-	if (!State.Carry) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, !State.Carry);
 }
 
 /* Переход по C */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBCS() {
-	if (State.Carry) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, State.Carry);
 }
 
 /* Переход по !Z */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBNE() {
-	if (!State.Zero) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, !State.Zero);
 }
 
 /* Переход по Z */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBEQ() {
-	if (State.Zero) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, State.Zero);
 }
 
 /* Переход по !N */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBPL() {
-	if (~State.Negative & 0x80) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, ~State.Negative & 0x80);
 }
 
 /* Переход по N */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBMI() {
-	if (State.Negative & 0x80) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, State.Negative & 0x80);
 }
 
 /* Переход по !V */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBVC() {
-	if (!State.Overflow) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, !State.Overflow);
 }
 
 /* Переход по V */
 template <class _Bus, class _Settings>
 template <class _Addr>
 void CCPU<_Bus, _Settings>::OpBVS() {
-	if (State.Overflow) {
-		Registers.pc = _Addr::GetAddr(*this);
-	}
+	_Addr::SetupBranch(*this, State.Overflow);
 }
 
 /* Копирование регистров */

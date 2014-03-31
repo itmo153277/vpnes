@@ -26,4 +26,43 @@
 #include "config.h"
 #endif
 
+#include "bus.h"
+
+namespace vpnes {
+
+/* APU */
+template <class _Bus, class _Settings>
+class CAPU {
+public:
+	/* Делитель частоты */
+	enum { ClockDivider = _Bus::CPUClass::ClockDivider };
+private:
+	/* Шина */
+	_Bus *Bus;
+public:
+	CAPU(_Bus *pBus) {
+		Bus = pBus;
+	}
+	inline ~CAPU() {}
+
+	/* Заполнить буфер */
+	inline void FlushBuffer() {}
+	/* Сброс */
+	inline void Reset() {}
+
+	/* Выполнить DMA */
+	inline int Execute() {
+		return _Settings::CPU_Divider;
+	}
+	/* Прочитать из регистра */
+	inline uint8 ReadByte(uint16 Address) {
+		return 0x40;
+	}
+	/* Записать в регистр */
+	inline void WriteByte(uint16 Address, uint8 Src) {
+	}
+};
+
+}
+
 #endif
