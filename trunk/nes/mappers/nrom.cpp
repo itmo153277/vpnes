@@ -23,6 +23,7 @@
 #include <cstring>
 #include "../bus.h"
 #include "../cpu.h"
+#include "../apu.h"
 
 using namespace vpnes;
 
@@ -145,23 +146,6 @@ public:
 	}
 };
 
-template <class _Bus, class _Settings>
-struct EmptyAPU {
-public:
-	EmptyAPU(_Bus *pBus) {	}
-	~EmptyAPU() {}
-
-	inline void FlushBuffer() {}
-	inline void Reset() {}
-
-	inline int Execute() { return _Settings::CPU_Divider; }
-	inline uint8 ReadByte(uint16 Address) {
-		return 0x40;
-	}
-	inline void WriteByte(uint16 Address, uint8 Src) {
-	}
-};
-
 template <class _Nes, class _Settings>
 class CNESConfigTemplate: public CNESConfig {
 private:
@@ -202,9 +186,9 @@ struct Std_NES_Config {
 	};
 
 	template <class BusClass>
-	class APU: public EmptyAPU<BusClass, _Settings> {
+	class APU: public CAPU<BusClass, _Settings> {
 	public:
-		inline explicit APU(BusClass *pBus): EmptyAPU<BusClass, _Settings>(pBus) {}
+		inline explicit APU(BusClass *pBus): CAPU<BusClass, _Settings>(pBus) {}
 		inline ~APU() {}
 	};
 
