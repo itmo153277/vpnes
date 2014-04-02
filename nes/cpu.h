@@ -468,7 +468,7 @@ public:
 	CCPU(_Bus *pBus) {
 		Bus = pBus;
 		RAM = static_cast<uint8 *>(Bus->GetManager()->\
-			template GetPointer<ManagerID<CPUID::RAMID> >(0x800 * sizeof(uint8)));
+			template GetPointer<ManagerID<CPUID::RAMID> >(0x0800 * sizeof(uint8)));
 		memset(RAM, 0xff, 0x0800 * sizeof(uint8));
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
 		Bus->GetManager()->template SetPointer<SState>(&State);
@@ -723,8 +723,6 @@ void CCPU<_Bus, _Settings>::Execute() {
 	const SOpcode *NextOpcode;
 	int ClockCounter;
 
-	if (InternalData.State == SInternalData::Halt)
-		return;
 	Bus->ResetInternalClock();
 	ClockCounter = 0;
 	while (ClockCounter < Bus->GetClock()->GetWaitClocks()) {
@@ -753,10 +751,10 @@ const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpc
 	};
 
 	ProcessIRQ();
-	if (InternalData.State == SInternalData::NotReady)
-		return &NotReadyOpcode;
 	if (InternalData.IRQState == SInternalData::IRQExecute)
 		return &IRQOpcode;
+	if (InternalData.State == SInternalData::NotReady)
+		return &NotReadyOpcode;
 	switch (InternalData.State) {
 		case SInternalData::Reset:
 			return &ResetOpcode;

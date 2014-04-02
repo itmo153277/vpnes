@@ -42,6 +42,7 @@ struct SEvent {
 	SEvent *Previous; /* Предыдущее событие */
 	SEvent *Next; /* Следующее событие */
 	SEventData *Data; /* Данные события */
+	const char *Name; /* Название события */
 	/* Выполнить */
 	std::function<void()> Execute;
 
