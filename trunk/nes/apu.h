@@ -80,12 +80,14 @@ private:
 		int i;
 
 		Process(CallTime);
-		CycleData.Async = (CycleData.Async + CycleData.InternalClock) % ClockDivider;
+		/* Async is always 0?? */
+		CycleData.Async = (CycleData.Async + CallTime) % ClockDivider;
 		CycleData.NextEvent = EventTime[0];
 		for (i = 0; i < MAX_EVENTS; i++)
-			if (EventTime[i] > 0) {
-				EventTime[i] -= CycleData.InternalClock;
-				if (EventTime[i] < CycleData.NextEvent)
+			if (EventTime[i] >= 0) {
+				/* Знак не изменится, если событие не было выполнено */
+				EventTime[i] -= CallTime;
+				if ((EventTime[i] < CycleData.NextEvent) && (EventTime[i] >= 0))
 					CycleData.NextEvent = EventTime[i];
 			}
 		CycleData.InternalClock = -CycleData.Async;
@@ -181,7 +183,6 @@ void CAPU<_Bus, _Settings>::Process(int Time) {
 			ProcessEvent();
 		LeftTime -= RunTime;
 	}
-	CycleData.InternalClock = Time;
 }
 
 }
