@@ -62,7 +62,7 @@ CAudio::~CAudio() {
 
 /* Callback */
 void CAudio::AudioCallbackSDL(void *Data, Uint8 *Stream, int Len) {
-	CAudio *Audio = static_cast<CAudio *>(Data);
+	CAudio *Audio = reinterpret_cast<CAudio *>(Data);
 
 	if (Audio->PCMPlay && Audio->BuffersFull[Audio->PCMIndex]) {
 		Audio->BuffersFull[Audio->PCMIndex] = false;

@@ -48,6 +48,8 @@
 #include <windows.h>
 #endif
 
+#include <cstdlib>
+
 namespace vpnes_gui {
 
 #ifndef VPNES_MAX_PATH
@@ -127,7 +129,7 @@ private:
 	/* Буфер для сообщений */
 	char sbuf[20];
 	/* Текущее собщение */
-	const char *WindowText;
+	wchar_t *WindowText;
 	/* Обновить сообщение */
 	bool UpdateText;
 #endif
@@ -215,11 +217,24 @@ public:
 	inline const WindowState &GetWindowState() const { return CurState; }
 #if defined(VPNES_USE_TTF)
 	/* Сообщение */
-	inline const char *GetText() const { return WindowText; }
+	inline const wchar_t *GetText() const { return WindowText; }
 	/* Обновить текст */
 	inline bool &GetUpdateTextFlag() { return UpdateText; }
 	/* Установить сообщение */
-	inline void SetText(const char *Text) { WindowText = Text; UpdateText = true; }
+	void SetText(const char *Text) {
+		size_t TextLen = 1, CharLen, MaxLen = strlen(Text);
+		const char *CurChar = Text;
+		while (MaxLen > 0) {
+			CharLen = mblen(CurChar, MaxLen);
+			CurChar += CharLen;
+			MaxLen -= CharLen;
+			TextLen++;
+		}
+		delete [] WindowText;
+		WindowText = new wchar_t[TextLen];
+		mbstowcs(WindowText, Text, TextLen);
+		UpdateText = true;
+	}
 #endif
 	/* Очистить окно */
 	void ClearWindow();
