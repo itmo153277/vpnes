@@ -22,6 +22,7 @@
 #include <SDL.h>
 #include <exception>
 #include <iostream>
+#include <clocale>
 #include "types.h"
 
 #include "gui/gui.h"
@@ -31,6 +32,7 @@ int main(int argc, char *argv[]) {
 	vpnes_gui::CNESGUI *GUI = NULL;
 	const char *FileName = NULL;
 
+	setlocale(LC_ALL, "");
 #ifdef BUILDNUM
 	std::clog << "VPNES " VERSION " Build " BUILDNUM
 #ifdef SVNREV

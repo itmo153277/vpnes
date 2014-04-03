@@ -122,6 +122,9 @@ CWindow::~CWindow() {
 #endif
 	::DestroyIcon(Icon);
 #endif
+#if defined(VPNES_USE_TTF)
+	delete [] WindowText;
+#endif
 }
 
 /* Обработка событий */

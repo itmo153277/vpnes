@@ -147,7 +147,7 @@ void CVideo::UpdateSizes(int Width, int Height) {
 	_Width = Width;
 	_Height = Height;
 	InternalSurface = UpdateSurface();
-	Buf = static_cast<uint32 *>(InternalSurface->pixels);
+	Buf = reinterpret_cast<uint32 *>(InternalSurface->pixels);
 	Pixel = Buf;
 }
 
@@ -171,7 +171,7 @@ bool CVideo::UpdateFrame(double FrameTime) {
 				SDL_SWSURFACE);
 			::SDL_FreeSurface(InternalSurface);
 			InternalSurface = NewSurface;
-			Buf = static_cast<uint32 *>(InternalSurface->pixels);
+			Buf = reinterpret_cast<uint32 *>(InternalSurface->pixels);
 		}
 		Screen = pWindow->GetSurface();
 #if defined(VPNES_USE_TTF)
@@ -191,8 +191,8 @@ bool CVideo::UpdateFrame(double FrameTime) {
 
 			if (TextSurface != NULL)
 				::SDL_FreeSurface(TextSurface);
-			TempSurface = ::TTF_RenderUTF8_Shaded(Font, pWindow->GetText(), TextColour,
-				BGColour);
+			TempSurface = ::TTF_RenderUNICODE_Shaded(Font,
+				reinterpret_cast<const Uint16 *>(pWindow->GetText()), TextColour, BGColour);
 			TextSurface = ::SDL_CreateRGBSurface(SDL_HWSURFACE,
 				TempSurface->w + TextInRect.x * 2,
 				TempSurface->h + TextInRect.y * 2,

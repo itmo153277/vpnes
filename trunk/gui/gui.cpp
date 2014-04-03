@@ -78,8 +78,6 @@ void CNESGUI::Start(bool ForceDendyMode) {
 	int SaveState = 0;
 #if defined(VPNES_USE_TTF)
 	bool FirstRun;
-	const char *RomTitle;
-	const char *TempStr;
 #endif
 
 #if defined(VPNES_INTERACTIVE)
@@ -129,12 +127,15 @@ void CNESGUI::Start(bool ForceDendyMode) {
 				}
 #if defined(VPNES_USE_TTF)
 				if (FirstRun) {
+					const char *TempStr;
+					const char *OutTitle;
+
 					FirstRun = false;
-					RomTitle = RomName;
+					OutTitle = RomName;
 					for (TempStr = RomName; *TempStr; TempStr++)
 						if (*TempStr == '/' || *TempStr == '\\')
-							RomTitle = TempStr + 1;
-					Window->SetText(RomTitle);
+							OutTitle = TempStr + 1;
+					Window->SetText(OutTitle);
 				} else
 					Window->SetText("Hard reset");
 #endif
