@@ -52,6 +52,13 @@ class CCPU {
 public:
 	/* Делитель частоты */
 	enum { ClockDivider = _Settings::CPU_Divider };
+	/* Прерывания */
+	enum {
+		ExternalIRQ = 0,
+		FrameIRQ,
+		DMCIRQ,
+		IRQ_MAX
+	};
 private:
 	/* Шина */
 	_Bus *Bus;
@@ -92,6 +99,7 @@ private:
 	struct SCycleData: public ManagerID<CPUID::CycleDataID> {
 		int NMI; /* Такт распознавания NMI */
 		int IRQ; /* Такт распознавания IRQ */
+		int IRQF[IRQ_MAX]; /* Все такты IRQ */
 		int Cycles; /* Всего тактов */
 	} CycleData;
 
@@ -503,6 +511,38 @@ public:
 	inline void WriteByte(uint16 Address, uint8 Src) {
 		RAM[Address & 0x07ff] = Src;
 	}
+
+	/* Вызов прерывания */
+	inline void GenerateIRQ(int Time, int IRQFrom = ExternalIRQ) {
+		int InterruptCycles = (Time - Time % ClockDivider) + ClockDivider;
+
+		CycleData.IRQF[IRQFrom] = InterruptCycles;
+		if (!InternalData.IRQ || InterruptCycles < CycleData.IRQ)
+			CycleData.IRQ = InterruptCycles;
+		InternalData.IRQ |= 1 << (IRQFrom + 1);
+	}
+	inline void ClearIRQ(int IRQFrom = ExternalIRQ) {
+		int i;
+
+		InternalData.IRQ &= ~(1 << (IRQFrom + 1));
+		if (!InternalData.IRQ) {
+			CycleData.IRQ = -1;
+			return;
+		}
+		if (CycleData.IRQF[IRQFrom] < 0)
+			return;
+		for (i = 0; i < IRQ_MAX; i++)
+			if (i!= IRQFrom && (CycleData.IRQF[i] >= 0) &&
+			((CycleData.IRQF[i] < CycleData.IRQ) ||
+			(CycleData.IRQ == CycleData.IRQF[IRQFrom])))
+			CycleData.IRQ = CycleData.IRQF[i];
+	}
+	/* NMI не сохраняет уровень */
+	inline void GenerateNMI(int Time) {
+		if (CycleData.NMI >= 0)
+			return;
+		CycleData.NMI = (Time - Time % ClockDivider) + ClockDivider;
+	}
 private:
 	/* Команды CPU */
 
@@ -790,9 +830,13 @@ template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::ProcessIRQ() {
 	/* Отсчитываем такты до прерываний */
 	if (CycleData.IRQ > 0) {
+		int i;
+
 		CycleData.IRQ -= CycleData.Cycles;
 		if (CycleData.IRQ < 0)
 			CycleData.IRQ = 0;
+		for (i = 0; i < IRQ_MAX; i++)
+			CycleData.IRQF[i] -= CycleData.Cycles;
 	}
 	if (CycleData.NMI > 0) {
 		CycleData.NMI -= CycleData.Cycles;
@@ -836,6 +880,7 @@ void CCPU<_Bus, _Settings>::OpReset() {
 	Bus->IncrementClock(5 * ClockDivider); /* Игнорируем провереку векторизации */
 	Registers.pc = ReadMemory(0xfffc) | (ReadMemory(0xfffd) << 8);
 	InternalData.State = SInternalData::Run;
+	InternalData.IRQState = SInternalData::IRQDelay;
 }
 
 /* Векторизация */
@@ -843,7 +888,9 @@ template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::OpIRQVector() {
 	if (CycleData.IRQ < 3)
 		CycleData.IRQ = -1;
-	UpdateIRQState();
+	/* Игнорировкание DetectIRQ необходимо, поскольку BRK не имеет обработчика */
+	/* линии прерывания */
+	InternalData.IRQState = SInternalData::IRQDelay;
 	if (CycleData.NMI == 0) {
 		Registers.pc = ReadMemory(0xfffa) | (ReadMemory(0xfffb) << 8);
 		CycleData.NMI = -1;

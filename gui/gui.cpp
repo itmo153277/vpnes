@@ -76,6 +76,11 @@ void CNESGUI::Start(bool ForceDendyMode) {
 	bool Quit;
 	int Flag;
 	int SaveState = 0;
+#if defined(VPNES_USE_TTF)
+	bool FirstRun;
+	const char *RomTitle;
+	const char *TempStr;
+#endif
 
 #if defined(VPNES_INTERACTIVE)
 	do {
@@ -104,10 +109,12 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Video->UpdateSizes(NESConfig->GetWidth(), NESConfig->GetHeight());
 			Audio->UpdateDevice(NESConfig->GetFrameLength());
-
-/*#if defined(VPNES_INTERACTIVE)
+#if defined(VPNES_USE_TTF)
+			FirstRun = true;
+#endif
+#if defined(VPNES_INTERACTIVE)
 			Window->GetInfoText() = InfoString.c_str();
-#endif*/
+#endif
 			do {
 				Audio->Reset();
 				NES = NESConfig->GetNES(this);
@@ -121,7 +128,15 @@ void CNESGUI::Start(bool ForceDendyMode) {
 					}
 				}
 #if defined(VPNES_USE_TTF)
-				Window->SetText("Hard reset");
+				if (FirstRun) {
+					FirstRun = false;
+					RomTitle = RomName;
+					for (TempStr = RomName; *TempStr; TempStr++)
+						if (*TempStr == '/' || *TempStr == '\\')
+							RomTitle = TempStr + 1;
+					Window->SetText(RomTitle);
+				} else
+					Window->SetText("Hard reset");
 #endif
 				NES->Reset();
 				Quit = false;
