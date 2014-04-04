@@ -24,6 +24,7 @@
 #include "../bus.h"
 #include "../cpu.h"
 #include "../apu.h"
+#include "../tables.h"
 
 using namespace vpnes;
 
@@ -103,6 +104,7 @@ struct NTSCSettings {
 		OddSkip = 1
 	};
 	static inline const double GetFreq() { return 44.0 / 945000.0; }
+	typedef apu::NTSC_Tables APUTables;
 };
 
 template <class _Bus, class _Settings>
