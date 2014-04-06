@@ -138,14 +138,15 @@ public:
 	~EmptyPPU() {}
 
 	inline bool IsFrameReady() { return true; }
-	inline double GetFrameTime() { return _Settings::GetFreq() *
-		Period; }
+	inline double GetFrameTime() { return Period; }
 	inline void Reset() {}
 	inline uint8 ReadByte(uint16 Address) {
 		return 0x40;
 	}
 	inline void WriteByte(uint16 Address, uint8 Src) {
 	}
+
+	static inline const double GetFreq() { return _Settings::GetFreq(); }
 };
 
 template <class _Nes, class _Settings>

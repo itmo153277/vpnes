@@ -336,6 +336,13 @@ CWindow::WindowState CWindow::ProcessMessages() {
 		cur_frame = 0;
 	}
 	cur_frame++;
+#elif defined(VPNES_SHOW_CURFRAME)
+	static int cur_frame = 0;
+	char buf[20];
+
+	snprintf(buf, 20, "%d", cur_frame);
+	::SDL_WM_SetCaption(buf, NULL);
+	cur_frame++;
 #endif
 	if (MouseState && ((Uint32) (::SDL_GetTicks() - MouseTimer) > 3000)) {
 		::SDL_ShowCursor(SDL_DISABLE);
