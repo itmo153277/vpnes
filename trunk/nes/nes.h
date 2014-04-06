@@ -142,9 +142,10 @@ public:
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
 		Clock.Start([this, &Quit]() {
 			if (Bus.GetPPU()->IsFrameReady()) {
-				Bus.GetAPU()->FlushBuffer();
+				int Time = Bus.GetPPU()->GetFrameTime();
+				Bus.GetAPU()->FlushBuffer(Time);
 				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(\
-					Bus.GetPPU()->GetFrameTime());
+					Time * Bus.GetPPU()->GetFreq());
 				Clock.Reset();
 				if (Quit) {
 					Clock.Terminate();
