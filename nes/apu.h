@@ -28,6 +28,7 @@
 
 #include "../types.h"
 
+#include "tables.h"
 #include "manager.h"
 #include "clock.h"
 #include "bus.h"
@@ -39,6 +40,7 @@ namespace APUID {
 typedef APUGroup<1>::ID::NoBatteryID CycleDataID;
 typedef APUGroup<2>::ID::NoBatteryID EventDataID;
 typedef APUGroup<3>::ID::NoBatteryID EventTimeID;
+typedef APUGroup<4>::ID::NoBatteryID ChannelsID;
 
 }
 
@@ -89,22 +91,16 @@ private:
 		int Pos;
 		int PlayPos;
 		int InternalClock;
-		enum BufCode {
-			BufOK = 0,
-			BufFull
-		};
 
 		/* Обновить буфер */
-		inline BufCode UpdateBuffer(int Time) {
-			if (Time == InternalClock)
-				return BufOK;
-			if (Pos == MAX_BUF)
-				Pos = 0;
+		inline int UpdateBuffer(int Time) {
+			if (Time <= InternalClock)
+				return Time;
 			InternalClock += FillBuffer(Time - InternalClock);
-			if (Pos == MAX_BUF)
-				return BufFull;
-			else
-				return BufOK;
+			return InternalClock;
+		}
+		inline bool MustFlush() {
+			return Pos == MAX_BUF;
 		}
 		/* Сбросить часы */
 		inline void ResetClock() {
@@ -120,8 +116,10 @@ private:
 			Buffer[PlayPos].Length -= Length;
 			if (Buffer[PlayPos].Length == 0) {
 				PlayPos++;
-				if (PlayPos == MAX_BUF)
+				if (PlayPos == MAX_BUF) {
 					PlayPos = 0;
+					Pos = 0;
+				}
 			}
 			return Out;
 		}
@@ -133,10 +131,9 @@ private:
 	};
 
 	/* Прямоугольный сигнал */
-	struct SPulseChannel: SAPUUnit {
+	struct SPulseChannel: public SAPUUnit {
 		using SAPUUnit::Pos;
 		using SAPUUnit::Buffer;
-		using SAPUUnit::MAX_BUF;
 		int DutyCycle; /* Секвенсер */
 		uint8 DutyMode; /* Режим секвенсера */
 		bool EnvelopeStart; /* Сброс счетчика */
@@ -234,7 +231,7 @@ private:
 				return 0;
 		}
 		/* Заполнить буфер */
-		void FillBuffer(int Count) {
+		int FillBuffer(int Count) {
 			int Len = (Count - TimerDiff + 1) >> 1;
 			int RealCount = Count - (Len << 1);
 
@@ -244,7 +241,8 @@ private:
 			if (!TimerValid || (LengthCounter <= 0)) {
 				Buffer[Pos].Sample = 0;
 				Buffer[Pos++].Length = Len << 1;
-				DutyCycle = (DutyCycle + (Timer + Len) / (TimerPeriod + 1)) & 7;
+				DutyCycle = (DutyCycle + (TimerPeriod - Timer + Count) /
+					(TimerPeriod + 1)) & 7;
 				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
 				return Count;
 			}
@@ -287,7 +285,7 @@ private:
 		using SPulseChannel::NegateFlag;
 		using SPulseChannel::TimerPeriod;
 		using SPulseChannel::SweepedTimer;
-		using SPulseChannel::Valid;
+		using SPulseChannel::TimerValid;
 
 		/* Обсчитать свип */
 		void CalculateSweep() {
@@ -297,7 +295,7 @@ private:
 			if (NegateFlag)
 				Res = ~Res;
 			SweepedTimer = TimerPeriod + Res;
-			Valid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
+			TimerValid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
 		}
 	};
 
@@ -307,7 +305,7 @@ private:
 		using SPulseChannel::NegateFlag;
 		using SPulseChannel::TimerPeriod;
 		using SPulseChannel::SweepedTimer;
-		using SPulseChannel::Valid;
+		using SPulseChannel::TimerValid;
 
 		/* Обсчитать свип */
 		void CalculateSweep() {
@@ -317,15 +315,14 @@ private:
 			if (NegateFlag)
 				Res = -Res;
 			SweepedTimer = TimerPeriod + Res;
-			Valid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
+			TimerValid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
 		}
 	};
 
 	/* Треугольный канал */
-	struct STriangleChannel: SAPUUnit {
+	struct STriangleChannel: public SAPUUnit {
 		using SAPUUnit::Pos;
 		using SAPUUnit::Buffer;
-		using SAPUUnit::MAX_BUF;
 		int SequencePos; /* Номер в последовательности */
 		int ControlFlag; /* Флаг управления счетчиком */
 		int CounterReloadValue; /* Значение для сброса счетчика */
@@ -368,7 +365,7 @@ private:
 				LengthCounter--;
 		}
 		/* Заполнить буфер */
-		void FillBuffer(int Count) {
+		int FillBuffer(int Count) {
 			int RealCount = 0;
 			int Len = Count;
 
@@ -377,7 +374,8 @@ private:
 			if ((LinearCounter <= 0) || (LengthCounter <= 0) || (TimerPeriod < 2)) {
 				if (TimerPeriod < 2) {
 					Buffer[Pos].Sample = -1;
-					SequencePos = (SequencePos + (Timer + Count) / (TimerPeriod + 1)) & 31;
+					SequencePos = (SequencePos + (TimerPeriod - Timer + Count) /
+						(TimerPeriod + 1)) & 31;
 				} else
 					Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
 				Buffer[Pos++].Length = Count;
@@ -417,14 +415,87 @@ private:
 		}
 	};
 
+	/* Канал шума */
+	struct SNoiseChannel: public SAPUUnit {
+	};
+
+	/* Все каналы */
+	struct SChannels: public ManagerID<APUID::CycleDataID> {
+		SPulseChannel1 PulseChannel1;
+		SPulseChannel2 PulseChannel2;
+		STriangleChannel TriangleChannel;
+//		SNoiseChannel NoiseChannel;
+//		SDMCChannel DMCChannel;
+		int PlayTime;
+		int InternalClock;
+
+		/* Вывести звук */
+		inline void MuxChannels(CAPU &APU, int Clocks) {
+#if !defined(VPNES_PRCISE_MUX)
+			int Length, PulseOut, TOut, NDOut = 0;
+			double Sample;
+
+			while (PlayTime < Clocks) {
+				Length = Clocks - PlayTime;
+				PulseChannel1.MinimizeLength(Length);
+				PulseChannel2.MinimizeLength(Length);
+				TriangleChannel.MinimizeLength(Length);
+//				NoiseChannel.MinimizeLength(Length);
+//				DMCChannel.MinimizeLength(Length);
+				PlayTime += Length;
+				PulseOut = PulseChannel1.PlaySample(Length) +
+					PulseChannel2.PlaySample(Length);
+				TOut = TriangleChannel.PlaySample(Length);
+//				NDOut = NoiseChannel.PlaySmaple(Length) * 2 +
+//					DMCChannel.PlaySmaple(Length);
+				if (TOut < 0)
+					Sample = (apu::TNDTable[NDOut + 21] + apu::TNDTable[NDOut + 24]) / 2;
+				else
+					Sample = apu::TNDTable[NDOut + TOut];
+				Sample += apu::SquareTable[PulseOut];
+				APU.Bus->GetFrontend()->GetAudioFrontend()->PushSample(Sample, Length *
+					ClockDivider * _Settings::GetFreq());
+			}
+#else
+#endif
+		}
+		/* Обновить буфер */
+		inline void FlushBuffer(CAPU &APU, int Clocks) {
+			int RealTime;
+
+			do {
+				RealTime = PulseChannel1.UpdateBuffer(Clocks);
+				RealTime = PulseChannel2.UpdateBuffer(RealTime);
+				RealTime = TriangleChannel.UpdateBuffer(RealTime);
+//				RealTime = NoiseChannel.UpdateBuffer(RealTime);
+//				RealTime = DMCChannel.UpdateBuffer(RealTime);
+				MuxChannels(APU, RealTime);
+			} while (RealTime < Clocks);
+		}
+		/* Сбросить время */
+		inline void ResetClock() {
+			PlayTime = 0;
+			InternalClock = 0;
+			PulseChannel1.ResetClock();
+			PulseChannel2.ResetClock();
+			TriangleChannel.ResetClock();
+//			NoiseChannel.ResetClock();
+//			DMCChannel.ResetClock();
+		}
+		/* Обновить буфер до конца */
+		inline void FlushAll(CAPU &APU) {
+			FlushBuffer(APU, InternalClock);
+		}
+	} Channels;
+
 	/* Обновить буфер */
 	void UpdateBuffer(SAPUUnit *APUUnit, int Clocks) {
-		typename SAPUUnit::BufCode BufRet;
-		for (;;) {
-			BufRet = APUUnit->UpdateBuffer(Clocks);
-			if (BufRet == SAPUUnit::BufOK)
-				break;
-			FlushBuffer();
+		int RetTime = 0;
+
+		while (RetTime < Clocks) {
+			RetTime = APUUnit->UpdateBuffer(Clocks);
+			if (APUUnit->MustFlush())
+				Channels.FlushBuffer(*this, RetTime);
 		}
 	}
 
@@ -461,6 +532,10 @@ private:
 
 	/* Обработка события */
 	inline void ProcessEvent() {
+		CycleData.NextEvent += 20000;
+		EventTime[0] += 20000;
+		EventTime[1] += 20000;
+		EventTime[2] += 20000;
 	}
 public:
 	CAPU(_Bus *pBus) {
@@ -488,12 +563,17 @@ public:
 		MAKE_EVENT(EVENT_APU_DMC_IRQ);
 		MAKE_EVENT(EVENT_APU_DMC_DMA);
 #undef MAKE_EVENT
+		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
+		memset(&Channels, 0, sizeof(Channels));
 	}
 	inline ~CAPU() {
 	}
 
 	/* Заполнить буфер */
 	inline void FlushBuffer() {
+		CPUCall();
+		Channels.FlushAll(*this);
+		Channels.ResetClock();
 	}
 	/* Сброс */
 	inline void Reset() {
