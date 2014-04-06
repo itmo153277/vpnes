@@ -87,6 +87,7 @@ private:
 			int Length;
 		} Buffer[MAX_BUF];
 		int Pos;
+		int PlayPos;
 		int InternalClock;
 		enum BufCode {
 			BufOK = 0,
@@ -95,10 +96,12 @@ private:
 
 		/* Обновить буфер */
 		inline BufCode UpdateBuffer(int Time) {
+			if (Time == InternalClock)
+				return BufOK;
 			if (Pos == MAX_BUF)
 				Pos = 0;
 			InternalClock += FillBuffer(Time - InternalClock);
-			if (InternalClock < Time)
+			if (Pos == MAX_BUF)
 				return BufFull;
 			else
 				return BufOK;
@@ -109,6 +112,24 @@ private:
 		}
 		/* Заполнить буфер */
 		virtual int FillBuffer(int Count) = 0;
+		/* Проиграть семпл */
+		inline int PlaySample(int Length) {
+			int Out;
+
+			Out = Buffer[PlayPos].Sample;
+			Buffer[PlayPos].Length -= Length;
+			if (Buffer[PlayPos].Length == 0) {
+				PlayPos++;
+				if (PlayPos == MAX_BUF)
+					PlayPos = 0;
+			}
+			return Out;
+		}
+		/* Минимальная длина */
+		inline void MinimizeLength(int &Length) {
+			if (Buffer[PlayPos].Length < Length)
+				Length = Buffer[PlayPos].Length;
+		}
 	};
 
 	/* Прямоугольный сигнал */
@@ -131,6 +152,7 @@ private:
 		int TimerPeriod; /* Период */
 		int SweepedTimer; /* Рассчитанный период */
 		bool TimerValid; /* Периоды корректные */
+		bool UseCounter; /* Подавление изменения счетчикка длины */
 		int LengthCounter; /* Счетчик длины */
 		int Timer; /* Таймер */
 		int EnvelopeTimer; /* Счетчик для энвелопа */
@@ -161,6 +183,8 @@ private:
 			TimerPeriod = (TimerPeriod & 0x00ff) | ((Src & 0x07) << 8);
 			EnvelopeStart = true;
 			DutyCycle = 0;
+			if (UseCounter)
+				LengthCounter = Tables::LengthCounterTable[Src >> 3];
 		}
 
 		/* Генерация формы */
@@ -215,20 +239,31 @@ private:
 			int RealCount = Count - (Len << 1);
 
 			TimerDiff ^= Count & 1;
+			if (Len == 0)
+				return Count;
 			if (!TimerValid || (LengthCounter <= 0)) {
 				Buffer[Pos].Sample = 0;
 				Buffer[Pos++].Length = Len << 1;
+				DutyCycle = (DutyCycle + (Timer + Len) / (TimerPeriod + 1)) & 7;
 				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Count;
+			}
+			if (Len < (Timer + 1)) {
+				Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Len << 1;
+				Timer -= Len;
 				return Count;
 			}
 			if (Timer != TimerPeriod) {
 				Buffer[Pos].Sample = GetOutput();
-				Buffer[Pos++].Length = Timer << 1;
-				Len -= Timer;
-				RealCount += Timer << 1;
+				Buffer[Pos++].Length = (Timer + 1) << 1;
+				Len -= Timer + 1;
+				RealCount += (Timer + 1) << 1;
 				Timer = TimerPeriod;
+				DutyCycle++;
+				DutyCycle &= 7;
 			}
-			while (Pos < MAX_BUF && Len >= TimerPeriod) {
+			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = (TimerPeriod + 1) << 1;
 				Len -= TimerPeriod + 1;
@@ -246,8 +281,144 @@ private:
 		}
 	};
 
+	/* Прямоугольный канал 1 */
+	struct SPulseChannel1: public SPulseChannel {
+		using SPulseChannel::ShiftCount;
+		using SPulseChannel::NegateFlag;
+		using SPulseChannel::TimerPeriod;
+		using SPulseChannel::SweepedTimer;
+		using SPulseChannel::Valid;
+
+		/* Обсчитать свип */
+		void CalculateSweep() {
+			uint16 Res;
+
+			Res = TimerPeriod >> ShiftCount;
+			if (NegateFlag)
+				Res = ~Res;
+			SweepedTimer = TimerPeriod + Res;
+			Valid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
+		}
+	};
+
+	/* Прямоугольный канал 2 */
+	struct SPulseChannel2: public SPulseChannel {
+		using SPulseChannel::ShiftCount;
+		using SPulseChannel::NegateFlag;
+		using SPulseChannel::TimerPeriod;
+		using SPulseChannel::SweepedTimer;
+		using SPulseChannel::Valid;
+
+		/* Обсчитать свип */
+		void CalculateSweep() {
+			uint16 Res;
+
+			Res = TimerPeriod >> ShiftCount;
+			if (NegateFlag)
+				Res = -Res;
+			SweepedTimer = TimerPeriod + Res;
+			Valid = (TimerPeriod > 7) && (NegateFlag || (SweepedTimer < 0x800));
+		}
+	};
+
+	/* Треугольный канал */
+	struct STriangleChannel: SAPUUnit {
+		using SAPUUnit::Pos;
+		using SAPUUnit::Buffer;
+		using SAPUUnit::MAX_BUF;
+		int SequencePos; /* Номер в последовательности */
+		int ControlFlag; /* Флаг управления счетчиком */
+		int CounterReloadValue; /* Значение для сброса счетчика */
+		bool CounterReload; /* Флаг сброса счетчика */
+		int LinearCounter; /* Линейный счетчик */
+		int TimerPeriod; /* Период */
+		int Timer; /* Счетчик */
+		bool UseCounter; /* Флаг подавления счетчика длины */
+		int LengthCounter; /* Счетчик длины */
+
+		/* Запись 0x4008 */
+		inline void Write_1(uint8 Src) {
+			ControlFlag = Src & 0x80;
+			CounterReload = Src & 0x7f;
+		}
+		/* Запись 0x400a */
+		inline void Write_2(uint8 Src) {
+			TimerPeriod = (TimerPeriod & 0x0700) | Src;
+		}
+		/* Запсиь 0x400b */
+		inline void Write_3(uint8 Src) {
+			TimerPeriod = (TimerPeriod & 0x00ff) | ((Src & 0x07) << 8);
+			CounterReload = true;
+			if (UseCounter)
+				LengthCounter = Tables::LengthCounterTable[Src >> 3];
+		}
+
+		/* Линейный счетчик */
+		inline void ClockLinearCounter() {
+			if (CounterReload)
+				LinearCounter = CounterReloadValue;
+			else if (LinearCounter > 0)
+				LinearCounter--;
+			if (!ControlFlag)
+				CounterReload = false;
+		}
+		/* Счетчик длины */
+		inline void ClockLengthCounter() {
+			if ((!ControlFlag) && (LengthCounter > 0))
+				LengthCounter--;
+		}
+		/* Заполнить буфер */
+		void FillBuffer(int Count) {
+			int RealCount = 0;
+			int Len = Count;
+
+			if (Count == 0)
+				return Count;
+			if ((LinearCounter <= 0) || (LengthCounter <= 0) || (TimerPeriod < 2)) {
+				if (TimerPeriod < 2) {
+					Buffer[Pos].Sample = -1;
+					SequencePos = (SequencePos + (Timer + Count) / (TimerPeriod + 1)) & 31;
+				} else
+					Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = Count;
+				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Count;
+			}
+			if (Len < (Timer + 1)) {
+				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = Len;
+				Timer -= Len;
+				return Count;
+			}
+			if (Timer != TimerPeriod) {
+				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = Timer + 1;
+				Len -= Timer + 1;
+				RealCount += Timer + 1;
+				Timer = TimerPeriod;
+				SequencePos++;
+				SequencePos &= 31;
+			}
+			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
+				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = TimerPeriod + 1;
+				Len -= TimerPeriod + 1;
+				SequencePos++;
+				SequencePos &= 31;
+				RealCount += TimerPeriod + 1;
+			}
+			if ((Pos < MAX_BUF) && (Len > 0)) {
+				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = Len;
+				Timer = TimerPeriod - Len;
+				RealCount += Len;
+			}
+			return RealCount;
+		}
+	};
+
 	/* Обновить буфер */
-	inline void UpdateBuffer(SAPUUnit *APUUnit, int Clocks) {
+	void UpdateBuffer(SAPUUnit *APUUnit, int Clocks) {
 		typename SAPUUnit::BufCode BufRet;
 		for (;;) {
 			BufRet = APUUnit->UpdateBuffer(Clocks);
