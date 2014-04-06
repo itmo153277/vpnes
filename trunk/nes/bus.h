@@ -65,6 +65,7 @@ private:
 public:
 	inline CBus_Basic(CNESFrontend *pFrontend, CMemoryManager *pManager, CClock *pClock):
 		Frontend(pFrontend), Manager(pManager), Clock(pClock) {
+		InternalClock = 0;
 	}
 	inline virtual ~CBus_Basic() {}
 
