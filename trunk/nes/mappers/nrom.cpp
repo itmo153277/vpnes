@@ -85,7 +85,7 @@ struct NROM_Chain {
 	typedef
 		PlainCHR<_Bus,
 		mapper::StandardPRG<_Bus,
-		mapper::PagedPRG<_Bus, NROMBanks, 
+		mapper::PagedPRG<_Bus, NROMBanks,
 		mapper::BasicMMC<_Bus> > > >
 		Chain;
 };
@@ -140,12 +140,9 @@ public:
 	inline bool IsFrameReady() { return true; }
 	inline double GetFrameTime() { return Period; }
 	inline void Reset() {}
-	inline uint8 ReadByte(uint16 Address) {
-		return 0x40;
-	}
-	inline void WriteByte(uint16 Address, uint8 Src) {
-	}
-
+	inline uint8 ReadByte(uint16 Address) { return 0x40; }
+	inline void WriteByte(uint16 Address, uint8 Src) {}
+	inline void ResetInternalClock(int Time) {}
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
 };
 

@@ -846,8 +846,8 @@ public:
 		Channels.Reset();
 	}
 	/* Сброс часов шины */
-	inline void ResetInternalClock() {
-		CycleData.IRQOffset += Bus->GetInternalClock();
+	inline void ResetInternalClock(int Time) {
+		CycleData.IRQOffset += Time;
 	}
 	/* Выполнить DMA */
 	inline int Execute() {

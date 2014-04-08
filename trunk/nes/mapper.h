@@ -151,6 +151,10 @@ public:
 	/* Сброс */
 	inline void Reset() {
 	}
+
+	/* Сброс часов шины */
+	inline void ResetInternalClock(int Time) {
+	}
 };
 
 /* Картридж со стандартной картой RAM */
