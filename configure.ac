@@ -59,7 +59,7 @@ LIBS="$SDL_LIBS $LIBS"
 CFLAGS="$SDL_CFLAGS $CFLAGS"
 CXXFLAGS="$SDL_CFLAGS $CXXFLAGS"
 
-AC_ARG_WITH(sdl_ttf-prefix, AS_HELP_STRING([--with-sdl_ttf-prefix=PFX], 
+AC_ARG_WITH(sdl_ttf-prefix, AS_HELP_STRING([--with-sdl_ttf-prefix=PFX],
 	[prefix where SDL_ttf is installed (optional)]),
 	[sdl_ttf_prefix="$withval"], [sdl_ttf_prefix=""])
 
@@ -138,7 +138,7 @@ if test "x$vpnes_interactive" = "xyes" ; then
 			[AC_MSG_ERROR([required headers not found])], [#include <windows.h>])
 	fi
 fi
-AC_ARG_ENABLE(showcurframe, AS_HELP_STRING([--enable-showcurframe], 
+AC_ARG_ENABLE(showcurframe, AS_HELP_STRING([--enable-showcurframe],
 	[show frame number in window title]),
 	[if test "x$enableval" = "xyes" ; then
 		AC_DEFINE([VPNES_SHOW_CURFRAME], 1, [Define to 1 to show frame number in window title])

@@ -5,7 +5,7 @@ dnl
 AC_DEFUN([AM_PATH_CHECK],
 [
   AC_ARG_WITH([check],AS_HELP_STRING([--with-check=PFX], [prefix where check is installed (optional)]))
- 
+
   min_check_version=ifelse([$1], ,0.8.2,$1)
 
   AC_MSG_CHECKING(for check - version >= $min_check_version)
@@ -45,7 +45,7 @@ int main ()
      printf("%s, bad version string\n", "$min_check_version");
      return 1;
    }
-    
+
   if ((CHECK_MAJOR_VERSION != check_major_version) ||
       (CHECK_MINOR_VERSION != check_minor_version) ||
       (CHECK_MICRO_VERSION != check_micro_version))
@@ -68,7 +68,7 @@ int main ()
       printf("\n*** An old version of check (%d.%d.%d) was found.\n",
              check_major_version, check_minor_version, check_micro_version);
       printf("*** You need a version of check being at least %d.%d.%d.\n", major, minor, micro);
-      printf("***\n"); 
+      printf("***\n");
       printf("*** If you have already installed a sufficiently new version, this error\n");
       printf("*** probably means that the wrong copy of the check library and header\n");
       printf("*** file is being found. Rerun configure with the --with-check=PATH option\n");
@@ -108,7 +108,7 @@ int main ()
         echo "*** you may also be able to get things to work by modifying LD_LIBRARY_PATH"],
       [ echo "*** The test program failed to compile or link. See the file config.log for"
         echo "*** the exact error that occured." ])
-      
+
         CFLAGS="$ac_save_CFLAGS"
         LIBS="$ac_save_LIBS"
       fi

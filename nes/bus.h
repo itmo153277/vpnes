@@ -65,7 +65,6 @@ private:
 public:
 	inline CBus_Basic(CNESFrontend *pFrontend, CMemoryManager *pManager, CClock *pClock):
 		Frontend(pFrontend), Manager(pManager), Clock(pClock) {
-		InternalClock = 0;
 	}
 	inline virtual ~CBus_Basic() {}
 
@@ -110,10 +109,12 @@ public:
 	}
 
 	/* Внутренние часы */
-	inline void ResetInternalClock() {
-		CPU->ResetInternalClock();
-		APU->ResetInternalClock();
-		InternalClock = 0;
+	inline void ResetInternalClock(int StartTime, int EndTime) {
+		CPU->ResetInternalClock(EndTime - StartTime);
+		APU->ResetInternalClock(EndTime - StartTime);
+		PPU->ResetInternalClock(EndTime - StartTime);
+		MMC->ResetInternalClock(EndTime - StartTime);
+		InternalClock = StartTime;
 	}
 	inline void Synchronize(int ActualClock) {
 		InternalClock = ActualClock;

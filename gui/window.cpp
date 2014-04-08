@@ -228,7 +228,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 	SDL_Event Event;
 	bool Quit = false;
 	WindowActions Action;
-	
+
 	CurState = wsNormal;
 	while (::SDL_PollEvent(&Event)) {
 		if (CurState == wsUpdateBuffer) {

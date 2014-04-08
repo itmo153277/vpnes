@@ -102,6 +102,8 @@ private:
 		int IRQF[IRQ_MAX]; /* Все такты IRQ */
 		int Cycles; /* Всего тактов */
 		int IRQOffset; /* Сдвиг IRQ */
+		int LastClock; /* Последний такт */
+		int ActualTime; /* Обработано */
 	} CycleData;
 
 	/* Регистр состояния */
@@ -505,8 +507,8 @@ public:
 	}
 
 	/* Сброс часов шины */
-	inline void ResetInternalClock() {
-		CycleData.IRQOffset -= Bus->GetInternalClock();
+	inline void ResetInternalClock(int Time) {
+		CycleData.IRQOffset -= Time;
 	}
 	/* Чтение памяти */
 	inline uint8 ReadByte(uint16 Address) {
@@ -770,8 +772,8 @@ void CCPU<_Bus, _Settings>::Execute() {
 	const SOpcode *NextOpcode;
 	int ClockCounter;
 
-	Bus->ResetInternalClock();
-	ClockCounter = 0;
+	ClockCounter = CycleData.ActualTime - CycleData.LastClock;
+	Bus->ResetInternalClock(ClockCounter, CycleData.ActualTime);
 	while (ClockCounter < Bus->GetClock()->GetWaitClocks()) {
 		NextOpcode = GetNextOpcode();
 		if (NextOpcode == NULL)
@@ -781,6 +783,8 @@ void CCPU<_Bus, _Settings>::Execute() {
 		ClockCounter += CycleData.Cycles;
 		Bus->Synchronize(ClockCounter);
 	}
+	CycleData.ActualTime = ClockCounter;
+	CycleData.LastClock = Bus->GetClock()->GetWaitClocks();
 }
 
 /* Декодер операции */

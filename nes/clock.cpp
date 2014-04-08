@@ -96,7 +96,7 @@ void CClock::UpdateList() {
 		if ((*EventIter)->Data->Enabled) { /* Обновить регистрацию */
 			(*EventIter)->Data->Enabled = false;
 			if ((First == NULL) || (NextEventTime > (*EventIter)->Data->Time))
-				NextEventTime = (*EventIter)->Data->Time;				
+				NextEventTime = (*EventIter)->Data->Time;
 			EnableEvent(*EventIter);
 		}
 }

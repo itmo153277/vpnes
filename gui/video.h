@@ -80,7 +80,7 @@ private:
 	/* Таймер текста */
 	Uint32 TextTimer;
 #ifdef _WIN32
-	/* Шрифт в ресурсах */ 
+	/* Шрифт в ресурсах */
 	HGLOBAL ResourceHandle;
 	HRSRC ResourceInfo;
 #endif
