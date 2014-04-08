@@ -63,6 +63,7 @@ private:
 		int InternalClock;
 		int Async;
 		int NextEvent;
+		int IRQOffset;
 	} CycleData;
 
 	/* События */
@@ -144,7 +145,6 @@ private:
 		int Timer; /* Таймер */
 		int EnvelopeTimer; /* Счетчик для энвелопа */
 		int SweepTimer; /* Счетчик для свипа */
-		int TimerDiff; /* Сдвиг счетчика */
 
 		/* Запись 0x4000 / 0x4004 */
 		inline void Write_1(uint8 Src) {
@@ -209,6 +209,9 @@ private:
 				SweepReload = false;
 				SweepTimer = SweepPeriod;
 			}
+		}
+		/* Сброс */
+		inline void Reset() {
 		}
 		/* Выход */
 		inline int GetOutput() {
@@ -371,6 +374,9 @@ private:
 			if ((!ControlFlag) && (LengthCounter > 0))
 				LengthCounter--;
 		}
+		/* Сброс */
+		inline void Reset() {
+		}
 		/* Заполнить буфер */
 		int FillBuffer(int Count) {
 			int RealCount = 0;
@@ -439,20 +445,211 @@ private:
 
 	/* Канал шума */
 	struct SNoiseChannel: public SAPUUnit {
+		using SAPUUnit::Pos;
+		using SAPUUnit::Buffer;
+		using SAPUUnit::InternalClock;
+		bool EnvelopeStart; /* Сброс счетчика */
+		int EnvelopeLoop; /* Повторение */
+		int ConstantVolume; /* Постоянная громкость */
+		int EnvelopePeriod; /* Период изменений громкости */
+		int EnvelopeCounter; /* Счетчик выхода */
+		int ShiftCount; /* Бит обратной связи */
+		int TimerPeriod; /* Период */
+		bool UseCounter; /* Подавление изменения счетчикка длины */
+		int LengthCounter; /* Счетчик длины */
+		int Timer; /* Таймер */
+		int EnvelopeTimer; /* Счетчик для энвелопа */
+		uint16 Random; /* Биты рандома */
+
+		/* Запсиь в 0x400c */
+		inline void Write_1(uint8 Src) {
+			EnvelopeLoop = Src & 0x20;
+			ConstantVolume = Src & 0x10;
+			EnvelopePeriod = Src & 0x04;
+		}
+		/* Запись в 0x400e */
+		inline void Write_2(uint8 Src) {
+			TimerPeriod = Tables::NoiseTable[Src & 0x0f];
+			ShiftCount = (Src & 0x80) ? 8 : 13;
+		}
+		/* Запись в 0x400f */
+		inline void Write_3(uint8 Src) {
+			EnvelopeStart = true;
+			if (UseCounter)
+				LengthCounter = Tables::LengthCounterTable[Src >> 3];
+		}
+
+		/* Генерация формы */
+		inline void Envelope() {
+			if (EnvelopeStart) {
+				EnvelopeCounter = 15;
+				EnvelopeTimer = EnvelopePeriod;
+				EnvelopeStart = false;
+			} else {
+				if (EnvelopeTimer <= 0) {
+					EnvelopeTimer = EnvelopePeriod;
+					if (EnvelopeCounter <= 0) {
+						if (EnvelopeLoop)
+							EnvelopeCounter = 15;
+					} else
+						EnvelopeCounter--;
+				} else
+					EnvelopeTimer--;
+			}
+		}
+		/* Счетчик длины */
+		inline void ClockLengthCounter() {
+			if ((!EnvelopeLoop) && (LengthCounter > 0))
+				LengthCounter--;
+		}
+		/* Сброс */
+		inline void Reset() {
+			Random = 0x0001;
+			ShiftCount = 13;
+		}
+		/* Выход */
+		inline int GetOutput() {
+			if (!(Random & 0x4000)) {
+				if (ConstantVolume)
+					return EnvelopePeriod;
+				else
+					return EnvelopeCounter;
+			} else
+				return 0;
+		}
+		/* Заполнить буфер */
+		int FillBuffer(int Count) {
+			int RealCount = 0;
+			int Len = Count;
+
+			if (Count == 0)
+				return Count;
+			if (LengthCounter <= 0) {
+				int ChCount = (TimerPeriod - Timer + Count) /
+					(TimerPeriod + 1);
+
+				for (; ChCount > 0; ChCount--)
+					Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) |
+						(Random << 1);
+				Buffer[Pos].Sample = 0;
+				Buffer[Pos++].Length = Count;
+				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Count;
+			}
+			if (Len < (Timer + 1)) {
+				Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Len;
+				Timer -= Len;
+				return Count;
+			}
+			if (Timer != TimerPeriod) {
+				Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Timer + 1;
+				Len -= Timer + 1;
+				RealCount += Timer + 1;
+				Timer = TimerPeriod;
+				Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) | (Random << 1);
+			}
+			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
+				Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = TimerPeriod + 1;
+				Len -= TimerPeriod + 1;
+				Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) | (Random << 1);
+				RealCount += TimerPeriod + 1;
+			}
+			if ((Pos < MAX_BUF) && (Len > 0)) {
+				Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Len;
+				Timer = TimerPeriod - Len;
+				RealCount += Len;
+			}
+			return RealCount;
+		}
+
+		/* Обновить буфер */
+		inline int UpdateBuffer(int Time) {
+			if (Time <= InternalClock)
+				return Time;
+			InternalClock += FillBuffer(Time - InternalClock);
+			return InternalClock;
+		}
+		inline void UpdateBuffer(CAPU &APU, int Time) {
+			while (InternalClock < Time) {
+				InternalClock += FillBuffer(Time - InternalClock);
+				if (Pos == MAX_BUF)
+					APU.Channels.FlushBuffer(APU, InternalClock);
+			}
+		}
 	};
 
 	/* Все каналы */
 	struct SChannels: public ManagerID<APUID::CycleDataID> {
+		/* Все каналы */
 		SPulseChannel1 PulseChannel1;
 		SPulseChannel2 PulseChannel2;
 		STriangleChannel TriangleChannel;
-//		SNoiseChannel NoiseChannel;
-//		SDMCChannel DMCChannel;
-		int PlayTime;
-		int InternalClock;
+		SNoiseChannel NoiseChannel;
+//		SDMChannel DMChannel;
+		int PlayTime; /* Текущее время проигрывания */
+		int InternalClock; /* Текущее время */
+		bool FrameInterrupt; /* Прерывание счетчика кадров */
+		int InterruptInhibit; /* Подавление IRQ */
+		enum SeqMode {
+			Mode_4step = 4,
+			Mode_5step = 5
+		} Mode; /* Режим последовательностей */
+		uint8 Buf4017; /* Сохраненный регистр 0x4017 */
+
+		/* Запись 0x4015 */
+		inline void Write4015(uint8 Src) {
+			PulseChannel1.UseCounter = Src & 0x01;
+			PulseChannel2.UseCounter = Src & 0x02;
+			TriangleChannel.UseCounter = Src & 0x04;
+			NoiseChannel.UseCounter = Src & 0x08;
+//			if (!(Src & 0x10))
+//				DMChannel.LengthCounter = 0;
+//			else if (DMChannel.LengthCounter == 0)
+//				DMChannel.LengthCounter = DMChannel.ReloadCounter;
+			if (!PulseChannel1.UseCounter)
+				PulseChannel1.LengthCounter = 0;
+			if (!PulseChannel2.UseCounter)
+				PulseChannel2.LengthCounter = 0;
+			if (!TriangleChannel.UseCounter)
+				TriangleChannel.LengthCounter = 0;
+			if (!NoiseChannel.UseCounter)
+				NoiseChannel.LengthCounter = 0;
+		}
+		/* Чтение 0x4015 */
+		inline uint8 Read4015() {
+			uint8 Res = 0;
+
+			if (PulseChannel1.LengthCounter > 0)
+				Res |= 0x01;
+			if (PulseChannel2.LengthCounter > 0)
+				Res |= 0x02;
+			if (TriangleChannel.LengthCounter > 0)
+				Res |= 0x04;
+			if (NoiseChannel.LengthCounter > 0)
+				Res |= 0x08;
+//			if (DMChannel.LengthCounter > 0)
+//				Res |= 0x10;
+			if (FrameInterrupt)
+				Res |= 0x40;
+//			if (DMChannel.InterruptFlag)
+//				Res |= 0x80;
+			return Res;
+		}
+		/* Запись 0x4017 */
+		inline void Write4017(uint8 Src) {
+			Buf4017 = Src;
+			Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
+			InterruptInhibit = (Src & 0x40);
+			if (InterruptInhibit)
+				FrameInterrupt = false;
+		}
 
 		/* Вывести звук */
-		inline void MuxChannels(CAPU &APU, int Clocks) {
+		void MuxChannels(CAPU &APU, int Clocks) {
 #if !defined(VPNES_PRCISE_MUX)
 			int Length, PulseOut, TOut, NDOut = 0;
 			double Sample;
@@ -462,14 +659,14 @@ private:
 				PulseChannel1.MinimizeLength(Length);
 				PulseChannel2.MinimizeLength(Length);
 				TriangleChannel.MinimizeLength(Length);
-//				NoiseChannel.MinimizeLength(Length);
-//				DMCChannel.MinimizeLength(Length);
+				NoiseChannel.MinimizeLength(Length);
+//				DMChannel.MinimizeLength(Length);
 				PlayTime += Length;
 				PulseOut = PulseChannel1.PlaySample(Length) +
 					PulseChannel2.PlaySample(Length);
 				TOut = TriangleChannel.PlaySample(Length);
-//				NDOut = NoiseChannel.PlaySmaple(Length) * 2 +
-//					DMCChannel.PlaySmaple(Length);
+				NDOut = NoiseChannel.PlaySample(Length) * 2;// +
+//					DMChannel.PlaySample(Length);
 				if (TOut < 0)
 					Sample = (apu::TNDTable[NDOut + 21] + apu::TNDTable[NDOut + 24]) / 2;
 				else
@@ -482,15 +679,15 @@ private:
 #endif
 		}
 		/* Обновить буфер */
-		inline void FlushBuffer(CAPU &APU, int Clocks) {
+		void FlushBuffer(CAPU &APU, int Clocks) {
 			int RealTime;
 
 			do {
 				RealTime = PulseChannel1.UpdateBuffer(Clocks);
 				RealTime = PulseChannel2.UpdateBuffer(RealTime);
 				RealTime = TriangleChannel.UpdateBuffer(RealTime);
-//				RealTime = NoiseChannel.UpdateBuffer(RealTime);
-//				RealTime = DMCChannel.UpdateBuffer(RealTime);
+				RealTime = NoiseChannel.UpdateBuffer(RealTime);
+//				RealTime = DMChannel.UpdateBuffer(RealTime);
 				MuxChannels(APU, RealTime);
 			} while (RealTime < Clocks);
 		}
@@ -499,14 +696,54 @@ private:
 			PulseChannel1.ResetClock(InternalClock);
 			PulseChannel2.ResetClock(InternalClock);
 			TriangleChannel.ResetClock(InternalClock);
-//			NoiseChannel.ResetClock(InternalClock);
-//			DMCChannel.ResetClock(InternalClock);
+			NoiseChannel.ResetClock(InternalClock);
+//			DMChannel.ResetClock(InternalClock);
 			PlayTime = 0;
 			InternalClock = 0;
 		}
 		/* Обновить буфер до конца */
 		inline void FlushAll(CAPU &APU) {
 			FlushBuffer(APU, InternalClock);
+		}
+		/* Сброс */
+		void Reset() {
+			PulseChannel1.Reset();
+			PulseChannel2.Reset();
+			TriangleChannel.Reset();
+			NoiseChannel.Reset();
+//			DMChannel.Reset();
+			ResetClock();
+			Write4015(0);
+			Write4017(Buf4017);
+		}
+		/* Общий вызов */
+		inline void Envelope() {
+			PulseChannel1.Envelope();
+			PulseChannel2.Envelope();
+			NoiseChannel.Envelope();
+		}
+		inline void LengthCounter() {
+			PulseChannel1.ClockLengthCounter();
+			PulseChannel2.ClockLengthCounter();
+			TriangleChannel.ClockLengthCounter();
+			NoiseChannel.ClockLengthCounter();
+		}
+		inline void Sweep() {
+			PulseChannel1.Sweep();
+			PulseChannel1.CalculateSweep();
+			PulseChannel2.Sweep();
+			PulseChannel2.CalculateSweep();
+		}
+		/* Четные такты */
+		inline void EvenClock() {
+			Envelope();
+			TriangleChannel.ClockLinearCounter();
+		}
+		/* Нечетные такты */
+		inline void OddClock() {
+			EvenClock();
+			LengthCounter();
+			Sweep();
 		}
 	} Channels;
 
@@ -517,15 +754,13 @@ private:
 		Process(CallTime);
 		/* Async is always 0?? */
 		CycleData.Async = (CycleData.Async + CallTime) % ClockDivider;
-		CycleData.NextEvent = EventTime[0];
 		for (i = 0; i < MAX_EVENTS; i++)
 			if (EventTime[i] >= 0) {
 				/* Знак не изменится, если событие не было выполнено */
 				EventTime[i] -= CallTime;
-				if ((EventTime[i] < CycleData.NextEvent) && (EventTime[i] >= 0))
-					CycleData.NextEvent = EventTime[i];
 			}
 		CycleData.InternalClock = -CycleData.Async;
+		CycleData.IRQOffset -= CycleData.Async + CallTime;
 	}
 	/* Функция обработки из CPU */
 	inline void CPUCall() {
@@ -544,10 +779,24 @@ private:
 
 	/* Обработка события */
 	inline void ProcessEvent() {
-		CycleData.NextEvent += 20000;
-		EventTime[0] += 20000;
-		EventTime[1] += 20000;
-		EventTime[2] += 20000;
+		int i = 0;
+
+		for (; i < MAX_EVENTS; i++) {
+			if (CycleData.InternalClock == EventTime[i])
+				switch (i) {
+					case EVENT_APU_TICK:
+					case EVENT_APU_FRAME_IRQ:
+					case EVENT_APU_DMC_IRQ:
+					case EVENT_APU_DMC_DMA:
+						break;
+				}
+		}
+		CycleData.NextEvent = -1;
+		for (; i < MAX_EVENTS; i++) {
+			if ((EventTime[i] >= 0) && ((CycleData.NextEvent < 0) ||
+				(CycleData.NextEvent) > EventTime[i]))
+				CycleData.NextEvent = EventTime[i];
+		}
 	}
 public:
 	CAPU(_Bus *pBus) {
@@ -594,8 +843,12 @@ public:
 		memset(&CycleData, 0, sizeof(CycleData));
 		for (i = 0; i < MAX_EVENTS; i++)
 			Bus->GetClock()->DisableEvent(EventChain[i]);
+		Channels.Reset();
 	}
-
+	/* Сброс часов шины */
+	inline void ResetInternalClock() {
+		CycleData.IRQOffset += Bus->GetInternalClock();
+	}
 	/* Выполнить DMA */
 	inline int Execute() {
 		return ClockDivider;

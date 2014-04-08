@@ -111,6 +111,8 @@ public:
 
 	/* Внутренние часы */
 	inline void ResetInternalClock() {
+		CPU->ResetInternalClock();
+		APU->ResetInternalClock();
 		InternalClock = 0;
 	}
 	inline void Synchronize(int ActualClock) {

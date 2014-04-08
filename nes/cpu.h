@@ -101,6 +101,7 @@ private:
 		int IRQ; /* Такт распознавания IRQ */
 		int IRQF[IRQ_MAX]; /* Все такты IRQ */
 		int Cycles; /* Всего тактов */
+		int IRQOffset; /* Сдвиг IRQ */
 	} CycleData;
 
 	/* Регистр состояния */
@@ -503,6 +504,10 @@ public:
 		Bus->GetFrontend()->Panic();
 	}
 
+	/* Сброс часов шины */
+	inline void ResetInternalClock() {
+		CycleData.IRQOffset -= Bus->GetInternalClock();
+	}
 	/* Чтение памяти */
 	inline uint8 ReadByte(uint16 Address) {
 		return RAM[Address & 0x07ff];
@@ -543,6 +548,8 @@ public:
 			return;
 		CycleData.NMI = (Time - Time % ClockDivider) + ClockDivider;
 	}
+	/* Сдвиг тактов */
+	inline const int GetIRQOffset() const { return CycleData.IRQOffset; }
 private:
 	/* Команды CPU */
 
@@ -829,6 +836,7 @@ const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpc
 template <class _Bus, class _Settings>
 void CCPU<_Bus, _Settings>::ProcessIRQ() {
 	/* Отсчитываем такты до прерываний */
+	CycleData.IRQOffset += CycleData.Cycles;
 	if (CycleData.IRQ > 0) {
 		int i;
 
