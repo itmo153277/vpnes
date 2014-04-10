@@ -283,9 +283,9 @@ private:
 		}
 		inline void UpdateBuffer(CAPU &APU, int Time) {
 			while (InternalClock < Time) {
-				InternalClock += FillBuffer(Time - InternalClock);
 				if (Pos == MAX_BUF)
 					APU.Channels.FlushBuffer(APU, InternalClock);
+				InternalClock += FillBuffer(Time - InternalClock);
 			}
 		}
 	};
@@ -828,7 +828,8 @@ private:
 						if (CycleData.Step == Channels.Mode)
 							CycleData.Step = 0;
 						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
-							Bus->GetClock()->GetTime() + Tables::StepCycles[CycleData.Step]);
+							LocalEvents[EVENT_APU_TICK].Time +
+							Tables::StepCycles[CycleData.Step]);
 						EventTime[EVENT_APU_TICK] += Tables::StepCycles[CycleData.Step];
 						break;
 					case EVENT_APU_FRAME_IRQ:
