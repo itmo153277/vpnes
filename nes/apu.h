@@ -64,6 +64,8 @@ private:
 		int Async;
 		int NextEvent;
 		int IRQOffset;
+		int FrameCycle;
+		int Step;
 	} CycleData;
 
 	/* События */
@@ -745,6 +747,14 @@ private:
 			LengthCounter();
 			Sweep();
 		}
+		/* Обновить все буферы */
+		inline void UpdateAllBuffers(CAPU &APU) {
+			PulseChannel1.UpdateBuffer(APU, InternalClock);
+			PulseChannel2.UpdateBuffer(APU, InternalClock);
+			TriangleChannel.UpdateBuffer(APU, InternalClock);
+			NoiseChannel.UpdateBuffer(APU, InternalClock);
+//			DMChannel.UpdateBuffer(APU, InternalClock);
+		}
 	} Channels;
 
 	/* Функция обработки из события */
@@ -759,8 +769,10 @@ private:
 				/* Знак не изменится, если событие не было выполнено */
 				EventTime[i] -= CallTime;
 			}
+		CycleData.NextEvent -= CallTime;
 		CycleData.InternalClock = -CycleData.Async;
 		CycleData.IRQOffset -= CycleData.Async + CallTime;
+		CycleData.FrameCycle += CallTime;
 	}
 	/* Функция обработки из CPU */
 	inline void CPUCall() {
@@ -779,20 +791,55 @@ private:
 
 	/* Обработка события */
 	inline void ProcessEvent() {
-		int i = 0;
+		int i;
 
-		for (; i < MAX_EVENTS; i++) {
+		for (i = 0; i < MAX_EVENTS; i++) {
 			if (CycleData.InternalClock == EventTime[i])
 				switch (i) {
 					case EVENT_APU_TICK:
+						Channels.UpdateAllBuffers(*this);
+						switch (Channels.Mode) {
+							case SChannels::Mode_4step:
+								switch (CycleData.Step) {
+									case 0:
+									case 2:
+										Channels.EvenClock();
+										break;
+									case 1:
+									case 3:
+										Channels.OddClock();
+										break;
+								}
+								break;
+							case SChannels::Mode_5step:
+								switch (CycleData.Step) {
+									case 0:
+									case 2:
+										Channels.EvenClock();
+										break;
+									case 1:
+									case 4:
+										Channels.OddClock();
+										break;
+								}
+								break;
+						}
+						CycleData.Step++;
+						if (CycleData.Step == Channels.Mode)
+							CycleData.Step = 0;
+						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+							Bus->GetClock()->GetTime() + Tables::StepCycles[CycleData.Step]);
+						EventTime[EVENT_APU_TICK] += Tables::StepCycles[CycleData.Step];
+						break;
 					case EVENT_APU_FRAME_IRQ:
 					case EVENT_APU_DMC_IRQ:
 					case EVENT_APU_DMC_DMA:
+						EventTime[i] = -1;
 						break;
 				}
 		}
 		CycleData.NextEvent = -1;
-		for (; i < MAX_EVENTS; i++) {
+		for (i = 0; i < MAX_EVENTS; i++) {
 			if ((EventTime[i] >= 0) && ((CycleData.NextEvent < 0) ||
 				(CycleData.NextEvent) > EventTime[i]))
 				CycleData.NextEvent = EventTime[i];
@@ -832,9 +879,10 @@ public:
 
 	/* Заполнить буфер */
 	inline void FlushBuffer(int Time) {
-		EventCall(Time);
+		EventCall(Time - CycleData.FrameCycle);
 		Channels.FlushAll(*this);
 		Channels.ResetClock();
+		CycleData.FrameCycle -= Time;
 	}
 	/* Сброс */
 	inline void Reset() {
@@ -844,6 +892,9 @@ public:
 		for (i = 0; i < MAX_EVENTS; i++)
 			Bus->GetClock()->DisableEvent(EventChain[i]);
 		Channels.Reset();
+		EventTime[EVENT_APU_TICK] = Tables::StepCycles[0];
+		Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK], Tables::StepCycles[0]);
+		Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_TICK]);
 	}
 	/* Сброс часов шины */
 	inline void ResetInternalClock(int Time) {
@@ -870,7 +921,7 @@ void CAPU<_Bus, _Settings>::Process(int Time) {
 
 	while (LeftTime >= ClockDivider) {
 		RunTime = LeftTime;
-		if ((CycleData.InternalClock + RunTime) > CycleData.NextEvent) {
+		if ((CycleData.InternalClock + RunTime) >= CycleData.NextEvent) {
 			RunTime = CycleData.NextEvent - CycleData.InternalClock;
 			ExecuteEvent = true;
 		} else
