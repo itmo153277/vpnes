@@ -115,11 +115,13 @@ private:
 	SEventData LocalEvents[MAX_EVENTS];
 	SEvent *EventChain[MAX_EVENTS];
 	int Period;
+	bool Ready;
 public:
 	EmptyPPU(_Bus *pBus) {
 		SEvent *NewEvent;
 
 		Bus = pBus;
+		Ready = false;
 		Period = _Settings::PPU_Divider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);
@@ -129,6 +131,7 @@ public:
 		NewEvent->Execute = [this]{
 			Bus->GetClock()->SetEventTime(EventChain[0],
 				Bus->GetClock()->GetTime() + Period);
+			Ready = true;
 		};
 		EventChain[0] = NewEvent;
 		Bus->GetClock()->RegisterEvent(NewEvent);
@@ -137,8 +140,8 @@ public:
 	}
 	~EmptyPPU() {}
 
-	inline bool IsFrameReady() { return true; }
-	inline double GetFrameTime() { return Period; }
+	inline bool IsFrameReady() { return Ready; }
+	inline double GetFrameTime() { Ready = false; return Period; }
 	inline void Reset() {}
 	inline uint8 ReadByte(uint16 Address) { return 0x40; }
 	inline void WriteByte(uint16 Address, uint8 Src) {}

@@ -76,7 +76,7 @@ const double TNDTable[203] = {
 /* NTSC */
 
 /* Число тактов для каждого шага */
-const int NTSC_Tables::StepCycles[6] = {7456, 14912, 22370, 29828, 37280, 0};
+const int NTSC_Tables::StepCycles[6] = {89472, 89472, 89496, 89496, 89424, 0};
 
 /* Таблица счетчика */
 const int NTSC_Tables::LengthCounterTable[32] = {
