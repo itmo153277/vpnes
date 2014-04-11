@@ -41,6 +41,8 @@ extern const double TNDTable[203];
 struct NTSC_Tables {
 	/* Число тактов на каждом шаге */
 	static const int StepCycles[6];
+	/* Время сброса */
+	static const int ResetCycles[2];
 	/* Перекрываемые кнопки контроллера */
 	static const int ButtonsRemap[4];
 	/* Таблица счетчика */

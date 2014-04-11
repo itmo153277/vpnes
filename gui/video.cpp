@@ -216,8 +216,6 @@ bool CVideo::UpdateFrame(double FrameTime) {
 		if (!SkipFrame) {
 #endif
 		/* Обновляем экран */
-		if (SDL_MUSTLOCK(Screen))
-			::SDL_LockSurface(Screen);
 		::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
 #if defined(VPNES_USE_TTF)
 		if (TextSurface != NULL) {
@@ -226,8 +224,6 @@ bool CVideo::UpdateFrame(double FrameTime) {
 			::SDL_BlitSurface(TextSurface, NULL, Screen, &TextRect);
 		}
 #endif
-		if (SDL_MUSTLOCK(Screen))
-			::SDL_UnlockSurface(Screen);
 		::SDL_Flip(Screen);
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
 		}
