@@ -844,7 +844,8 @@ private:
 						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
 							LocalEvents[EVENT_APU_RESET].Time +
 							Tables::StepCycles[0]);
-						EventTime[EVENT_APU_TICK] += Tables::StepCycles[0];
+						EventTime[EVENT_APU_TICK] = EventTime[EVENT_APU_RESET] +
+							Tables::StepCycles[0];
 						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
 							LocalEvents[EVENT_APU_RESET].Time +
 							Tables::ResetCycles[Channels.Mode == SChannels::Mode_4step ?
