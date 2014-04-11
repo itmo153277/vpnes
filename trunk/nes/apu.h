@@ -349,7 +349,7 @@ private:
 		/* Запись 0x4008 */
 		inline void Write_1(uint8 Src) {
 			ControlFlag = Src & 0x80;
-			CounterReload = Src & 0x7f;
+			CounterReloadValue = Src & 0x7f;
 		}
 		/* Запись 0x400a */
 		inline void Write_2(uint8 Src) {
@@ -388,7 +388,7 @@ private:
 			if (Count == 0)
 				return Count;
 			if ((LinearCounter <= 0) || (LengthCounter <= 0) || (TimerPeriod < 2)) {
-				if (TimerPeriod < 2) {
+				if ((TimerPeriod < 2) && (LengthCounter > 0) && (LinearCounter > 0)) {
 					Buffer[Pos].Sample = -1;
 					SequencePos = (SequencePos + (TimerPeriod - Timer + Count) /
 						(TimerPeriod + 1)) & 31;
@@ -671,9 +671,9 @@ private:
 				NDOut = NoiseChannel.PlaySample(Length) * 2;// +
 //					DMChannel.PlaySample(Length);
 				if (TOut < 0)
-					Sample = (apu::TNDTable[NDOut + 21] + apu::TNDTable[NDOut + 24]) / 2;
+					Sample = (apu::TNDTable[NDOut + 21] + apu::TNDTable[NDOut + 24]) / 2.0;
 				else
-					Sample = apu::TNDTable[NDOut + TOut];
+					Sample = apu::TNDTable[NDOut + TOut * 3];
 				Sample += apu::SquareTable[PulseOut];
 				APU.Bus->GetFrontend()->GetAudioFrontend()->PushSample(Sample, Length *
 					ClockDivider * _Settings::GetFreq());
