@@ -233,7 +233,7 @@ CWindow::WindowState CWindow::ProcessMessages() {
 	while (::SDL_PollEvent(&Event)) {
 		if (CurState == wsUpdateBuffer) {
 			/* Возвращаем событие в очередь */
-			SDL_PushEvent(&Event);
+			::SDL_PushEvent(&Event);
 			/* Реинициализация */
 			InitializeScreen();
 			CurState = wsNormal;
@@ -370,7 +370,7 @@ void CWindow::UpdateSizes(int Width, int Height) {
 
 /* Инициализация буфера */
 void CWindow::InitializeScreen() {
-	Screen = SDL_SetVideoMode(_Width * 2, _Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	Screen = ::SDL_SetVideoMode(_Width * 2, _Height * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (Screen == NULL)
 		throw CGenericException("Couldn't reinitialize video");
 #if !defined(VPNES_DISABLE_SYNC)
@@ -429,7 +429,7 @@ LRESULT CALLBACK CWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
 			Window = (CWindow *) ::GetWindowLongPtr(hwnd, GWL_USERDATA);
 			if (Window->InteractiveDispatch(&Msg)) {
 				Event.type = SDL_USEREVENT;
-				SDL_PushEvent(&Event);
+				::SDL_PushEvent(&Event);
 			}
 			return ::CallWindowProc(Window->OldWndProc, hwnd, msg, wParam, lParam);
 	}
