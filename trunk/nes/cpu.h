@@ -248,24 +248,21 @@ private:
 	/* ZP */
 	struct ZeroPage {
 		inline static uint8 ReadByte(CCPU &CPU) {
-			/* 3 лишних такта... забить */
-			return CPU.RAM[CPU.ReadMemory(CPU.Registers.pc - 1)];
+			return CPU.ReadMemory(CPU.ReadMemory(CPU.Registers.pc - 1));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			/* Собственно и тут тоже... */
-			CPU.RAM[CPU.ReadMemory(CPU.Registers.pc - 1)] = Src;
+			CPU.WriteMemory(CPU.ReadMemory(CPU.Registers.pc - 1), Src);
 		}
 		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
 			uint8 Res;
 
 			Address = CPU.ReadMemory(CPU.Registers.pc - 1);
-			Res = CPU.RAM[Address];
-			//CPU.Bus->GetClock()->Clock(9); /* Неизвестное поведение */
-			/* Опять-таки, а какая разница? */
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res);
 			return Res;
 		}
 		inline static void WriteByte_RW(CCPU &CPU, uint16 Address, uint8 Src) {
-			CPU.RAM[Address] = Src;
+			CPU.WriteMemory(Address, Src);
 		}
 	};
 
@@ -357,40 +354,45 @@ private:
 	/* ZP + X */
 	struct ZeroPageX {
 		inline static uint8 GetAddr(CCPU &CPU) {
-			return CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
+			uint8 Address;
+
+			Address = CPU.ReadMemory(CPU.Registers.pc - 1);
+			CPU.ReadMemory(Address);
+			return Address + CPU.Registers.x;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.RAM[GetAddr(CPU)];
+			return CPU.ReadMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.RAM[GetAddr(CPU)] = Src;
+			CPU.WriteMemory(GetAddr(CPU), Src);
 		}
 		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
+			uint8 Res;
+
 			Address = GetAddr(CPU);
-			return CPU.RAM[Address];
+			Res = CPU.ReadMemory(Address);
+			CPU.WriteMemory(Address, Res);
+			return Res;
 		}
 		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
-			CPU.RAM[Address] = Src;
+			CPU.WriteMemory(Address, Src);
 		}
 	};
 
 	/* ZP + Y */
 	struct ZeroPageY {
 		inline static uint8 GetAddr(CCPU &CPU) {
-			return CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.y;
+			uint8 Address;
+
+			Address = CPU.ReadMemory(CPU.Registers.pc - 1);
+			CPU.ReadMemory(Address);
+			return Address + CPU.Registers.y;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
-			return CPU.RAM[GetAddr(CPU)];
+			return CPU.ReadMemory(GetAddr(CPU));
 		}
 		inline static void WriteByte(CCPU &CPU, uint8 Src) {
-			CPU.RAM[GetAddr(CPU)] = Src;
-		}
-		inline static uint8 ReadByte_RW(CCPU &CPU, uint16 &Address) {
-			Address = GetAddr(CPU);
-			return CPU.RAM[Address];
-		}
-		inline static void WriteByte_RW(CCPU &CPU, uint16 &Address, uint8 Src) {
-			CPU.RAM[Address] = Src;
+			CPU.WriteMemory(GetAddr(CPU), Src);
 		}
 	};
 
@@ -411,9 +413,11 @@ private:
 		inline static uint16 GetAddr(CCPU &CPU) {
 			uint8 AddressOffset;
 
-			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1) + CPU.Registers.x;
-			CPU.Bus->IncrementClock(3 * ClockDivider);
-			return CPU.RAM[AddressOffset] | (CPU.RAM[(uint8) (AddressOffset + 1)] << 8);
+			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1);
+			CPU.ReadMemory(AddressOffset);
+			AddressOffset += CPU.Registers.x;
+			return CPU.ReadMemory(AddressOffset) |
+				(CPU.ReadMemory((uint8) (AddressOffset + 1)) << 8);
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
 			return CPU.ReadMemory(GetAddr(CPU));
@@ -440,9 +444,8 @@ private:
 			uint8 AddressOffset;
 
 			AddressOffset = CPU.ReadMemory(CPU.Registers.pc - 1);
-			Address = CPU.RAM[AddressOffset] + CPU.Registers.y;
-			CPU.Bus->IncrementClock(2 * ClockDivider);
-			return (CPU.RAM[(uint8) (AddressOffset + 1)] << 8) + Address;
+			Address = CPU.ReadMemory(AddressOffset) + CPU.Registers.y;
+			return (CPU.ReadMemory((uint8) (AddressOffset + 1)) << 8) + Address;
 		}
 		inline static uint8 ReadByte(CCPU &CPU) {
 			uint16 Address, Page;
