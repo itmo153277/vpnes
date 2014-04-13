@@ -255,16 +255,20 @@ private:
 				Timer = TimerPeriod;
 				DutyCycle++;
 				DutyCycle &= 7;
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
+			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = (TimerPeriod + 1) << 1;
 				Len -= TimerPeriod + 1;
 				DutyCycle++;
 				DutyCycle &= 7;
 				RealCount += (TimerPeriod + 1) << 1;
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			if ((Pos < MAX_BUF) && (Len > 0)) {
+			if (Len > 0) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = Len << 1;
 				Timer = TimerPeriod - Len;
@@ -412,16 +416,20 @@ private:
 				Timer = TimerPeriod;
 				SequencePos++;
 				SequencePos &= 31;
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
+			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
 				Buffer[Pos++].Length = TimerPeriod + 1;
 				Len -= TimerPeriod + 1;
 				SequencePos++;
 				SequencePos &= 31;
 				RealCount += TimerPeriod + 1;
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			if ((Pos < MAX_BUF) && (Len > 0)) {
+			if (Len > 0) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
 				Buffer[Pos++].Length = Len;
 				Timer = TimerPeriod - Len;
@@ -552,15 +560,19 @@ private:
 				RealCount += Timer + 1;
 				Timer = TimerPeriod;
 				Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) | (Random << 1);
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			while ((Pos < MAX_BUF) && (Len >= (TimerPeriod + 1))) {
+			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = TimerPeriod + 1;
 				Len -= TimerPeriod + 1;
 				Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) | (Random << 1);
 				RealCount += TimerPeriod + 1;
+				if (Pos == MAX_BUF)
+					return RealCount;
 			}
-			if ((Pos < MAX_BUF) && (Len > 0)) {
+			if (Len > 0) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = Len;
 				Timer = TimerPeriod - Len;
@@ -585,6 +597,102 @@ private:
 		}
 	};
 
+	/* ДМ-канал */
+	struct SDMChannel: public SAPUUnit {
+		using SAPUUnit::Pos;
+		using SAPUUnit::Buffer;
+		using SAPUUnit::InternalClock;
+		int Sample; /* Выход */
+		int IRQEnabled; /* Генерировать IRQ */
+		bool IRQFlag; /* Флаг IRQ */
+		int LoopFlag; /* Флаг повтора */
+		int TimerPeriod; /* Период */
+		uint16 Address; /* Адрес для семплов */
+		uint16 CurAddress; /* Текущий адрес */
+		int Length; /* Количество семплов */
+		int SamplesLeft; /* Оставшееся количество */
+		int BitsRemain; /* Осталось битов */
+		bool NotEmpty; /* В буфере есть данные */
+		uint8 ShiftReg; /* Регистр сдвига */
+		uint8 SampleBuffer; /* Буфер */
+		bool SilenceFlag; /* Ничего не выводить */
+		int Timer; /* Таймер */
+
+		/* Запись в 0x4010 */
+		inline void Write_1(uint8 Src) {
+			IRQEnabled = Src & 0x80;
+			if (!IRQEnabled)
+				IRQFlag = false;
+			LoopFlag = Src & 0x40;
+			TimerPeriod = Tables::DMTable[Src & 0x0f];
+		}
+		/* Запись в 0x4011 */
+		inline void Write_2(uint8 Src) {
+			Sample = Src & 0x7f;
+		}
+		/* Запись в 0x4012 */
+		inline void Write_3(uint8 Src) {
+			Address = 0xc000 | (Src << 6);
+			CurAddress = Address;
+		}
+		/* Запись в 0x4013 */
+		inline void Write_4(uint8 Src) {
+			Length = (Src << 4) | 0x0001;
+			if (SamplesLeft == 0)
+				SamplesLeft = Length;
+		}
+
+		/* Сброс */
+		inline void Reset() {
+		}
+		/* Обработка такта */
+		inline void ProcessClock() {
+			if (BitsRemain == 0) {
+				BitsRemain = 8;
+				if (NotEmpty) {
+					SilenceFlag = false;
+					NotEmpty = false;
+					ShiftReg = SampleBuffer;
+				} else
+					SilenceFlag = true;
+			}
+			if (!SilenceFlag) {
+				if (ShiftReg & 0x01) {
+					if (Sample < 0x7e)
+						Sample += 2;
+				} else {
+					if (Sample > 1)
+						Sample -= 2;
+				}
+				ShiftReg >>= 1;
+			}
+			BitsRemain--;
+		}
+		/* Заполнить буфер */
+		int FillBuffer(int Count) {
+			int RealCount = 0;
+			int Len = Count;
+
+			if (Count == 0)
+				return Count;
+			return RealCount;
+		}
+		/* Обновить буфер */
+		inline int UpdateBuffer(int Time) {
+			if (Time <= InternalClock)
+				return Time;
+			InternalClock += FillBuffer(Time - InternalClock);
+			return InternalClock;
+		}
+		inline void UpdateBuffer(CAPU &APU, int Time) {
+			while (InternalClock < Time) {
+				InternalClock += FillBuffer(Time - InternalClock);
+				if (Pos == MAX_BUF)
+					APU.Channels.FlushBuffer(APU, InternalClock);
+			}
+		}
+	};
+
 	/* Все каналы */
 	struct SChannels: public ManagerID<APUID::CycleDataID> {
 		/* Все каналы */
@@ -592,7 +700,7 @@ private:
 		SPulseChannel2 PulseChannel2;
 		STriangleChannel TriangleChannel;
 		SNoiseChannel NoiseChannel;
-//		SDMChannel DMChannel;
+		SDMChannel DMChannel;
 		int PlayTime; /* Текущее время проигрывания */
 		int InternalClock; /* Текущее время */
 		bool FrameInterrupt; /* Прерывание счетчика кадров */
@@ -609,10 +717,10 @@ private:
 			PulseChannel2.UseCounter = Src & 0x02;
 			TriangleChannel.UseCounter = Src & 0x04;
 			NoiseChannel.UseCounter = Src & 0x08;
-//			if (!(Src & 0x10))
-//				DMChannel.LengthCounter = 0;
-//			else if (DMChannel.LengthCounter == 0)
-//				DMChannel.LengthCounter = DMChannel.ReloadCounter;
+			if (!(Src & 0x10))
+				DMChannel.SamplesLeft = 0;
+			else if (DMChannel.SamplesLeft == 0)
+				DMChannel.SamplesLeft = DMChannel.Length;
 			if (!PulseChannel1.UseCounter)
 				PulseChannel1.LengthCounter = 0;
 			if (!PulseChannel2.UseCounter)
@@ -634,12 +742,12 @@ private:
 				Res |= 0x04;
 			if (NoiseChannel.LengthCounter > 0)
 				Res |= 0x08;
-//			if (DMChannel.LengthCounter > 0)
-//				Res |= 0x10;
+			if (DMChannel.SamplesLeft > 0)
+				Res |= 0x10;
 			if (FrameInterrupt)
 				Res |= 0x40;
-//			if (DMChannel.InterruptFlag)
-//				Res |= 0x80;
+			if (DMChannel.IRQFlag)
+				Res |= 0x80;
 			return Res;
 		}
 		/* Запись 0x4017 */
@@ -663,13 +771,13 @@ private:
 				PulseChannel2.MinimizeLength(Length);
 				TriangleChannel.MinimizeLength(Length);
 				NoiseChannel.MinimizeLength(Length);
-//				DMChannel.MinimizeLength(Length);
+				DMChannel.MinimizeLength(Length);
 				PlayTime += Length;
 				PulseOut = PulseChannel1.PlaySample(Length) +
 					PulseChannel2.PlaySample(Length);
 				TOut = TriangleChannel.PlaySample(Length);
-				NDOut = NoiseChannel.PlaySample(Length) * 2;// +
-//					DMChannel.PlaySample(Length);
+				NDOut = NoiseChannel.PlaySample(Length) * 2 +
+					DMChannel.PlaySample(Length);
 				if (TOut < 0)
 					Sample = (apu::TNDTable[NDOut + 21] + apu::TNDTable[NDOut + 24]) / 2.0;
 				else
@@ -690,7 +798,7 @@ private:
 				RealTime = PulseChannel2.UpdateBuffer(RealTime);
 				RealTime = TriangleChannel.UpdateBuffer(RealTime);
 				RealTime = NoiseChannel.UpdateBuffer(RealTime);
-//				RealTime = DMChannel.UpdateBuffer(RealTime);
+				RealTime = DMChannel.UpdateBuffer(RealTime);
 				MuxChannels(APU, RealTime);
 			} while (RealTime < Clocks);
 		}
@@ -700,7 +808,7 @@ private:
 			PulseChannel2.ResetClock(InternalClock);
 			TriangleChannel.ResetClock(InternalClock);
 			NoiseChannel.ResetClock(InternalClock);
-//			DMChannel.ResetClock(InternalClock);
+			DMChannel.ResetClock(InternalClock);
 			PlayTime = 0;
 			InternalClock = 0;
 		}
@@ -714,7 +822,7 @@ private:
 			PulseChannel2.Reset();
 			TriangleChannel.Reset();
 			NoiseChannel.Reset();
-//			DMChannel.Reset();
+			DMChannel.Reset();
 			ResetClock();
 			Write4015(0);
 			Write4017(Buf4017);
@@ -754,7 +862,7 @@ private:
 			PulseChannel2.UpdateBuffer(APU, InternalClock);
 			TriangleChannel.UpdateBuffer(APU, InternalClock);
 			NoiseChannel.UpdateBuffer(APU, InternalClock);
-//			DMChannel.UpdateBuffer(APU, InternalClock);
+			DMChannel.UpdateBuffer(APU, InternalClock);
 		}
 	} Channels;
 
@@ -1030,26 +1138,26 @@ public:
 				Channels.NoiseChannel.UpdateBuffer(*this, Channels.InternalClock);
 				Channels.NoiseChannel.Write_3(Src);
 				break;
-//			case 0x4010:
-//				CPUCall();
-//				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
-//				Channels.DMChannel.Write_1(Src);
-//				if (!Channels.DMChannel.InterruptFlag)
-//					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::DMCIRQ);
-//				break;
-//			case 0x4011:
-//				CPUCall();
-//				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
-//				Channels.DMChannel.Write_2(Src);
-//				break;
-//			case 0x4012:
-//				CPUCall();
-//				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
-//				Channels.DMChannel.Write_3(Src);
-//			case 0x4013:
-//				CPUCall();
-//				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
-//				Channels.DMChannel.Write_4(Src);
+			case 0x4010:
+				CPUCall();
+				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
+				Channels.DMChannel.Write_1(Src);
+				if (!Channels.DMChannel.IRQFlag)
+					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::DMCIRQ);
+				break;
+			case 0x4011:
+				CPUCall();
+				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
+				Channels.DMChannel.Write_2(Src);
+				break;
+			case 0x4012:
+				CPUCall();
+				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
+				Channels.DMChannel.Write_3(Src);
+			case 0x4013:
+				CPUCall();
+				Channels.DMChannel.UpdateBuffer(*this, Channels.InternalClock);
+				Channels.DMChannel.Write_4(Src);
 //			case 0x4014:
 //				CPUCall();
 //				...
@@ -1058,8 +1166,8 @@ public:
 				CPUCall();
 				Channels.UpdateAllBuffers(*this);
 				Channels.Write4015(Src);
-//				if (!Channels.DMChannel.InterruptFlag)
-//					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::DMCIRQ);
+				if (!Channels.DMChannel.IRQFlag)
+					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::DMCIRQ);
 				break;
 //			case 0x4016:
 //				Bus->GetFrontend()->GetInput1Frontend()->InputSignal(Src);
