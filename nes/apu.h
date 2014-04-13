@@ -476,7 +476,7 @@ private:
 		inline void Write_1(uint8 Src) {
 			EnvelopeLoop = Src & 0x20;
 			ConstantVolume = Src & 0x10;
-			EnvelopePeriod = Src & 0x04;
+			EnvelopePeriod = Src & 0x0f;
 		}
 		/* Запись в 0x400e */
 		inline void Write_2(uint8 Src) {
@@ -670,12 +670,14 @@ private:
 		}
 		/* Заполнить буфер */
 		int FillBuffer(int Count) {
-			int RealCount = 0;
-			int Len = Count;
+//			int RealCount = 0;
+//			int Len = Count;
 
 			if (Count == 0)
 				return Count;
-			return RealCount;
+			Buffer[Pos].Sample = Sample;
+			Buffer[Pos++].Length = Count;
+			return Count;
 		}
 		/* Обновить буфер */
 		inline int UpdateBuffer(int Time) {
@@ -761,7 +763,7 @@ private:
 
 		/* Вывести звук */
 		void MuxChannels(CAPU &APU, int Clocks) {
-#if !defined(VPNES_PRCISE_MUX)
+#if !defined(VPNES_PRECISE_MUX)
 			int Length, PulseOut, TOut, NDOut = 0;
 			double Sample;
 
@@ -787,6 +789,33 @@ private:
 					ClockDivider * _Settings::GetFreq());
 			}
 #else
+			int Length, PulseOut, TOut, NOut, DOut;
+			double Sample;
+
+			while (PlayTime < Clocks) {
+				Length = Clocks - PlayTime;
+				PulseChannel1.MinimizeLength(Length);
+				PulseChannel2.MinimizeLength(Length);
+				TriangleChannel.MinimizeLength(Length);
+				NoiseChannel.MinimizeLength(Length);
+				DMChannel.MinimizeLength(Length);
+				PlayTime += Length;
+				PulseOut = PulseChannel1.PlaySample(Length) +
+					PulseChannel2.PlaySample(Length);
+				TOut = TriangleChannel.PlaySample(Length);
+				NOut = NoiseChannel.PlaySample(Length);
+				DOut = DMChannel.PlaySample(Length);
+				if (TOut < 0)
+					Sample = 95.88 / (8128.0 / PulseOut + 100) +
+						159.79 / (1 / (7.5 / 8227.0 + NOut / 12241.0 +
+						DOut / 22638.0) + 100);
+				else
+					Sample = 95.88 / (8128.0 / PulseOut + 100) +
+						159.79 / (1 / (TOut / 8227.0 + NOut / 12241.0 +
+						DOut / 22638.0) + 100);
+				APU.Bus->GetFrontend()->GetAudioFrontend()->PushSample(Sample, Length *
+					ClockDivider * _Settings::GetFreq());
+			}
 #endif
 		}
 		/* Обновить буфер */
