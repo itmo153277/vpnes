@@ -262,12 +262,12 @@ private:
 			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = (TimerPeriod + 1) << 1;
-				Len -= TimerPeriod + 1;
 				DutyCycle++;
 				DutyCycle &= 7;
 				RealCount += (TimerPeriod + 1) << 1;
 				if (Pos == MAX_BUF)
 					return RealCount;
+				Len -= TimerPeriod + 1;
 			}
 			if (Len > 0) {
 				Buffer[Pos].Sample = GetOutput();
@@ -423,12 +423,12 @@ private:
 			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
 				Buffer[Pos++].Length = TimerPeriod + 1;
-				Len -= TimerPeriod + 1;
 				SequencePos++;
 				SequencePos &= 31;
 				RealCount += TimerPeriod + 1;
 				if (Pos == MAX_BUF)
 					return RealCount;
+				Len -= TimerPeriod + 1;
 			}
 			if (Len > 0) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
@@ -518,6 +518,7 @@ private:
 		inline void Reset() {
 			Random = 0x0001;
 			ShiftCount = 13;
+			TimerPeriod = Tables::NoiseTable[0];
 		}
 		/* Выход */
 		inline int GetOutput() {
@@ -567,11 +568,11 @@ private:
 			while (Len >= (TimerPeriod + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = TimerPeriod + 1;
-				Len -= TimerPeriod + 1;
 				Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) | (Random << 1);
 				RealCount += TimerPeriod + 1;
 				if (Pos == MAX_BUF)
 					return RealCount;
+				Len -= TimerPeriod + 1;
 			}
 			if (Len > 0) {
 				Buffer[Pos].Sample = GetOutput();
@@ -645,6 +646,9 @@ private:
 
 		/* Сброс */
 		inline void Reset() {
+			TimerPeriod = Tables::DMTable[0];
+			NotEmpty = false;
+			SilenceFlag = true;
 		}
 		/* Обработка такта */
 		inline void ProcessClock() {
@@ -671,14 +675,61 @@ private:
 		}
 		/* Заполнить буфер */
 		int FillBuffer(int Count) {
-//			int RealCount = 0;
-//			int Len = Count;
+			int RealCount = 0;
+			int Len = Count;
 
 			if (Count == 0)
 				return Count;
-			Buffer[Pos].Sample = Sample;
-			Buffer[Pos++].Length = Count;
-			return Count;
+			if (SilenceFlag && !NotEmpty) {
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = Count;
+				BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod - Timer - 1 + Count)
+					/ (TimerPeriod + 1)) & 7);
+				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Count;
+			}
+			if (Len < Timer) {
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = Len;
+				Timer -= Len;
+				return Count;
+			}
+			if (Timer > 0) {
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = Timer;
+				Len -= Timer;
+				RealCount += Timer;
+				Timer = 0;
+				ProcessClock();
+				if (Pos == MAX_BUF)
+					return RealCount;
+			}
+			for (;;) {
+				if (SilenceFlag && !NotEmpty && Len > 0) {
+					Buffer[Pos].Sample = Sample;
+					Buffer[Pos++].Length = Len;
+					BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod + Count - 1)
+						/ (TimerPeriod + 1)) & 7);
+					Timer = TimerPeriod  - (Len + TimerPeriod) % (TimerPeriod + 1);
+					return Count;
+				}
+				if (Len < (TimerPeriod + 1))
+					break;
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = TimerPeriod + 1;
+				ProcessClock();
+				RealCount += TimerPeriod + 1;
+				if (Pos == MAX_BUF)
+					return RealCount;
+				Len -= TimerPeriod + 1;
+			}
+			if (Len > 0) {
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = Len;
+				Timer = TimerPeriod + 1 - Len;
+				RealCount += Len;
+			}
+			return RealCount;
 		}
 		/* Обновить буфер */
 		inline int UpdateBuffer(int Time) {
