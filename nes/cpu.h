@@ -81,7 +81,6 @@ private:
 		enum {
 			Reset = 0,
 			Halt,
-			NotReady,
 			Run
 		} State; /* Текущее состояние */
 		enum {
@@ -91,6 +90,7 @@ private:
 			IRQDelay
 		} IRQState; /* Состояние IRQ */
 		int IRQ; /* Флаг IRQ */
+		bool RDY; /* Флаг RDY */
 		bool BranchTaken; /* Изменить логику получения опкода */
 		sint8 BranchOperand; /* Параметр для перехода */
 	} InternalData;
@@ -140,8 +140,15 @@ private:
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
+		uint8 Res;
+
 		Bus->IncrementClock(ClockDivider);
-		return Bus->ReadCPU(Address);
+		Res = Bus->ReadCPU(Address);
+		if (InternalData.RDY) {
+			InternalData.RDY = false;
+			CycleData.Cycles += Bus->GetAPU()->Execute(Address);
+		}
+		return Res;
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
 		Bus->IncrementClock(ClockDivider);
@@ -549,9 +556,11 @@ public:
 	}
 	/* NMI не сохраняет уровень */
 	inline void GenerateNMI(int Time) {
-		if (CycleData.NMI >= 0)
-			return;
 		CycleData.NMI = (Time - Time % ClockDivider) + ClockDivider;
+	}
+	/* RDY вызывается без сдвига */
+	inline void GenerateRDY() {
+		InternalData.RDY = true;
 	}
 	/* Сдвиг тактов */
 	inline const int GetIRQOffset() const { return CycleData.IRQOffset; }
@@ -794,9 +803,6 @@ void CCPU<_Bus, _Settings>::Execute() {
 template <class _Bus, class _Settings>
 const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode() {
 	uint8 opcode;
-	static const SOpcode NotReadyOpcode = {
-		0, 0, &CCPU<_Bus, _Settings>::OpNotReady
-	};
 	static const SOpcode ResetOpcode = {
 		7 * ClockDivider, 0, &CCPU<_Bus, _Settings>::OpReset
 	};
@@ -807,8 +813,6 @@ const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpc
 	ProcessIRQ();
 	if (InternalData.IRQState == SInternalData::IRQExecute)
 		return &IRQOpcode;
-	if (InternalData.State == SInternalData::NotReady)
-		return &NotReadyOpcode;
 	switch (InternalData.State) {
 		case SInternalData::Reset:
 			return &ResetOpcode;
@@ -879,13 +883,6 @@ bool CCPU<_Bus, _Settings>::DetectIRQ() {
 }
 
 /* Команды */
-
-/* Переход управления к APU */
-template <class _Bus, class _Settings>
-void CCPU<_Bus, _Settings>::OpNotReady() {
-	CycleData.Cycles += Bus->GetAPU()->Execute();
-	InternalData.State = SInternalData::Run;
-}
 
 /* Сброс */
 template <class _Bus, class _Settings>

@@ -66,6 +66,7 @@ private:
 		int IRQOffset;
 		int FrameCycle;
 		int Step;
+		int OddCycle;
 	} CycleData;
 
 	/* События */
@@ -924,6 +925,7 @@ private:
 	inline int SimpleRender(int Time) {
 		int FullClocks = Time / ClockDivider;
 		Channels.InternalClock += FullClocks;
+		CycleData.OddCycle ^= FullClocks;
 		return FullClocks * ClockDivider;
 	}
 
@@ -1064,7 +1066,8 @@ public:
 		CycleData.IRQOffset += Time;
 	}
 	/* Выполнить DMA */
-	inline int Execute() {
+	inline int Execute(uint16 Address) {
+		Bus->IncrementClock(ClockDivider);
 		return ClockDivider;
 	}
 	/* Прочитать из регистра */
@@ -1090,6 +1093,8 @@ public:
 	}
 	/* Записать в регистр */
 	inline void WriteByte(uint16 Address, uint8 Src) {
+		int t;
+
 		switch(Address) {
 			case 0x4000:
 				CPUCall();
@@ -1210,13 +1215,16 @@ public:
 					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
 				if (Channels.Mode == SChannels::Mode_5step)
 					Channels.OddClock();
+				if (CycleData.OddCycle & 1)
+					t = 3;
+				else
+					t = 2;
 				Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
 					LocalEvents[EVENT_APU_RESET].Time - EventTime[EVENT_APU_RESET] +
-					CycleData.InternalClock + ClockDivider * 3);
-				EventTime[EVENT_APU_RESET] = CycleData.InternalClock + ClockDivider * 3;
+					CycleData.InternalClock + ClockDivider * t);
+				EventTime[EVENT_APU_RESET] = CycleData.InternalClock + ClockDivider * t;
 				if (CycleData.NextEvent > EventTime[EVENT_APU_RESET])
 					CycleData.NextEvent = EventTime[EVENT_APU_RESET];
-//				...
 				break;
 		}
 	}
