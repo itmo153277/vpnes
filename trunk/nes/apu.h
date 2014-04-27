@@ -71,17 +71,20 @@ private:
 
 	/* События */
 	enum {
-		EVENT_APU_TICK = 0,
-		EVENT_APU_RESET,
-		EVENT_APU_FRAME_IRQ,
-		EVENT_APU_DMC_IRQ,
+		EVENT_APU_FRAME_IRQ = 0,
 		EVENT_APU_DMC_DMA,
+		EVENT_APU_TICK,
+		EVENT_APU_TICK2,
+		EVENT_APU_RESET,
 		MAX_EVENTS
 	};
+	enum {
+		LAST_REG_EVENT = EVENT_APU_DMC_DMA
+	};
 	/* Данные о событиях */
-	SEventData LocalEvents[MAX_EVENTS];
+	SEventData LocalEvents[LAST_REG_EVENT + 1];
 	/* Указатели на события */
-	SEvent *EventChain[MAX_EVENTS];
+	SEvent *EventChain[LAST_REG_EVENT + 1];
 	/* Периоды событий */
 	int EventTime[MAX_EVENTS];
 
@@ -683,8 +686,8 @@ private:
 			if (SilenceFlag && !NotEmpty) {
 				Buffer[Pos].Sample = Sample;
 				Buffer[Pos++].Length = Count;
-				BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod - Timer - 1 + Count)
-					/ (TimerPeriod + 1)) & 7);
+				BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod - Timer - 1 + Count) /
+					(TimerPeriod + 1)) & 7);
 				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
 				return Count;
 			}
@@ -708,8 +711,8 @@ private:
 				if (SilenceFlag && !NotEmpty && Len > 0) {
 					Buffer[Pos].Sample = Sample;
 					Buffer[Pos++].Length = Len;
-					BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod + Count - 1)
-						/ (TimerPeriod + 1)) & 7);
+					BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod + Count - 1) /
+						(TimerPeriod + 1)) & 7);
 					Timer = TimerPeriod  - (Len + TimerPeriod) % (TimerPeriod + 1);
 					return Count;
 				}
@@ -764,6 +767,7 @@ private:
 			Mode_5step = 5
 		} Mode; /* Режим последовательностей */
 		uint8 Buf4017; /* Сохраненный регистр 0x4017 */
+		bool Double4017; /* Флаги отслеживаний записи в 0x4017 */
 
 		/* Запись 0x4015 */
 		inline void Write4015(uint8 Src) {
@@ -987,65 +991,54 @@ private:
 		for (i = 0; i < MAX_EVENTS; i++) {
 			if (CycleData.InternalClock == EventTime[i])
 				switch (i) {
+					case EVENT_APU_FRAME_IRQ:
+					case EVENT_APU_DMC_DMA:
+						EventTime[i] = -1;
+						break;
 					case EVENT_APU_TICK:
 						Channels.UpdateAllBuffers(*this);
-						switch (Channels.Mode) {
-							case SChannels::Mode_4step:
-								switch (CycleData.Step) {
-									case 0:
-									case 2:
-										Channels.EvenClock();
-										break;
-									case 1:
-									case 3:
-										Channels.OddClock();
-										break;
-									case 5:
-										CycleData.Step = 3;
-										break;
-								}
-								break;
-							case SChannels::Mode_5step:
-								switch (CycleData.Step) {
-									case 0:
-									case 2:
-										Channels.EvenClock();
-										break;
-									case 1:
-									case 4:
-										Channels.OddClock();
-										break;
-									case 5:
-										CycleData.Step = 4;
-										break;
-								}
-								break;
-						}
+						if (CycleData.InternalClock != EventTime[EVENT_APU_TICK2])
+							switch (CycleData.Step) {
+								case 0:
+								case 2:
+									Channels.EvenClock();
+									break;
+								case 1:
+								case 3:
+									Channels.OddClock();
+									break;
+							}
 						CycleData.Step++;
-						if (CycleData.InternalClock != EventTime[EVENT_APU_RESET]) {
-							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
-								LocalEvents[EVENT_APU_TICK].Time +
-								Tables::StepCycles[CycleData.Step]);
+						if (CycleData.Step == 4) {
+							EventTime[EVENT_APU_TICK] += Tables::StepCycles[0] + ClockDivider;
+							CycleData.Step = 0;
+						} else {
 							EventTime[EVENT_APU_TICK] += Tables::StepCycles[CycleData.Step];
+							if ((Channels.Mode == SChannels::Mode_5step) &&
+								(CycleData.Step == 3)) {
+								EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
+							}
 						}
+						break;
+					case EVENT_APU_TICK2:
+						Channels.UpdateAllBuffers(*this);
+						Channels.OddClock();
+						EventTime[EVENT_APU_TICK2] = -1;
 						break;
 					case EVENT_APU_RESET:
 						CycleData.Step = 0;
-						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
-							LocalEvents[EVENT_APU_RESET].Time +
-							Tables::StepCycles[0]);
 						EventTime[EVENT_APU_TICK] = EventTime[EVENT_APU_RESET] +
 							Tables::StepCycles[0];
-						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
-							LocalEvents[EVENT_APU_RESET].Time +
-							Tables::ResetCycles[Channels.Mode == SChannels::Mode_4step ?
-								0 : 1]);
-						EventTime[EVENT_APU_RESET] += Tables::ResetCycles[Channels.Mode ==
-							SChannels::Mode_4step ? 0 : 1];
+						if (Channels.Double4017) {
+							EventTime[EVENT_APU_RESET] += ClockDivider * 2;
+							if (Channels.Mode == SChannels::Mode_5step)
+								EventTime[EVENT_APU_TICK2] = EventTime[EVENT_APU_RESET] -
+									ClockDivider;
+							Channels.Double4017 = false;
+						} else
+							EventTime[EVENT_APU_RESET] = -1;
 						break;
-					case EVENT_APU_FRAME_IRQ:
-					case EVENT_APU_DMC_IRQ:
-					case EVENT_APU_DMC_DMA:
+					default:
 						EventTime[i] = -1;
 						break;
 				}
@@ -1064,8 +1057,8 @@ public:
 		Bus = pBus;
 		Bus->GetManager()->template SetPointer<SCycleData>(&CycleData);
 		Bus->GetManager()->template SetPointer<ManagerID<APUID::EventDataID> >(LocalEvents,
-			sizeof(SEventData) * MAX_EVENTS);
-		memset(LocalEvents, 0, sizeof(SEventData) * MAX_EVENTS);
+			sizeof(SEventData) * (LAST_REG_EVENT + 1));
+		memset(LocalEvents, 0, sizeof(SEventData) * (LAST_REG_EVENT + 1));
 		Bus->GetManager()->template SetPointer<ManagerID<APUID::EventTimeID> >(EventTime,
 			sizeof(int) * MAX_EVENTS);
 		memset(EventTime, 0, sizeof(int) * MAX_EVENTS);
@@ -1078,10 +1071,7 @@ public:
 			EventChain[alias] = NewEvent; \
 			Bus->GetClock()->RegisterEvent(NewEvent); \
 		} while(0)
-		MAKE_EVENT(EVENT_APU_TICK);
-		MAKE_EVENT(EVENT_APU_RESET);
 		MAKE_EVENT(EVENT_APU_FRAME_IRQ);
-		MAKE_EVENT(EVENT_APU_DMC_IRQ);
 		MAKE_EVENT(EVENT_APU_DMC_DMA);
 #undef MAKE_EVENT
 		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
@@ -1102,15 +1092,10 @@ public:
 		int i;
 
 		memset(&CycleData, 0, sizeof(CycleData));
-		for (i = 0; i < MAX_EVENTS; i++)
+		for (i = 0; i < (LAST_REG_EVENT + 1); i++)
 			Bus->GetClock()->DisableEvent(EventChain[i]);
 		Channels.Reset();
 		EventTime[EVENT_APU_TICK] = Tables::StepCycles[0];
-		Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK], Tables::StepCycles[0]);
-		Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_TICK]);
-		EventTime[EVENT_APU_RESET] = Tables::ResetCycles[0];
-		Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET], Tables::ResetCycles[0]);
-		Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_RESET]);
 	}
 	/* Сброс часов шины */
 	inline void ResetInternalClock(int Time) {
@@ -1129,11 +1114,11 @@ public:
 			case 0x4015:
 				CPUCall();
 				Res = Channels.Read4015();
-				if ((Channels.Mode != SChannels::Mode_4step) ||
-					(CycleData.InternalClock <= EventTime[EVENT_APU_FRAME_IRQ])) {
-					Channels.FrameInterrupt = false;
-					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
-				}
+//				if ((Channels.Mode != SChannels::Mode_4step) ||
+//					(CycleData.InternalClock <= EventTime[EVENT_APU_FRAME_IRQ])) {
+//					Channels.FrameInterrupt = false;
+//					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
+//				}
 				return Res;
 //			case 0x4016:
 //				return Bus->GetFrontend()->GetInput1Frontend()->ReadState();
@@ -1146,7 +1131,7 @@ public:
 	inline void WriteByte(uint16 Address, uint8 Src) {
 		int t;
 
-		switch(Address) {
+		switch (Address) {
 			case 0x4000:
 				CPUCall();
 				Channels.PulseChannel1.UpdateBuffer(*this, Channels.InternalClock);
@@ -1260,21 +1245,27 @@ public:
 //				break;
 			case 0x4017:
 				CPUCall();
-				Channels.UpdateAllBuffers(*this);
+				t = Channels.Mode;
 				Channels.Write4017(Src);
-				if (!Channels.FrameInterrupt)
-					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
-				if (Channels.Mode == SChannels::Mode_5step)
-					Channels.OddClock();
-				if (CycleData.OddCycle & 1)
-					t = 3;
-				else
-					t = 2;
-				Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
-					LocalEvents[EVENT_APU_RESET].Time - EventTime[EVENT_APU_RESET] +
-					CycleData.InternalClock + ClockDivider * t);
-				EventTime[EVENT_APU_RESET] = CycleData.InternalClock + ClockDivider * t;
-				if (CycleData.NextEvent > EventTime[EVENT_APU_RESET])
+				if ((EventTime[EVENT_APU_RESET] >= 0) && ((CycleData.InternalClock +
+					(2 + (CycleData.OddCycle & 1)) * ClockDivider) >=
+					EventTime[EVENT_APU_RESET]))
+					Channels.Double4017 = true;
+				else if (EventTime[EVENT_APU_RESET] < 0) {
+					EventTime[EVENT_APU_RESET] = CycleData.InternalClock + (2 +
+						(CycleData.OddCycle & 1)) * ClockDivider;
+					if (Channels.Mode == SChannels::Mode_5step)
+						EventTime[EVENT_APU_TICK2] = EventTime[EVENT_APU_RESET] - ClockDivider;
+					if ((CycleData.Step == 3) && (CycleData.InternalClock <=
+						(EventTime[EVENT_APU_TICK] - ClockDivider)) &&
+						(t == SChannels::Mode_4step) &&
+						(Channels.Mode == SChannels::Mode_5step))
+						EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
+				}
+				if ((EventTime[EVENT_APU_TICK2] > 0) && (EventTime[EVENT_APU_TICK2] <
+					CycleData.NextEvent))
+					CycleData.NextEvent = EventTime[EVENT_APU_TICK2];
+				else if (EventTime[EVENT_APU_RESET] < CycleData.NextEvent)
 					CycleData.NextEvent = EventTime[EVENT_APU_RESET];
 				break;
 		}
