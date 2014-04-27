@@ -1129,7 +1129,7 @@ public:
 	}
 	/* Записать в регистр */
 	inline void WriteByte(uint16 Address, uint8 Src) {
-		int t;
+		int t, x;
 
 		switch (Address) {
 			case 0x4000:
@@ -1247,13 +1247,15 @@ public:
 				CPUCall();
 				t = Channels.Mode;
 				Channels.Write4017(Src);
-				if ((EventTime[EVENT_APU_RESET] >= 0) && ((CycleData.InternalClock +
-					(2 + (CycleData.OddCycle & 1)) * ClockDivider) >=
+				if (CycleData.OddCycle & 1)
+					x = 3 * ClockDivider;
+				else
+					x = 2 * ClockDivider;
+				if ((EventTime[EVENT_APU_RESET] >= 0) && ((CycleData.InternalClock + x) >=
 					EventTime[EVENT_APU_RESET]))
 					Channels.Double4017 = true;
 				else if (EventTime[EVENT_APU_RESET] < 0) {
-					EventTime[EVENT_APU_RESET] = CycleData.InternalClock + (2 +
-						(CycleData.OddCycle & 1)) * ClockDivider;
+					EventTime[EVENT_APU_RESET] = CycleData.InternalClock + x;
 					if (Channels.Mode == SChannels::Mode_5step)
 						EventTime[EVENT_APU_TICK2] = EventTime[EVENT_APU_RESET] - ClockDivider;
 					if ((CycleData.Step == 3) && (CycleData.InternalClock <=
