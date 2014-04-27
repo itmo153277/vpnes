@@ -140,15 +140,12 @@ private:
 
 	/* Обращения к памяти */
 	inline uint8 ReadMemory(uint16 Address) {
-		uint8 Res;
-
-		Bus->IncrementClock(ClockDivider);
-		Res = Bus->ReadCPU(Address);
-		if (InternalData.RDY) {
+		if (InternalData.RDY) { /* APU просит щину */
 			InternalData.RDY = false;
 			CycleData.Cycles += Bus->GetAPU()->Execute(Address);
 		}
-		return Res;
+		Bus->IncrementClock(ClockDivider);
+		return Bus->ReadCPU(Address);
 	}
 	inline void WriteMemory(uint16 Address, uint8 Src) {
 		Bus->IncrementClock(ClockDivider);
