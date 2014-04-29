@@ -964,7 +964,7 @@ private:
 				EventTime[i] -= CallTime;
 			}
 		CycleData.NextEvent -= CallTime;
-		CycleData.InternalClock = -CycleData.Async;
+		CycleData.InternalClock -= CallTime;
 		CycleData.IRQOffset -= CallTime;
 		CycleData.FrameCycle += CallTime;
 		if (CycleData.LastFrameIRQCycle >= 0)
@@ -981,6 +981,8 @@ private:
 	/* Простой рендер */
 	inline int SimpleRender(int Time) {
 		int FullClocks = Time / ClockDivider;
+		if ((Time % ClockDivider) != 0)
+			FullClocks++;
 		Channels.InternalClock += FullClocks;
 		CycleData.OddCycle ^= FullClocks;
 		return FullClocks * ClockDivider;
@@ -1152,16 +1154,17 @@ public:
 			case 0x4015:
 				CPUCall();
 				Res = Channels.Read4015();
-				if ((Channels.Mode != SChannels::Mode_4step) ||
-					(CycleData.InternalClock <= EventTime[EVENT_APU_FRAME_IRQ])) {
+				if ((CycleData.InternalClock <= EventTime[EVENT_APU_FRAME_IRQ]) ||
+					((CycleData.LastFrameIRQCycle >= 0) &&
+					(CycleData.InternalClock >= CycleData.LastFrameIRQCycle))) {
 					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
 				}
 				return Res;
-//			case 0x4016:
-//				return Bus->GetFrontend()->GetInput1Frontend()->ReadState();
-//			case 0x4017:
-//				return Bus->GetFrontend()->Getinput2Frontend()->ReadState();
+			case 0x4016:
+				return Bus->GetFrontend()->GetInput1Frontend()->ReadState();
+			case 0x4017:
+				return Bus->GetFrontend()->GetInput2Frontend()->ReadState();
 		}
 		return 0x40;
 	}
@@ -1277,10 +1280,10 @@ public:
 				if (!Channels.DMChannel.IRQFlag)
 					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::DMCIRQ);
 				break;
-//			case 0x4016:
-//				Bus->GetFrontend()->GetInput1Frontend()->InputSignal(Src);
-//				Bus->GetFrontend()->GetInput2Frontend()->InputSignal(Src);
-//				break;
+			case 0x4016:
+				Bus->GetFrontend()->GetInput1Frontend()->InputSignal(Src);
+				Bus->GetFrontend()->GetInput2Frontend()->InputSignal(Src);
+				break;
 			case 0x4017:
 				CPUCall();
 				t = Channels.Mode;
@@ -1318,6 +1321,7 @@ public:
 					} else {
 						Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
 						Bus->GetClock()->DisableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
+						EventTime[EVENT_APU_FRAME_IRQ] = -1;
 					}
 				}
 				break;
