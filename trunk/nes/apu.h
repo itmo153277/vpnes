@@ -1002,8 +1002,8 @@ private:
 							if (!Channels.InterruptInhibit) {
 								Channels.FrameInterrupt = true;
 								Bus->GetCPU()->GenerateIRQ(CycleData.InternalClock -
-									CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset(),
-									_Bus::CPUClass::FrameIRQ);
+									CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset() +
+									ClockDivider, _Bus::CPUClass::FrameIRQ);
 							}
 						}
 						Bus->GetClock()->DisableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
@@ -1343,8 +1343,8 @@ public:
 						CycleData.InternalClock <= CycleData.LastFrameIRQCycle) {
 						Channels.FrameInterrupt = true;
 						Bus->GetCPU()->GenerateIRQ(CycleData.InternalClock -
-							CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset(),
-							_Bus::CPUClass::FrameIRQ);
+							CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset() +
+							ClockDivider, _Bus::CPUClass::FrameIRQ);
 					} else
 						Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
 				}
