@@ -116,6 +116,7 @@ private:
 	SEvent *EventChain[MAX_EVENTS];
 	int Period;
 	bool Ready;
+	bool VBlank;
 public:
 	EmptyPPU(_Bus *pBus) {
 		SEvent *NewEvent;
@@ -132,18 +133,27 @@ public:
 			Bus->GetClock()->SetEventTime(EventChain[0],
 				Bus->GetClock()->GetTime() + Period);
 			Ready = true;
+			VBlank = true;
 		};
 		EventChain[0] = NewEvent;
 		Bus->GetClock()->RegisterEvent(NewEvent);
 		Bus->GetClock()->EnableEvent(EventChain[0]);
 		Bus->GetClock()->SetEventTime(EventChain[0], Period);
+		VBlank = false;
 	}
 	~EmptyPPU() {}
 
 	inline bool IsFrameReady() { return Ready; }
 	inline double GetFrameTime() { Ready = false; return Period; }
 	inline void Reset() {}
-	inline uint8 ReadByte(uint16 Address) { return 0x40; }
+	inline uint8 ReadByte(uint16 Address) {
+		if ((Address & 0x0007) != 2)
+			return 0x40;
+		if (!VBlank)
+			return 0x00;
+		VBlank = false;
+		return 0x80;
+	}
 	inline void WriteByte(uint16 Address, uint8 Src) {}
 	inline void ResetInternalClock(int Time) {}
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
