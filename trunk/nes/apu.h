@@ -74,12 +74,12 @@ private:
 		EVENT_APU_FRAME_IRQ = 0,
 		EVENT_APU_DMC_DMA,
 		EVENT_APU_TICK,
-		EVENT_APU_TICK2,
 		EVENT_APU_RESET,
+		EVENT_APU_TICK2,
 		MAX_EVENTS
 	};
 	enum {
-		LAST_REG_EVENT = EVENT_APU_DMC_DMA
+		LAST_REG_EVENT = EVENT_APU_RESET
 	};
 	/* Данные о событиях */
 	SEventData LocalEvents[LAST_REG_EVENT + 1];
@@ -1027,20 +1027,32 @@ private:
 							}
 						CycleData.Step++;
 						if (CycleData.Step == 4) {
-							EventTime[EVENT_APU_TICK] += Tables::StepCycles[0] + ClockDivider;
 							EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
-								Tables::StepCycles[1] + Tables::StepCycles[2] +
-								Tables::StepCycles[3] - ClockDivider;
+								Tables::StepCycles[0] + Tables::StepCycles[1] +
+								Tables::StepCycles[2] + Tables::StepCycles[3];
 							Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
 							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
-								Bus->GetClock()->GetTime() +
-								EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
+								LocalEvents[EVENT_APU_TICK].Time - EventTime[EVENT_APU_TICK] +
+								EventTime[EVENT_APU_FRAME_IRQ]);
+							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+								LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[0] +
+								ClockDivider);
+							EventTime[EVENT_APU_TICK] += Tables::StepCycles[0] + ClockDivider;
 							CycleData.Step = 0;
 						} else {
-							EventTime[EVENT_APU_TICK] += Tables::StepCycles[CycleData.Step];
 							if ((Channels.Mode == SChannels::Mode_5step) &&
 								(CycleData.Step == 3)) {
-								EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
+								Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+									LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[3] +
+									Tables::StepCycles[4]);
+								EventTime[EVENT_APU_TICK] += Tables::StepCycles[3] +
+									Tables::StepCycles[4];
+							} else {
+								Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+									LocalEvents[EVENT_APU_TICK].Time +
+									Tables::StepCycles[CycleData.Step]);
+								EventTime[EVENT_APU_TICK] +=
+									Tables::StepCycles[CycleData.Step];
 							}
 						}
 						break;
@@ -1050,6 +1062,9 @@ private:
 						EventTime[EVENT_APU_TICK2] = -1;
 						break;
 					case EVENT_APU_RESET:
+						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+							LocalEvents[EVENT_APU_TICK].Time - EventTime[EVENT_APU_TICK] +
+							EventTime[EVENT_APU_RESET] + Tables::StepCycles[0]);
 						EventTime[EVENT_APU_TICK] = EventTime[EVENT_APU_RESET] +
 							Tables::StepCycles[0];
 						EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
@@ -1057,17 +1072,21 @@ private:
 							Tables::StepCycles[3] - ClockDivider;
 						Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
 						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
-							Bus->GetClock()->GetTime() +
-							EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
+							LocalEvents[EVENT_APU_RESET].Time - EventTime[EVENT_APU_RESET] +
+							EventTime[EVENT_APU_FRAME_IRQ]);
 						CycleData.Step = 0;
 						if (Channels.Double4017) {
-							EventTime[EVENT_APU_RESET] += ClockDivider * 2;
+							EventTime[EVENT_APU_RESET] += 2 * ClockDivider;
 							if (Channels.Mode == SChannels::Mode_5step)
 								EventTime[EVENT_APU_TICK2] = EventTime[EVENT_APU_RESET] -
 									ClockDivider;
 							Channels.Double4017 = false;
-						} else
+							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
+								LocalEvents[EVENT_APU_RESET].Time + 2 * ClockDivider);
+						} else {
+							Bus->GetClock()->DisableEvent(EventChain[EVENT_APU_RESET]);
 							EventTime[EVENT_APU_RESET] = -1;
+						}
 						break;
 					default:
 						EventTime[i] = -1;
@@ -1104,6 +1123,8 @@ public:
 		} while(0)
 		MAKE_EVENT(EVENT_APU_FRAME_IRQ);
 		MAKE_EVENT(EVENT_APU_DMC_DMA);
+		MAKE_EVENT(EVENT_APU_RESET);
+		MAKE_EVENT(EVENT_APU_TICK);
 #undef MAKE_EVENT
 		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
 		memset(&Channels, 0, sizeof(Channels));
@@ -1132,6 +1153,9 @@ public:
 		Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
 			Bus->GetClock()->GetTime() + EventTime[EVENT_APU_FRAME_IRQ]);
 		EventTime[EVENT_APU_TICK] = Tables::StepCycles[0];
+		Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_TICK]);
+		Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK], Bus->GetClock()->GetTime() +
+			EventTime[EVENT_APU_TICK]);
 		EventTime[EVENT_APU_TICK2] = -1;
 		EventTime[EVENT_APU_RESET] = -1;
 	}
@@ -1298,8 +1322,15 @@ public:
 					if ((CycleData.Step == 3) && (CycleData.InternalClock <=
 						(EventTime[EVENT_APU_TICK] - ClockDivider)) &&
 						(t == SChannels::Mode_4step) &&
-						(Channels.Mode == SChannels::Mode_5step))
+						(Channels.Mode == SChannels::Mode_5step)) {
 						EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
+						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+							LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[4]);
+					}
+					Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_RESET]);
+					Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
+						LocalEvents[EVENT_APU_TICK].Time - EventTime[EVENT_APU_TICK] +
+						EventTime[EVENT_APU_RESET]);
 				}
 				if ((EventTime[EVENT_APU_TICK2] > 0) && (EventTime[EVENT_APU_TICK2] <
 					CycleData.NextEvent))
