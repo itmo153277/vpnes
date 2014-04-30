@@ -179,7 +179,7 @@ private:
 	}
 
 	/* Декодер операции */
-	const SOpcode *GetNextOpcode();
+	const SOpcode *GetNextOpcode(int &SyncClocks);
 
 	/* Обработать IRQ */
 	void ProcessIRQ();
@@ -329,7 +329,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.CycleData.Cycles++;
+				CPU.CycleData.Cycles += ClockDivider;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -457,7 +457,7 @@ private:
 			Address = GetAddr(CPU, Page);
 			if (Page & 0x0100) {
 				CPU.ReadMemory(Address - 0x0100);
-				CPU.CycleData.Cycles++;
+				CPU.CycleData.Cycles += ClockDivider;
 			}
 			return CPU.ReadMemory(Address);
 		}
@@ -784,7 +784,7 @@ void CCPU<_Bus, _Settings>::Execute() {
 	ClockCounter = CycleData.ActualTime - CycleData.LastClock;
 	Bus->ResetInternalClock(ClockCounter, CycleData.ActualTime);
 	while (ClockCounter < Bus->GetClock()->GetWaitClocks()) {
-		NextOpcode = GetNextOpcode();
+		NextOpcode = GetNextOpcode(ClockCounter);
 		if (NextOpcode == NULL)
 			break;
 		CycleData.Cycles += NextOpcode->Cycles;
@@ -798,7 +798,8 @@ void CCPU<_Bus, _Settings>::Execute() {
 
 /* Декодер операции */
 template <class _Bus, class _Settings>
-const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode() {
+const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpcode(
+	int &SyncClocks) {
 	uint8 opcode;
 	static const SOpcode ResetOpcode = {
 		7 * ClockDivider, 0, &CCPU<_Bus, _Settings>::OpReset
@@ -825,6 +826,8 @@ const typename CCPU<_Bus, _Settings>::SOpcode *CCPU<_Bus, _Settings>::GetNextOpc
 				if ((Res & 0xff00) != (Registers.pc & 0xff00)) {
 					ReadMemory((Registers.pc & 0xff00) | (Res & 0x00ff));
 					CycleData.Cycles += 2 * ClockDivider;
+					SyncClocks += 2 * ClockDivider;
+					Bus->Synchronize(SyncClocks);
 					ProcessIRQ();
 				} else
 					CycleData.Cycles += ClockDivider;

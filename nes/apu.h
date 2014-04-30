@@ -971,8 +971,8 @@ private:
 			CycleData.LastFrameIRQCycle -= CallTime;
 	}
 	/* Функция обработки из CPU */
-	inline void CPUCall() {
-		Process(Bus->GetInternalClock() + CycleData.IRQOffset);
+	inline void CPUCall(int Offset = 0) {
+		Process(Bus->GetInternalClock() + CycleData.IRQOffset + Offset);
 	}
 
 	/* Функция обработки */
@@ -996,12 +996,16 @@ private:
 			if (CycleData.InternalClock == EventTime[i])
 				switch (i) {
 					case EVENT_APU_FRAME_IRQ:
-						Channels.FrameInterrupt = true;
-						CycleData.LastFrameIRQCycle = CycleData.InternalClock +
-							ClockDivider * 3;
-						Bus->GetCPU()->GenerateIRQ(CycleData.InternalClock -
-							CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset(),
-							_Bus::CPUClass::FrameIRQ);
+						if (Channels.Mode == SChannels::Mode_4step) {
+							CycleData.LastFrameIRQCycle = CycleData.InternalClock +
+								2 * ClockDivider;
+							if (!Channels.InterruptInhibit) {
+								Channels.FrameInterrupt = true;
+								Bus->GetCPU()->GenerateIRQ(CycleData.InternalClock -
+									CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset(),
+									_Bus::CPUClass::FrameIRQ);
+							}
+						}
 						Bus->GetClock()->DisableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
 						EventTime[EVENT_APU_FRAME_IRQ] = -1;
 						break;
@@ -1024,16 +1028,13 @@ private:
 						CycleData.Step++;
 						if (CycleData.Step == 4) {
 							EventTime[EVENT_APU_TICK] += Tables::StepCycles[0] + ClockDivider;
-							if (!Channels.InterruptInhibit &&
-								(Channels.Mode == SChannels::Mode_4step)) {
-								EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
-									Tables::StepCycles[1] + Tables::StepCycles[2] +
-									Tables::StepCycles[3] - ClockDivider;
-								Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
-								Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
-									Bus->GetClock()->GetTime() +
-									EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
-							}
+							EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
+								Tables::StepCycles[1] + Tables::StepCycles[2] +
+								Tables::StepCycles[3] - ClockDivider;
+							Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
+							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
+								Bus->GetClock()->GetTime() +
+								EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
 							CycleData.Step = 0;
 						} else {
 							EventTime[EVENT_APU_TICK] += Tables::StepCycles[CycleData.Step];
@@ -1051,16 +1052,13 @@ private:
 					case EVENT_APU_RESET:
 						EventTime[EVENT_APU_TICK] = EventTime[EVENT_APU_RESET] +
 							Tables::StepCycles[0];
-						if (!Channels.InterruptInhibit &&
-							(Channels.Mode == SChannels::Mode_4step)) {
-							EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
-								Tables::StepCycles[1] + Tables::StepCycles[2] +
-								Tables::StepCycles[3] - ClockDivider;
-							Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
-							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
-								Bus->GetClock()->GetTime() +
-								EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
-						}
+						EventTime[EVENT_APU_FRAME_IRQ] = EventTime[EVENT_APU_TICK] +
+							Tables::StepCycles[1] + Tables::StepCycles[2] +
+							Tables::StepCycles[3] - ClockDivider;
+						Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
+						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_FRAME_IRQ],
+							Bus->GetClock()->GetTime() +
+							EventTime[EVENT_APU_FRAME_IRQ] - CycleData.IRQOffset);
 						CycleData.Step = 0;
 						if (Channels.Double4017) {
 							EventTime[EVENT_APU_RESET] += ClockDivider * 2;
@@ -1152,11 +1150,9 @@ public:
 
 		switch (Address) {
 			case 0x4015:
-				CPUCall();
+				CPUCall(-ClockDivider);
 				Res = Channels.Read4015();
-				if ((CycleData.InternalClock <= EventTime[EVENT_APU_FRAME_IRQ]) ||
-					((CycleData.LastFrameIRQCycle >= 0) &&
-					(CycleData.InternalClock >= CycleData.LastFrameIRQCycle))) {
+				if ((CycleData.InternalClock + ClockDivider) > CycleData.LastFrameIRQCycle) {
 					Channels.FrameInterrupt = false;
 					Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
 				}
@@ -1318,11 +1314,8 @@ public:
 						Bus->GetCPU()->GenerateIRQ(CycleData.InternalClock -
 							CycleData.IRQOffset - Bus->GetCPU()->GetIRQOffset(),
 							_Bus::CPUClass::FrameIRQ);
-					} else {
+					} else
 						Bus->GetCPU()->ClearIRQ(_Bus::CPUClass::FrameIRQ);
-						Bus->GetClock()->DisableEvent(EventChain[EVENT_APU_FRAME_IRQ]);
-						EventTime[EVENT_APU_FRAME_IRQ] = -1;
-					}
 				}
 				break;
 		}
