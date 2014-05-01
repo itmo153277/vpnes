@@ -24,6 +24,7 @@
 #include "../bus.h"
 #include "../cpu.h"
 #include "../apu.h"
+#include "../ppu.h"
 #include "../tables.h"
 
 using namespace vpnes;
