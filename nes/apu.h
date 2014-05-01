@@ -89,6 +89,8 @@ private:
 	SEvent *EventChain[LAST_REG_EVENT + 1];
 	/* Периоды событий */
 	int EventTime[MAX_EVENTS];
+	/* Время записи 0x4017 */
+	int WriteCommit;
 
 	/* Длина буфера APU */
 	enum { MAX_BUF = 1024 };
@@ -150,6 +152,7 @@ private:
 		int SweepedTimer; /* Рассчитанный период */
 		bool TimerValid; /* Периоды корректные */
 		bool UseCounter; /* Подавление изменения счетчикка длины */
+		bool IgnoreCounter; /* Игнорировать изменение счетчика */
 		int LengthCounter; /* Счетчик длины */
 		int Timer; /* Таймер */
 		int EnvelopeTimer; /* Счетчик для энвелопа */
@@ -179,7 +182,7 @@ private:
 			TimerPeriod = (TimerPeriod & 0x00ff) | ((Src & 0x07) << 8);
 			EnvelopeStart = true;
 			DutyCycle = 0;
-			if (UseCounter)
+			if (UseCounter && !IgnoreCounter)
 				LengthCounter = Tables::LengthCounterTable[Src >> 3];
 		}
 
@@ -202,9 +205,11 @@ private:
 			}
 		}
 		/* Счетчик длины */
-		inline void ClockLengthCounter() {
-			if ((!EnvelopeLoop) && (LengthCounter > 0))
+		inline void ClockLengthCounter(bool EndPoint) {
+			if ((!EnvelopeLoop) && (LengthCounter > 0)) {
 				LengthCounter--;
+				IgnoreCounter = EndPoint;
+			}
 		}
 		/* Свип */
 		inline void Sweep() {
@@ -354,6 +359,7 @@ private:
 		int TimerPeriod; /* Период */
 		int Timer; /* Счетчик */
 		bool UseCounter; /* Флаг подавления счетчика длины */
+		bool IgnoreCounter; /* Игнорировать изменение счетчика */
 		int LengthCounter; /* Счетчик длины */
 
 		/* Запись 0x4008 */
@@ -369,7 +375,7 @@ private:
 		inline void Write_3(uint8 Src) {
 			TimerPeriod = (TimerPeriod & 0x00ff) | ((Src & 0x07) << 8);
 			CounterReload = true;
-			if (UseCounter)
+			if (UseCounter && !IgnoreCounter)
 				LengthCounter = Tables::LengthCounterTable[Src >> 3];
 		}
 
@@ -383,9 +389,11 @@ private:
 				CounterReload = false;
 		}
 		/* Счетчик длины */
-		inline void ClockLengthCounter() {
-			if ((!ControlFlag) && (LengthCounter > 0))
+		inline void ClockLengthCounter(bool EndPoint) {
+			if ((!ControlFlag) && (LengthCounter > 0)) {
 				LengthCounter--;
+				IgnoreCounter = EndPoint;
+			}
 		}
 		/* Сброс */
 		inline void Reset() {
@@ -475,6 +483,7 @@ private:
 		int ShiftCount; /* Бит обратной связи */
 		int TimerPeriod; /* Период */
 		bool UseCounter; /* Подавление изменения счетчикка длины */
+		bool IgnoreCounter; /* Игнорировать изменение счетчика */
 		int LengthCounter; /* Счетчик длины */
 		int Timer; /* Таймер */
 		int EnvelopeTimer; /* Счетчик для энвелопа */
@@ -494,7 +503,7 @@ private:
 		/* Запись в 0x400f */
 		inline void Write_3(uint8 Src) {
 			EnvelopeStart = true;
-			if (UseCounter)
+			if (UseCounter && !IgnoreCounter)
 				LengthCounter = Tables::LengthCounterTable[Src >> 3];
 		}
 
@@ -517,9 +526,11 @@ private:
 			}
 		}
 		/* Счетчик длины */
-		inline void ClockLengthCounter() {
-			if ((!EnvelopeLoop) && (LengthCounter > 0))
+		inline void ClockLengthCounter(bool EndPoint) {
+			if ((!EnvelopeLoop) && (LengthCounter > 0)) {
 				LengthCounter--;
+				IgnoreCounter = EndPoint;
+			}
 		}
 		/* Сброс */
 		inline void Reset() {
@@ -818,7 +829,6 @@ private:
 		}
 		/* Запись 0x4017 */
 		inline void Write4017(uint8 Src) {
-			Buf4017 = Src;
 			Mode = (Src & 0x80) ? Mode_5step : Mode_4step;
 			InterruptInhibit = (Src & 0x40);
 			if (InterruptInhibit)
@@ -926,11 +936,11 @@ private:
 			PulseChannel2.Envelope();
 			NoiseChannel.Envelope();
 		}
-		inline void LengthCounter() {
-			PulseChannel1.ClockLengthCounter();
-			PulseChannel2.ClockLengthCounter();
-			TriangleChannel.ClockLengthCounter();
-			NoiseChannel.ClockLengthCounter();
+		inline void LengthCounter(bool EndPoint) {
+			PulseChannel1.ClockLengthCounter(EndPoint);
+			PulseChannel2.ClockLengthCounter(EndPoint);
+			TriangleChannel.ClockLengthCounter(EndPoint);
+			NoiseChannel.ClockLengthCounter(EndPoint);
 		}
 		inline void Sweep() {
 			PulseChannel1.Sweep();
@@ -944,9 +954,9 @@ private:
 			TriangleChannel.ClockLinearCounter();
 		}
 		/* Нечетные такты */
-		inline void OddClock() {
+		inline void OddClock(bool EndPoint) {
 			EvenClock();
-			LengthCounter();
+			LengthCounter(EndPoint);
 			Sweep();
 		}
 		/* Обновить все буферы */
@@ -980,7 +990,9 @@ private:
 	}
 	/* Функция обработки из CPU */
 	inline void CPUCall(int Offset = 0) {
-		Process(Bus->GetInternalClock() + CycleData.IRQOffset + Offset);
+		WriteCommit = Bus->GetInternalClock() + CycleData.IRQOffset + Offset;
+		Process(WriteCommit);
+		WriteCommit = -1;
 	}
 
 	/* Функция обработки */
@@ -1004,6 +1016,8 @@ private:
 			if (CycleData.InternalClock == EventTime[i])
 				switch (i) {
 					case EVENT_APU_FRAME_IRQ:
+						if (CycleData.InternalClock == WriteCommit)
+							Channels.Write4017(Channels.Buf4017);
 						if (Channels.Mode == SChannels::Mode_4step) {
 							CycleData.LastFrameIRQCycle = CycleData.InternalClock +
 								2 * ClockDivider;
@@ -1030,7 +1044,7 @@ private:
 									break;
 								case 1:
 								case 3:
-									Channels.OddClock();
+									Channels.OddClock(CycleData.InternalClock == WriteCommit);
 									break;
 							}
 						CycleData.Step++;
@@ -1066,7 +1080,7 @@ private:
 						break;
 					case EVENT_APU_TICK2:
 						Channels.UpdateAllBuffers(*this);
-						Channels.OddClock();
+						Channels.OddClock(CycleData.InternalClock == WriteCommit);
 						EventTime[EVENT_APU_TICK2] = -1;
 						break;
 					case EVENT_APU_RESET:
@@ -1136,6 +1150,7 @@ public:
 #undef MAKE_EVENT
 		Bus->GetManager()->template SetPointer<SChannels>(&Channels);
 		memset(&Channels, 0, sizeof(Channels));
+		WriteCommit = -1;
 	}
 	inline ~CAPU() {
 	}
@@ -1219,6 +1234,7 @@ public:
 				Channels.PulseChannel1.CalculateSweep();
 				break;
 			case 0x4003:
+				Channels.PulseChannel1.IgnoreCounter = false;
 				CPUCall();
 				Channels.PulseChannel1.UpdateBuffer(*this, Channels.InternalClock);
 				Channels.PulseChannel1.Write_4(Src);
@@ -1242,6 +1258,7 @@ public:
 				Channels.PulseChannel2.CalculateSweep();
 				break;
 			case 0x4007:
+				Channels.PulseChannel2.IgnoreCounter = false;
 				CPUCall();
 				Channels.PulseChannel2.UpdateBuffer(*this, Channels.InternalClock);
 				Channels.PulseChannel2.Write_4(Src);
@@ -1258,6 +1275,7 @@ public:
 				Channels.TriangleChannel.Write_2(Src);
 				break;
 			case 0x400b:
+				Channels.TriangleChannel.IgnoreCounter = false;
 				CPUCall();
 				Channels.TriangleChannel.UpdateBuffer(*this, Channels.InternalClock);
 				Channels.TriangleChannel.Write_3(Src);
@@ -1273,6 +1291,7 @@ public:
 				Channels.NoiseChannel.Write_2(Src);
 				break;
 			case 0x400f:
+				Channels.NoiseChannel.IgnoreCounter = false;
 				CPUCall();
 				Channels.NoiseChannel.UpdateBuffer(*this, Channels.InternalClock);
 				Channels.NoiseChannel.Write_3(Src);
@@ -1313,8 +1332,9 @@ public:
 				Bus->GetFrontend()->GetInput2Frontend()->InputSignal(Src);
 				break;
 			case 0x4017:
-				CPUCall();
 				t = Channels.Mode;
+				Channels.Buf4017 = Src;
+				CPUCall();
 				Channels.Write4017(Src);
 				if (CycleData.OddCycle & 1)
 					x = 3 * ClockDivider;
