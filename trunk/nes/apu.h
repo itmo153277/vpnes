@@ -448,6 +448,8 @@ private:
 		inline int UpdateBuffer(int Time) {
 			if (Time <= InternalClock)
 				return Time;
+			if (Pos == MAX_BUF)
+				return InternalClock;
 			InternalClock += FillBuffer(Time - InternalClock);
 			return InternalClock;
 		}
@@ -592,6 +594,8 @@ private:
 		inline int UpdateBuffer(int Time) {
 			if (Time <= InternalClock)
 				return Time;
+			if (Pos == MAX_BUF)
+				return InternalClock;
 			InternalClock += FillBuffer(Time - InternalClock);
 			return InternalClock;
 		}
@@ -740,6 +744,8 @@ private:
 		inline int UpdateBuffer(int Time) {
 			if (Time <= InternalClock)
 				return Time;
+			if (Pos == MAX_BUF)
+				return InternalClock;
 			InternalClock += FillBuffer(Time - InternalClock);
 			return InternalClock;
 		}
@@ -1321,18 +1327,33 @@ public:
 					EventTime[EVENT_APU_RESET] = CycleData.InternalClock + x;
 					if (Channels.Mode == SChannels::Mode_5step)
 						EventTime[EVENT_APU_TICK2] = EventTime[EVENT_APU_RESET] - ClockDivider;
-					if ((CycleData.Step == 3) && (CycleData.InternalClock <=
-						(EventTime[EVENT_APU_TICK] - ClockDivider)) &&
-						(t == SChannels::Mode_4step) &&
-						(Channels.Mode == SChannels::Mode_5step)) {
-						EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
-						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
-							LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[4]);
-					}
 					Bus->GetClock()->EnableEvent(EventChain[EVENT_APU_RESET]);
 					Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_RESET],
 						LocalEvents[EVENT_APU_TICK].Time - EventTime[EVENT_APU_TICK] +
 						EventTime[EVENT_APU_RESET]);
+				}
+				if ((CycleData.Step == 3) && (CycleData.InternalClock <=
+					(EventTime[EVENT_APU_TICK] - ClockDivider))) {
+					if ((t == SChannels::Mode_4step) &&
+						(Channels.Mode == SChannels::Mode_5step)) {
+						EventTime[EVENT_APU_TICK] += Tables::StepCycles[4];
+						Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+							LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[4]);
+					} else if ((t == SChannels::Mode_5step) && (Channels.Mode ==
+						SChannels::Mode_4step)) {
+						if (CycleData.InternalClock <= (EventTime[EVENT_APU_TICK] -
+							Tables::StepCycles[4] - ClockDivider)) {
+							EventTime[EVENT_APU_TICK] -= Tables::StepCycles[4];
+							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+								LocalEvents[EVENT_APU_TICK].Time - Tables::StepCycles[4]);
+						} else {
+							/* Игнорируем последнюю фазу. По срабатыванию должно */
+							/* произойти Step = 0, но не произойдет из-за RESET */
+							EventTime[EVENT_APU_TICK] += Tables::StepCycles[5];
+							Bus->GetClock()->SetEventTime(EventChain[EVENT_APU_TICK],
+								LocalEvents[EVENT_APU_TICK].Time + Tables::StepCycles[5]);
+						}
+					}
 				}
 				if ((EventTime[EVENT_APU_TICK2] > 0) && (EventTime[EVENT_APU_TICK2] <
 					CycleData.NextEvent))
