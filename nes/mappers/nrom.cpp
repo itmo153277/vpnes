@@ -118,6 +118,7 @@ private:
 	int Period;
 	bool Ready;
 	bool VBlank;
+	bool NMI;
 public:
 	EmptyPPU(_Bus *pBus) {
 		SEvent *NewEvent;
@@ -135,6 +136,8 @@ public:
 				Bus->GetClock()->GetTime() + Period);
 			Ready = true;
 			VBlank = true;
+			if (NMI)
+				Bus->GetCPU()->GenerateNMI(0);
 		};
 		EventChain[0] = NewEvent;
 		Bus->GetClock()->RegisterEvent(NewEvent);
@@ -155,7 +158,10 @@ public:
 		VBlank = false;
 		return 0x80;
 	}
-	inline void WriteByte(uint16 Address, uint8 Src) {}
+	inline void WriteByte(uint16 Address, uint8 Src) {
+		if ((Address & 0x0007) != 0)
+			NMI = Src & 0x80;
+	}
 	inline void ResetInternalClock(int Time) {}
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
 };
