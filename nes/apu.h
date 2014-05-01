@@ -31,8 +31,10 @@
 #include <algorithm>
 #include "tables.h"
 #include "manager.h"
+#include "frontend.h"
 #include "clock.h"
 #include "bus.h"
+#include "cpu.h"
 
 namespace vpnes {
 
