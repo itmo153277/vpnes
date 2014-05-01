@@ -125,6 +125,7 @@ public:
 
 		Bus = pBus;
 		Ready = false;
+		NMI = false;
 		Period = _Settings::PPU_Divider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);
@@ -159,7 +160,7 @@ public:
 		return 0x80;
 	}
 	inline void WriteByte(uint16 Address, uint8 Src) {
-		if ((Address & 0x0007) != 0)
+		if ((Address & 0x0007) == 0)
 			NMI = Src & 0x80;
 	}
 	inline void ResetInternalClock(int Time) {}
