@@ -266,12 +266,12 @@ public:
 		Buf[Button] |= 0x01;
 		if (Button >= ButtonUp) {
 			/* Запрещаем нажимать на весь крестик */
-			if (Buf[ButtonUp] && Buf[ButtonDown]) {
+			if ((Buf[ButtonUp] & 0x01) && (Buf[ButtonDown] & 0x01)) {
 				Buf[ButtonUp] = 0x40;
 				Buf[ButtonDown] = 0x40;
 				Cross[0] = 0x41;
 			}
-			if (Buf[ButtonLeft] && Buf[ButtonRight]) {
+			if ((Buf[ButtonLeft] & 0x01) && (Buf[ButtonRight] & 0x01)) {
 				Buf[ButtonLeft] = 0x40;
 				Buf[ButtonRight] = 0x40;
 				Cross[1] = 0x41;

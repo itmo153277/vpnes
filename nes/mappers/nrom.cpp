@@ -118,6 +118,7 @@ private:
 	int Period;
 	bool Ready;
 	bool VBlank;
+	bool Sprite0Hit;
 	bool NMI;
 public:
 	EmptyPPU(_Bus *pBus) {
@@ -126,6 +127,7 @@ public:
 		Bus = pBus;
 		Ready = false;
 		NMI = false;
+		Sprite0Hit = false;
 		Period = _Settings::PPU_Divider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);
@@ -152,12 +154,17 @@ public:
 	inline double GetFrameTime() { Ready = false; return Period; }
 	inline void Reset() {}
 	inline uint8 ReadByte(uint16 Address) {
+		uint8 Ret = 0;
+
 		if ((Address & 0x0007) != 2)
 			return 0x40;
-		if (!VBlank)
-			return 0x00;
+		if (VBlank)
+			Ret |= 0x80;
+		if (Sprite0Hit)
+			Ret |= 0x40;
 		VBlank = false;
-		return 0x80;
+		Sprite0Hit = !Sprite0Hit;
+		return Ret;
 	}
 	inline void WriteByte(uint16 Address, uint8 Src) {
 		if ((Address & 0x0007) == 0)
