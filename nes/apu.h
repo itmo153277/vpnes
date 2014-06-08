@@ -73,15 +73,15 @@ private:
 
 	/* События */
 	enum {
-		EVENT_APU_FRAME_IRQ = 0,
+		EVENT_APU_RESET = 0,
+		EVENT_APU_FRAME_IRQ,
 		EVENT_APU_DMC_DMA,
 		EVENT_APU_TICK,
-		EVENT_APU_RESET,
 		EVENT_APU_TICK2,
 		MAX_EVENTS
 	};
 	enum {
-		LAST_REG_EVENT = EVENT_APU_RESET
+		LAST_REG_EVENT = EVENT_APU_TICK
 	};
 	/* Данные о событиях */
 	SEventData LocalEvents[LAST_REG_EVENT + 1];
