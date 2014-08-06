@@ -855,7 +855,8 @@ void CCPU<_Bus, _Settings>::ProcessIRQ() {
 		if (CycleData.IRQ < 0)
 			CycleData.IRQ = 0;
 		for (i = 0; i < IRQ_MAX; i++)
-			CycleData.IRQF[i] -= CycleData.Cycles;
+			if (CycleData.IRQF[i] >= 0)
+				CycleData.IRQF[i] -= CycleData.Cycles;
 	}
 	if (CycleData.NMI > 0) {
 		CycleData.NMI -= CycleData.Cycles;

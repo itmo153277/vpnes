@@ -36,9 +36,10 @@ namespace vpnes {
 
 namespace PPUID {
 
-typedef PPUGroup<1>::ID::NoBatteryID StateID;
-typedef PPUGroup<2>::ID::NoBatteryID RegistersID;
-typedef PPUGroup<6>::ID::NoBatteryID SpritesID;
+typedef PPUGroup<1>::ID::NoBatteryID InternalDataID;
+typedef PPUGroup<2>::ID::NoBatteryID StateID;
+typedef PPUGroup<3>::ID::NoBatteryID RegistersID;
+typedef PPUGroup<4>::ID::NoBatteryID SpritesID;
 
 }
 
@@ -55,6 +56,19 @@ private:
 	bool FrameReady;
 	/* Время отрисовки кадра */
 	int FrameTime;
+	/* Номинальное время отрисовки кадра */
+	int NominalFrameTime;
+	/* Номинальное время отрисовки для нечетных кадров */
+	int NominalFrameTimeOdd;
+	/* Chip Enable */
+	bool CE;
+
+	/* Внутренние данные */
+	struct SInternalData: public ManagerID<PPUID::InternalDataID> {
+		int Scanline;
+		int OddFrame;
+		int IRQOffset;
+	} InternalData;
 
 	/* Статус PPU */
 	struct SState: public ManagerID<PPUID::StateID> {
@@ -268,13 +282,36 @@ private:
 		}
 	} Registers;
 
+	/* Вызов по событию */
+	inline void EventCall(int CallTime) {
+		Process(CallTime);
+		InternalData.IRQOffset -= CallTime;
+	}
+
+	/* Вызов по шине CPU */
+	inline void CPUCall() {
+		Process(Bus->GetInternalTime() + InternalData.IRQOffset);
+	}
+
+	void Process(int Time);
 public:
 	CPPU(_Bus *pBus) {
 		Bus = pBus;
+		memset(&InternalData, 0, sizeof(SInternalData));
+		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
+		memset(&State, 0, sizeof(SState));
 		Bus->GetManager()->template SetPointer<SState>(&State);
+		memset(&Registers, 0, sizeof(SRegisters));
 		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
+		memset(Sprites, 0, sizeof(SSprite) * 8);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
 			Sprites, sizeof(SSprite) * 8);
+		NominalFrameTime = ClockDivider *
+			((_Settings::ActiveScanlines + _Settings::PostRender +
+			_Settings::VBlank + 1) * 341);
+		NominalFrameTimeOdd = NominalFrameTime - ClockDivider * _Settings::OddSkip;
+		FrameReady = false;
+		FrameTime = NominalFrameTime;
 	}
 	inline ~CPPU() {
 	}
@@ -285,6 +322,7 @@ public:
 
 	/* Сброс часов шины */
 	inline void ResetInternalClock(int Time) {
+		InternalData.IRQOffset += Time;
 	}
 	/* Чтение памяти */
 	inline uint8 ReadByte(uint16 Address) {
@@ -304,6 +342,10 @@ public:
 	/* Частота PPU */
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
 };
+
+template <class _Bus, class _Settings>
+void CPPU<_Bus, _Settings>::Process(int Time) {
+}
 
 }
 
