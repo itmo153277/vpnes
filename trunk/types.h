@@ -43,6 +43,9 @@ public:
 extern "C" {
 #endif
 
+/* Макрос строки */
+#define MSTR(str) #str
+
 /* Основные типы данных */
 
 #if !defined(HAVE_STDINT_H) && !defined(HAVE_INTTYPES_H)
