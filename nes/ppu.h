@@ -40,6 +40,7 @@ typedef PPUGroup<1>::ID::NoBatteryID InternalDataID;
 typedef PPUGroup<2>::ID::NoBatteryID StateID;
 typedef PPUGroup<3>::ID::NoBatteryID RegistersID;
 typedef PPUGroup<4>::ID::NoBatteryID SpritesID;
+typedef PPUGroup<5>::ID::NoBatteryID EventDataID;
 
 }
 
@@ -69,6 +70,16 @@ private:
 		int OddFrame;
 		int IRQOffset;
 	} InternalData;
+
+	/* События */
+	enum {
+		EVENT_PPU_FRAME = 0,
+		MAX_EVENTS
+	};
+	/* Данные о событиях */
+	SEventData LocalEvents[MAX_EVENTS];
+	/* Указатели на события */
+	SEvent *EventChain[MAX_EVENTS];
 
 	/* Статус PPU */
 	struct SState: public ManagerID<PPUID::StateID> {
@@ -296,6 +307,8 @@ private:
 	void Process(int Time);
 public:
 	CPPU(_Bus *pBus) {
+		SEvent *NewEvent;
+
 		Bus = pBus;
 		memset(&InternalData, 0, sizeof(SInternalData));
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
@@ -306,12 +319,30 @@ public:
 		memset(Sprites, 0, sizeof(SSprite) * 8);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
 			Sprites, sizeof(SSprite) * 8);
+		memset(LocalEvents, 0, sizeof(SEventData) * MAX_EVENTS);
+		Bus->GetManager()->template SetPointer<ManagerID<PPUID::EventDataID> >(LocalEvents,
+			sizeof(SEventData) * MAX_EVENTS);
 		NominalFrameTime = ClockDivider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);
 		NominalFrameTimeOdd = NominalFrameTime - ClockDivider * _Settings::OddSkip;
 		FrameReady = false;
 		FrameTime = NominalFrameTime;
+		NewEvent = new SEvent;
+		NewEvent->Data = &LocalEvents[EVENT_PPU_FRAME];
+		NewEvent->Name = MSTR(EVENT_PPU_FRAME);
+		NewEvent->Execute = [this] {
+			EventCall(FrameTime);
+			/* TODO: Перенести в обработчик событий */
+			FrameReady = true;
+			Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
+				Bus->GetClock()->GetTime() + FrameTime);
+		};
+		EventChain[EVENT_PPU_FRAME] = NewEvent;
+		Bus->GetClock()->RegisterEvent(NewEvent);
+		Bus->GetClock()->EnableEvent(EventChain[EVENT_PPU_FRAME]);
+		Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
+			Bus->GetClock()->GetTime() + FrameTime);
 	}
 	inline ~CPPU() {
 	}
