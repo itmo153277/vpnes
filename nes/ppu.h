@@ -41,6 +41,9 @@ typedef PPUGroup<2>::ID::NoBatteryID StateID;
 typedef PPUGroup<3>::ID::NoBatteryID RegistersID;
 typedef PPUGroup<4>::ID::NoBatteryID SpritesID;
 typedef PPUGroup<5>::ID::NoBatteryID EventDataID;
+typedef PPUGroup<6>::ID::NoBatteryID SpriteRendererID;
+typedef PPUGroup<7>::ID::NoBatteryID BackgroundRendererID;
+typedef PPUGroup<8>::ID::NoBatteryID BusHandlerID;
 
 }
 
@@ -55,8 +58,6 @@ private:
 
 	/* Флаг готовности кадра */
 	bool FrameReady;
-	/* Время отрисовки кадра */
-	int FrameTime;
 	/* Номинальное время отрисовки кадра */
 	int NominalFrameTime;
 	/* Номинальное время отрисовки для нечетных кадров */
@@ -69,6 +70,9 @@ private:
 		int Scanline;
 		int OddFrame;
 		int IRQOffset;
+		int InternalClock;
+		int ScanlineClock;
+		int FrameTime;
 	} InternalData;
 
 	/* События */
@@ -293,6 +297,36 @@ private:
 		}
 	} Registers;
 
+	/* Рендерер спрайтов */
+	struct SSpriteRenderer: public ManagerID<PPUID::SpriteRendererID> {
+		int InternalClock; /* Внутренние часы */
+
+		/* Обработчик */
+		void Process(CPPU &PPU) {
+			InternalClock = PPU.InternalData.InternalClock;
+		}
+	} SpriteRenderer;
+
+	/* Рендерер фона */
+	struct SBackgroundRenderer: public ManagerID<PPUID::BackgroundRendererID> {
+		int InternalClock; /* Внутренние часы */
+
+		/* Обработчик */
+		void Process(CPPU &PPU) {
+			InternalClock = PPU.InternalData.InternalClock;
+		}
+	} BackgroundRenderer;
+
+	/* Обработчик шины */
+	struct SBusHandler: public ManagerID<PPUID::BusHandlerID> {
+		int InternalClock; /* Внутренние часы */
+
+		/* Обработчик */
+		void Process(CPPU &PPU) {
+			InternalClock = PPU.InternalData.InternalClock;
+		}
+	} BusHandler;
+
 	/* Вызов по событию */
 	inline void EventCall(int CallTime) {
 		Process(CallTime);
@@ -322,27 +356,33 @@ public:
 		memset(LocalEvents, 0, sizeof(SEventData) * MAX_EVENTS);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::EventDataID> >(LocalEvents,
 			sizeof(SEventData) * MAX_EVENTS);
+		memset(&SpriteRenderer, 0, sizeof(SSpriteRenderer));
+		Bus->GetManager()->template SetPointer<SSpriteRenderer>(&SpriteRenderer);
+		memset(&BackgroundRenderer, 0, sizeof(SBackgroundRenderer));
+		Bus->GetManager()->template SetPointer<SBackgroundRenderer>(&BackgroundRenderer);
+		memset(&BusHandler, 0, sizeof(SBusHandler));
+		Bus->GetManager()->template SetPointer<SBusHandler>(&BusHandler);
 		NominalFrameTime = ClockDivider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);
 		NominalFrameTimeOdd = NominalFrameTime - ClockDivider * _Settings::OddSkip;
 		FrameReady = false;
-		FrameTime = NominalFrameTime;
+		InternalData.FrameTime = NominalFrameTime;
 		NewEvent = new SEvent;
 		NewEvent->Data = &LocalEvents[EVENT_PPU_FRAME];
 		NewEvent->Name = MSTR(EVENT_PPU_FRAME);
 		NewEvent->Execute = [this] {
-			EventCall(FrameTime);
+			EventCall(InternalData.FrameTime);
 			/* TODO: Перенести в обработчик событий */
 			FrameReady = true;
 			Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
-				Bus->GetClock()->GetTime() + FrameTime);
+				Bus->GetClock()->GetTime() + InternalData.FrameTime);
 		};
 		EventChain[EVENT_PPU_FRAME] = NewEvent;
 		Bus->GetClock()->RegisterEvent(NewEvent);
 		Bus->GetClock()->EnableEvent(EventChain[EVENT_PPU_FRAME]);
 		Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
-			Bus->GetClock()->GetTime() + FrameTime);
+			Bus->GetClock()->GetTime() + InternalData.FrameTime);
 	}
 	inline ~CPPU() {
 	}
@@ -363,19 +403,37 @@ public:
 	inline void WriteByte(uint16 Address, uint8 Src) {
 	}
 
+	/* Обработать до текущего такта */
+	inline void PreProcess() {
+		CPUCall();
+		BackgroundRenderer.Process(*this);
+	}
 	/* Флаг готовности кадра */
 	inline bool IsFrameReady() { return FrameReady; }
 	/* Время отрисовки кадра */
 	inline int GetFrameTime() {
 		FrameReady = false;
-		return FrameTime;
+		return InternalData.FrameTime;
 	}
 	/* Частота PPU */
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
 };
 
+/* Обработчик */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::Process(int Time) {
+	int LeftTime = Time;
+
+	while ((InternalData.InternalClock + LeftTime) >= InternalData.ScanlineClock) {
+		InternalData.InternalClock = InternalData.ScanlineClock;
+		LeftTime -= InternalData.ScanlineClock;
+		BusHandler.Process(*this);
+		InternalData.Scanline++;
+		InternalData.ScanlineClock += ClockDivider * 341;
+		if (InternalData.Scanline == (_Settings::ActiveScanlines + _Settings::PostRender +
+			_Settings::VBlank + 1))
+			InternalData.Scanline = 0;
+	}
 }
 
 }
