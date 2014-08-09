@@ -297,33 +297,72 @@ private:
 		}
 	} Registers;
 
-	/* Рендерер спрайтов */
-	struct SSpriteRenderer: public ManagerID<PPUID::SpriteRendererID> {
+	/* Устройство обработки для PPU */
+	struct SPPUUnit {
 		int InternalClock; /* Внутренние часы */
+		bool Lock; /* Блокировка (защита от зацикливания) */
+	};
 
-		/* Обработчик */
-		void Process(CPPU &PPU) {
-			InternalClock = PPU.InternalData.InternalClock;
+	/* Рендерер спрайтов */
+	struct SSpriteRenderer: public SPPUUnit, ManagerID<PPUID::SpriteRendererID> {
+		using SPPUUnit::InternalClock;
+		using SPPUUnit::Lock;
+
+		/* Обработка */
+		inline void Process(CPPU &PPU) {
+			while (InternalClock < PPU.InternalData.InternalClock)
+				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+		}
+		/* Обработка ко времени */
+		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (Lock)
+				return false;
+			Lock = true;
+			InternalClock = Time;
+			Lock = false;
+			return true;
 		}
 	} SpriteRenderer;
 
 	/* Рендерер фона */
-	struct SBackgroundRenderer: public ManagerID<PPUID::BackgroundRendererID> {
-		int InternalClock; /* Внутренние часы */
+	struct SBackgroundRenderer: public SPPUUnit, ManagerID<PPUID::BackgroundRendererID> {
+		using SPPUUnit::InternalClock;
+		using SPPUUnit::Lock;
 
-		/* Обработчик */
-		void Process(CPPU &PPU) {
-			InternalClock = PPU.InternalData.InternalClock;
+		/* Обработка */
+		inline void Process(CPPU &PPU) {
+			while (InternalClock < PPU.InternalData.InternalClock)
+				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+		}
+		/* Обработка ко времени */
+		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (Lock)
+				return false;
+			Lock = true;
+			InternalClock = Time;
+			Lock = false;
+			return true;
 		}
 	} BackgroundRenderer;
 
 	/* Обработчик шины */
-	struct SBusHandler: public ManagerID<PPUID::BusHandlerID> {
-		int InternalClock; /* Внутренние часы */
+	struct SBusHandler: public SPPUUnit, ManagerID<PPUID::BusHandlerID> {
+		using SPPUUnit::InternalClock;
+		using SPPUUnit::Lock;
 
-		/* Обработчик */
-		void Process(CPPU &PPU) {
-			InternalClock = PPU.InternalData.InternalClock;
+		/* Обработка */
+		inline void Process(CPPU &PPU) {
+			while (InternalClock < PPU.InternalData.InternalClock)
+				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+		}
+		/* Обработка ко времени */
+		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (Lock)
+				return false;
+			Lock = true;
+			InternalClock = Time;
+			Lock = false;
+			return true;
 		}
 	} BusHandler;
 
@@ -334,10 +373,25 @@ private:
 	}
 
 	/* Вызов по шине CPU */
-	inline void CPUCall() {
-		Process(Bus->GetInternalTime() + InternalData.IRQOffset);
+	inline void CPUCall(int Offset = 0) {
+		Process(Bus->GetInternalTime() + InternalData.IRQOffset + Offset);
 	}
 
+	/* Вызов по шине CPU с учетом CE */
+	inline void CPUCallCELow(int Offset = 0) {
+		CPUCall(Offset - _Bus::CPUClass::GetM2Length());
+	}
+	inline void CPUCallCEHigh(int Offset = 0) {
+		CE = true;
+		CPUCall(Offset);
+		CE = false;
+	}
+	inline void CPUCallCE(int Offset = 0) {
+		CPUCallCELow(Offset);
+		CPUCallCEHigh(Offset);
+	}
+
+	/* Обработчик */
 	void Process(int Time);
 public:
 	CPPU(_Bus *pBus) {
@@ -367,6 +421,7 @@ public:
 			_Settings::VBlank + 1) * 341);
 		NominalFrameTimeOdd = NominalFrameTime - ClockDivider * _Settings::OddSkip;
 		FrameReady = false;
+		CE = false;
 		InternalData.FrameTime = NominalFrameTime;
 		NewEvent = new SEvent;
 		NewEvent->Data = &LocalEvents[EVENT_PPU_FRAME];
