@@ -94,6 +94,8 @@ struct NROM_Chain {
 struct NTSCSettings {
 	enum {
 		CPU_Divider = 12,
+		M2Duty = 8,
+		M2Length = 13,
 		PPU_Divider = 4,
 		Top = 8,
 		Left = 0,

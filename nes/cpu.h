@@ -561,6 +561,9 @@ public:
 	}
 	/* Сдвиг тактов */
 	inline const int GetIRQOffset() const { return CycleData.IRQOffset; }
+	/* Количество тактов для M2 = 1 */
+	static inline int GetM2Length() { return ClockDivider * _Settings::M2Duty /
+		_Settings::M2Length; }
 private:
 	/* Команды CPU */
 
