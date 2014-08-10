@@ -58,6 +58,8 @@ private:
 
 	/* Флаг готовности кадра */
 	bool FrameReady;
+	/* Время кадра */
+	int FrameTime;
 	/* Номинальное время отрисовки кадра */
 	int NominalFrameTime;
 	/* Номинальное время отрисовки для нечетных кадров */
@@ -315,6 +317,8 @@ private:
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (InternalClock >= Time)
+				return true;
 			if (Lock)
 				return false;
 			Lock = true;
@@ -336,6 +340,8 @@ private:
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (InternalClock >= Time)
+				return true;
 			if (Lock)
 				return false;
 			Lock = true;
@@ -349,6 +355,19 @@ private:
 	struct SBusHandler: public SPPUUnit, ManagerID<PPUID::BusHandlerID> {
 		using SPPUUnit::InternalClock;
 		using SPPUUnit::Lock;
+		struct SFetch {
+			uint8 Nametable;
+			uint8 Attr;
+			uint8 TileA;
+			uint8 TileB;
+		} Fetches[43]; /* Массив вытянутых данных */
+		enum {
+			FetchBG = 0,
+			FetchSprite = 32,
+			FetchBG2 = 40,
+		}; /* Карта массива */
+		int FetchPos; /* Позиция в массиве */
+		int FetchCycle; /* Текущий такт */
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -357,6 +376,8 @@ private:
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
+			if (InternalClock >= Time)
+				return true;
 			if (Lock)
 				return false;
 			Lock = true;
@@ -428,8 +449,14 @@ public:
 		NewEvent->Name = MSTR(EVENT_PPU_FRAME);
 		NewEvent->Execute = [this] {
 			EventCall(InternalData.FrameTime);
-			/* TODO: Перенести в обработчик событий */
+			BackgroundRenderer.Process(*this);
 			FrameReady = true;
+			FrameTime = InternalData.FrameTime;
+			InternalData.OddFrame ^= 1;
+			if (Registers.RenderingEnabled() && InternalData.OddFrame)
+				InternalData.FrameTime = NominalFrameTimeOdd;
+			else
+				InternalData.FrameTime = NominalFrameTime;
 			Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
 				Bus->GetClock()->GetTime() + InternalData.FrameTime);
 		};
@@ -468,10 +495,13 @@ public:
 	/* Время отрисовки кадра */
 	inline int GetFrameTime() {
 		FrameReady = false;
-		return InternalData.FrameTime;
+		return FrameTime;
 	}
 	/* Частота PPU */
 	static inline const double GetFreq() { return _Settings::GetFreq(); }
+	/* Текущее время на шине */
+	inline int GetInternalTime() const { return BusHandler.InternalClock -
+		InternalData.IRQOffset; }
 };
 
 /* Обработчик */
