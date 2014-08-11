@@ -70,11 +70,11 @@ public:
 	}
 
 	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) {
+	inline uint8 ReadBytePPU(uint16 Address) {
 		return CHR[Address & 0x1fff];
 	}
 	/* Запись памяти PPU */
-	inline uint8 WritePPUAddress(uint16 Address, uint8 Src) {
+	inline uint8 WriteBytePPU(uint16 Address, uint8 Src) {
 		if (Data->CHR != NULL)
 			return;
 		CHR[Address & 0x1fff] = Src;

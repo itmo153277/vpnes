@@ -326,6 +326,9 @@ private:
 			Lock = false;
 			return true;
 		}
+		/* Новый сканлайн */
+		void NewScanline(CPPU &PPU) {
+		}
 	} SpriteRenderer;
 
 	/* Рендерер фона */
@@ -349,25 +352,101 @@ private:
 			Lock = false;
 			return true;
 		}
+		/* Новый сканлайн */
+		void NewScanline(CPPU &PPU) {
+		}
 	} BackgroundRenderer;
 
 	/* Обработчик шины */
 	struct SBusHandler: public SPPUUnit, ManagerID<PPUID::BusHandlerID> {
 		using SPPUUnit::InternalClock;
 		using SPPUUnit::Lock;
+		enum {
+			FetchBG = 0,
+			FetchSprite = 32,
+			FetchBG2 = 40,
+			FetchMAX = 43
+		}; /* Карта массива */
 		struct SFetch {
 			uint8 Nametable;
 			uint8 Attr;
 			uint8 TileA;
 			uint8 TileB;
-		} Fetches[43]; /* Массив вытянутых данных */
-		enum {
-			FetchBG = 0,
-			FetchSprite = 32,
-			FetchBG2 = 40,
-		}; /* Карта массива */
+		} Fetches[FetchMAX]; /* Массив вытянутых данных */
 		int FetchPos; /* Позиция в массиве */
 		int FetchCycle; /* Текущий такт */
+
+		/* Внутренний обработчик */
+		int Execute(CPPU &PPU, int Time) {
+			int RealClocks = 0;
+
+			/* Тут должна быть обработка 0x2006/0x2007 */
+			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines ||
+				!PPU.Registers.RenderingEnabled()) {
+				if (PPU.InternalData.Scanline < _Settings::ActiveScanlines) {
+					FetchPos += (FetchCycle + Time) / 8;
+					FetchCycle = (FetchCycle + Time) % 8;
+				}
+				if (Time > 0)
+					PPU.Registers.CurAddrLine = PPU.Registers.Get2007Address();
+				return Time;
+			}
+			while (Time > 0) {
+				switch (FetchCycle) {
+					case 0:
+						PPU.Registers.SetNTAddr();
+						break;
+					case 1:
+						Fetches[FetchPos].Nametable = PPU.Bus->ReadPPU(\
+							PPU.Registers.CurAddrLine);
+						break;
+					case 2:
+						if (FetchPos < FetchSprite || FetchPos >= FetchBG2)
+							PPU.Registers.SetATAddr();
+						else
+							PPU.Registers.SetNTAddr();
+						break;
+					case 3:
+						Fetches[FetchPos].Attr = PPU.Bus->ReadPPU(\
+							PPU.Registers.CurAddrLine);
+						break;
+					case 4:
+						if (FetchPos < FetchSprite || FetchPos >= FetchBG2)
+							PPU.Registers.ReadNT();
+						else
+							PPU.Registers.CalcAddr = PPU.Registers.GetSpriteAddress(\
+								PPU.InternalData.Scanline,
+								PPU.Sprites[FetchPos - FetchSprite]);
+						PPU.Registers.CurAddrLine = PPU.Registers.CalcAddr & 0x3ff7;
+						break;
+					case 5:
+						Fetches[FetchPos].TileA = PPU.Bus->ReadPPU(\
+							PPU.Registers.CurAddrLine);
+						break;
+					case 6:
+						if (FetchPos < FetchSprite || FetchPos >= FetchBG2)
+							PPU.Registers.ReadNT();
+						else
+							PPU.Registers.CalcAddr = PPU.Registers.GetSpriteAddress(\
+								PPU.InternalData.Scanline,
+								PPU.Sprites[FetchPos - FetchSprite]);
+						PPU.Registers.CurAddrLine = PPU.Registers.CalcAddr | 0x0008;
+						break;
+					case 7:
+						Fetches[FetchPos].TileB = PPU.Bus->ReadPPU(\
+							PPU.Registers.CurAddrLine);
+						break;
+				};
+				FetchCycle++;
+				if (FetchCycle == 8) {
+					FetchPos++;
+					FetchCycle = 0;
+				}
+				Time--;
+				RealClocks++;
+			}
+			return RealClocks;
+		}
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -381,9 +460,17 @@ private:
 			if (Lock)
 				return false;
 			Lock = true;
-			InternalClock = Time;
+			InternalClock += Execute(PPU, Time - InternalClock);
 			Lock = false;
-			return true;
+			return InternalClock == Time;
+		}
+		/* Новый сканлайн */
+		void NewScanline(CPPU &PPU) {
+			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
+				return;
+			FetchPos = 0;
+			FetchCycle = 0;
+			memset(Fetches, 0, FetchMAX * sizeof(SFetch));
 		}
 	} BusHandler;
 
@@ -516,8 +603,11 @@ void CPPU<_Bus, _Settings>::Process(int Time) {
 		InternalData.Scanline++;
 		InternalData.ScanlineClock += ClockDivider * 341;
 		if (InternalData.Scanline == (_Settings::ActiveScanlines + _Settings::PostRender +
-			_Settings::VBlank + 1))
-			InternalData.Scanline = 0;
+			_Settings::VBlank))
+			InternalData.Scanline = -1;
+		SpriteRenderer.NewScanline(*this);
+		BackgroundRenderer.NewScanline(*this);
+		BusHandler.NewScanline(*this);
 	}
 }
 

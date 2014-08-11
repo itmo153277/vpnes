@@ -130,11 +130,11 @@ public:
 	}
 
 	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) {
+	inline uint8 ReadBytePPU(uint16 Address) {
 		return 0x00;
 	}
 	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+	inline void WriteBytePPU(uint16 Address, uint8 Src) {
 	}
 
 	/* Обновление семплов аудио */
@@ -249,12 +249,12 @@ public:
 	}
 
 	/* Чтение памяти PPU */
-	inline uint8 ReadPPUAddress(uint16 Address) {
+	inline uint8 ReadBytePPU(uint16 Address) {
 		int i = _Settings::PagedCHRIndex(PagedData, Address);
 		return CHR[PagedData.Addr[i] | (Address & PagedData.Mask[i])];
 	}
 	/* Запись памяти PPU */
-	inline void WritePPUAddress(uint16 Address, uint8 Src) {
+	inline void WriteBytePPU(uint16 Address, uint8 Src) {
 		if (Data->CHR != NULL)
 			return;
 

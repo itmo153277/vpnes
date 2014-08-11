@@ -100,6 +100,20 @@ public:
 		MMC->WriteByte(Address, Src);
 	}
 
+	/* Обращение к памяти PPU */
+	inline uint8 ReadPPU(uint16 Address) const {
+		if (Address < 0x2000)
+			return MMC->ReadBytePPU(Address);
+		else
+			return 0x40; /* CIRAM? */
+	}
+	inline void WritePPU(uint16 Address, uint8 Src) const {
+		if (Address > 0x2000)
+			MMC->WriteBytePPU(Address);
+		else
+			; /* CIRAM? */
+	}
+
 	/* Сброс */
 	inline void Reset() const {
 		CPU->Reset();
