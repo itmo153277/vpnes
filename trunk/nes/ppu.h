@@ -201,7 +201,7 @@ private:
 		}
 		/* Чтение Nametable */
 		inline void ReadNT() {
-			CalcAddr = BGPage | (NTByte << 4) | (Addr_v >> 12); 
+			CalcAddr = BGPage | (NTByte << 4) | (Addr_v >> 12);
 		}
 		/* Чтение атрибутов */
 		inline uint8 ReadAT(uint8 Src) {
@@ -230,7 +230,7 @@ private:
 					if (Sprite.Attrib & 0x80)
 						return SpritePage | (Sprite.Tile << 4) | (7 +
 							Sprite.y - Scanline);
-					else	
+					else
 						return SpritePage | (Sprite.Tile << 4) | (Scanline -
 							Sprite.y);
 					break;
@@ -302,13 +302,11 @@ private:
 	/* Устройство обработки для PPU */
 	struct SPPUUnit {
 		int InternalClock; /* Внутренние часы */
-		bool Lock; /* Блокировка (защита от зацикливания) */
 	};
 
 	/* Рендерер спрайтов */
 	struct SSpriteRenderer: public SPPUUnit, ManagerID<PPUID::SpriteRendererID> {
 		using SPPUUnit::InternalClock;
-		using SPPUUnit::Lock;
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -319,11 +317,7 @@ private:
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
-			if (Lock)
-				return false;
-			Lock = true;
 			InternalClock = Time;
-			Lock = false;
 			return true;
 		}
 		/* Новый сканлайн */
@@ -334,7 +328,6 @@ private:
 	/* Рендерер фона */
 	struct SBackgroundRenderer: public SPPUUnit, ManagerID<PPUID::BackgroundRendererID> {
 		using SPPUUnit::InternalClock;
-		using SPPUUnit::Lock;
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -345,11 +338,7 @@ private:
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
-			if (Lock)
-				return false;
-			Lock = true;
 			InternalClock = Time;
-			Lock = false;
 			return true;
 		}
 		/* Новый сканлайн */
@@ -360,10 +349,11 @@ private:
 	/* Обработчик шины */
 	struct SBusHandler: public SPPUUnit, ManagerID<PPUID::BusHandlerID> {
 		using SPPUUnit::InternalClock;
-		using SPPUUnit::Lock;
 		enum {
 			FetchBG = 0,
 			FetchSprite = 32,
+			FetchScrollStart = 35,
+			FetchScrollEnd = 38,
 			FetchBG2 = 40,
 			FetchMAX = 43
 		}; /* Карта массива */
@@ -375,25 +365,33 @@ private:
 		} Fetches[FetchMAX]; /* Массив вытянутых данных */
 		int FetchPos; /* Позиция в массиве */
 		int FetchCycle; /* Текущий такт */
+		bool FixScroll; /* Обновление скроллинга */
 
 		/* Внутренний обработчик */
 		int Execute(CPPU &PPU, int Time) {
-			int RealClocks = 0;
+			int TimeLeft = Time;
 
 			/* Тут должна быть обработка 0x2006/0x2007 */
 			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines ||
 				!PPU.Registers.RenderingEnabled()) {
+				int Cycles = Time / ClockDivider;
+
 				if (PPU.InternalData.Scanline < _Settings::ActiveScanlines) {
-					FetchPos += (FetchCycle + Time) / 8;
-					FetchCycle = (FetchCycle + Time) % 8;
+					FetchPos += (FetchCycle + Cycles) >> 3;
+					FetchCycle = (FetchCycle + Cycles) & 7;
+					if (PPU.InternalData.Scanline == -1)
+						FixScroll = (FetchPos > FetchScrollStart) &&
+							(FetchPos < FetchScrollEnd);
 				}
-				if (Time > 0)
+				if (Cycles > 0)
 					PPU.Registers.CurAddrLine = PPU.Registers.Get2007Address();
-				return Time;
+				return Cycles * ClockDivider;
 			}
-			while (Time > 0) {
+			while (TimeLeft >= ClockDivider) {
 				switch (FetchCycle) {
 					case 0:
+						if (FetchPos == FetchSprite)
+							PPU.Registers.UpdateScroll();
 						PPU.Registers.SetNTAddr();
 						break;
 					case 1:
@@ -441,27 +439,32 @@ private:
 				if (FetchCycle == 8) {
 					FetchPos++;
 					FetchCycle = 0;
+					PPU.Registers.IncrementX();
+					if (FetchPos == FetchSprite)
+						PPU.Registers.IncrementY();
+					if (PPU.InternalData.Scanline == -1) {
+						if (FetchPos >= FetchScrollStart)
+							FixScroll = true;
+						else if (FetchPos >= FetchScrollEnd)
+							FixScroll = false;
+					}
 				}
-				Time--;
-				RealClocks++;
+				if (FixScroll)
+					PPU.Registers.Addr_v = PPU.Registers.Addr_t;
+				TimeLeft -= ClockDivider;
 			}
-			return RealClocks;
+			return Time - TimeLeft;
 		}
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
-			while (InternalClock < PPU.InternalData.InternalClock)
-				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+			ProcessClocks(PPU, PPU.InternalData.InternalClock);
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
-			if (Lock)
-				return false;
-			Lock = true;
 			InternalClock += Execute(PPU, Time - InternalClock);
-			Lock = false;
 			return InternalClock == Time;
 		}
 		/* Новый сканлайн */
@@ -558,6 +561,7 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
+		Registers.ShowBackground = 0x08;
 	}
 
 	/* Сброс часов шины */
