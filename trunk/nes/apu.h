@@ -770,7 +770,7 @@ private:
 	};
 
 	/* Все каналы */
-	struct SChannels: public ManagerID<APUID::CycleDataID> {
+	struct SChannels: public ManagerID<APUID::ChannelsID> {
 		/* Все каналы */
 		SPulseChannel1 PulseChannel1;
 		SPulseChannel2 PulseChannel2;
