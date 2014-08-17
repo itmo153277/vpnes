@@ -510,11 +510,11 @@ public:
 		SEvent *NewEvent;
 
 		Bus = pBus;
-		memset(&InternalData, 0, sizeof(SInternalData));
+		memset(&InternalData, 0, sizeof(InternalData));
 		Bus->GetManager()->template SetPointer<SInternalData>(&InternalData);
-		memset(&State, 0, sizeof(SState));
+		memset(&State, 0, sizeof(State));
 		Bus->GetManager()->template SetPointer<SState>(&State);
-		memset(&Registers, 0, sizeof(SRegisters));
+		memset(&Registers, 0, sizeof(Registers));
 		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
 		memset(Sprites, 0, sizeof(SSprite) * 8);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
@@ -522,11 +522,11 @@ public:
 		memset(LocalEvents, 0, sizeof(SEventData) * MAX_EVENTS);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::EventDataID> >(LocalEvents,
 			sizeof(SEventData) * MAX_EVENTS);
-		memset(&SpriteRenderer, 0, sizeof(SSpriteRenderer));
+		memset(&SpriteRenderer, 0, sizeof(SpriteRenderer));
 		Bus->GetManager()->template SetPointer<SSpriteRenderer>(&SpriteRenderer);
-		memset(&BackgroundRenderer, 0, sizeof(SBackgroundRenderer));
+		memset(&BackgroundRenderer, 0, sizeof(BackgroundRenderer));
 		Bus->GetManager()->template SetPointer<SBackgroundRenderer>(&BackgroundRenderer);
-		memset(&BusHandler, 0, sizeof(SBusHandler));
+		memset(&BusHandler, 0, sizeof(BusHandler));
 		Bus->GetManager()->template SetPointer<SBusHandler>(&BusHandler);
 		NominalFrameTime = ClockDivider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
