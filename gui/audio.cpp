@@ -149,7 +149,7 @@ void CAudio::ResumeDevice() {
 }
 
 /* Начать запись WAV */
-bool CAudio::StartWAVRecord(const char *FileName) {
+bool CAudio::StartWAVRecord(VPNES_PATH *FileName) {
 	if (WriteWAV)
 		StopWAVRecord();
 	WAVStream.clear();

@@ -39,7 +39,7 @@ namespace vpnes_gui {
 
 /* CNESGUI */
 
-CNESGUI::CNESGUI(const char *FileName) {
+CNESGUI::CNESGUI(VPNES_PATH *FileName) {
 	if (::SDL_Init(SDL_INIT_EVERYTHING) < 0)
 		throw CGenericException("SDL initilaization failure");
 	Audio = new CAudio();
@@ -68,11 +68,13 @@ void CNESGUI::Start(bool ForceDendyMode) {
 	vpnes::ines::NES_ROM_Data Data;
 	vpnes::CNESConfig *NESConfig;
 	vpnes::CBasicNES *NES;
-	std::ifstream ROM;
-	std::fstream State;
-	std::basic_string<char> Name;
-	std::basic_string<char> InfoString;
-	const char *RomName;
+	VPNES_PATH_ISTREAM ROM;
+	VPNES_PATH_IOSTREAM State;
+	std::wstring Name;
+	std::wstring InfoString;
+	VPNES_PATH *RomName;
+	wchar_t *RomName_w = NULL;
+	VPNES_PATH *Path = NULL;
 	bool Quit;
 	int Flag;
 	int SaveState = 0;
@@ -85,6 +87,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 #endif
 		NESConfig = NULL;
 		NES = NULL;
+		RomName_w = NULL;
 		memset(&Data, 0, sizeof(vpnes::ines::NES_ROM_Data));
 		try {
 			Window->ClearWindow();
@@ -94,6 +97,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			if (RomName == NULL)
 				break;
 #endif
+			RomName_w = VPNES_PATH_CONVERT(RomName);
 			ROM.open(RomName, std::ios_base::in | std::ios_base::binary);
 			if (ROM.fail())
 				throw CGenericException("Couldn't open ROM file");
@@ -117,9 +121,12 @@ void CNESGUI::Start(bool ForceDendyMode) {
 				Audio->Reset();
 				NES = NESConfig->GetNES(this);
 				if (Data.Header.BatterySize > 0) {
-					Name = RomName;
-					Name += ".vpram";
-					State.open(Name.c_str(), std::ios_base::in | std::ios_base::binary);
+					Name = RomName_w;
+					Name += L".vpram";
+					Path = VPNES_PATH_CONVERTB(Name.c_str());
+					State.open(Path, std::ios_base::in | std::ios_base::binary);
+					VPNES_PATH_FREEB(Path);
+					Path = NULL;
 					if (!State.fail()) {
 						NES->LoadButteryBackedMemory(State);
 						State.close();
@@ -127,17 +134,22 @@ void CNESGUI::Start(bool ForceDendyMode) {
 				}
 #if defined(VPNES_USE_TTF)
 				if (FirstRun) {
-					const char *TempStr;
-					const char *OutTitle;
+					wchar_t *TempStr;
+					wchar_t *OutTitle;
 
 					FirstRun = false;
-					OutTitle = RomName;
-					for (TempStr = RomName; *TempStr; TempStr++)
-						if (*TempStr == '/' || *TempStr == '\\')
+					OutTitle = RomName_w;
+					/* TODO Платформозависимо!*/
+					for (TempStr = RomName_w; *TempStr; TempStr++)
+						if (*TempStr == L'/'
+#ifdef _WIN32
+							|| *TempStr == L'\\'
+#endif
+							)
 							OutTitle = TempStr + 1;
 					Window->SetText(OutTitle);
 				} else
-					Window->SetText("Hard reset");
+					Window->SetText(L"Hard reset");
 #endif
 				NES->Reset();
 				Quit = false;
@@ -150,42 +162,48 @@ void CNESGUI::Start(bool ForceDendyMode) {
 							break;
 						case CWindow::wsSoftReset:
 #if defined(VPNES_USE_TTF)
-							Window->SetText("Soft reset");
+							Window->SetText(L"Soft reset");
 #endif
 							NES->Reset();
 							break;
 						case CWindow::wsSaveState:
-							Name = RomName;
-							Name += '.';
-							Name += '0' + SaveState;
-							State.open(Name.c_str(), std::ios_base::out |
+							Name = RomName_w;
+							Name += L'.';
+							Name += L'0' + SaveState;
+							Path = VPNES_PATH_CONVERTB(Name.c_str());
+							State.open(Path, std::ios_base::out |
 								std::ios_base::binary | std::ios_base::trunc);
+							VPNES_PATH_FREEB(Path);
+							Path = NULL;
 							if (!State.fail()) {
 								NES->SaveState(State);
 								State.close();
 							}
 #if defined(VPNES_USE_TTF)
 							if (State.fail())
-								Window->SetText("Save state error");
+								Window->SetText(L"Save state error");
 							else
-								Window->SetText("Save state");
+								Window->SetText(L"Save state");
 #endif
 							break;
 						case CWindow::wsLoadState:
-							Name = RomName;
-							Name += '.';
-							Name += '0' + SaveState;
-							State.open(Name.c_str(), std::ios_base::in |
+							Name = RomName_w;
+							Name += L'.';
+							Name += L'0' + SaveState;
+							Path = VPNES_PATH_CONVERTB(Name.c_str());
+							State.open(Path, std::ios_base::in |
 								std::ios_base::binary);
+							VPNES_PATH_FREEB(Path);
+							Path = NULL;
 							if (!State.fail()) {
 								Flag = NES->LoadState(State);
 								State.close();
 							}
 #if defined(VPNES_USE_TTF)
 							if (State.fail() || Flag)
-								Window->SetText("Load state error");
+								Window->SetText(L"Load state error");
 							else
-								Window->SetText("Load state");
+								Window->SetText(L"Load state");
 #endif
 							break;
 						default:
@@ -193,10 +211,13 @@ void CNESGUI::Start(bool ForceDendyMode) {
 					}
 				} while (!Quit);
 				if (Data.Header.BatterySize > 0) {
-					Name = RomName;
-					Name += ".vpram";
-					State.open(Name.c_str(), std::ios_base::out |
+					Name = RomName_w;
+					Name += L".vpram";
+					Path = VPNES_PATH_CONVERTB(Name.c_str());
+					State.open(Path, std::ios_base::out |
 						std::ios_base::binary | std::ios_base::trunc);
+					VPNES_PATH_FREEB(Path);
+					Path = NULL;
 					if (!State.fail()) {
 						NES->SaveButteryBackedMemory(State);
 						State.close();
@@ -209,6 +230,8 @@ void CNESGUI::Start(bool ForceDendyMode) {
 			Window->PrintErrorMsg(e.what());
 			delete NES;
 		}
+		VPNES_PATH_FREE(RomName_w);
+		VPNES_PATH_FREEB(Path);
 		delete NESConfig;
 		vpnes::FreeROMData(&Data);
 #if defined(VPNES_INTERACTIVE)
@@ -234,7 +257,7 @@ void CNESGUI::PPUDebug(int Frame, int Scanline, int Cycle, uint16 Reg1, uint16 R
 /* Критическая ошибка */
 void CNESGUI::Panic() {
 #if defined(VPNES_USE_TTF)
-	Window->SetText("NES CPU Panic");
+	Window->SetText(L"NES CPU Panic");
 #endif
 	std::clog << "Fatal error: CPU Panic" << std::endl;
 }

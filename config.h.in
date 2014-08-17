@@ -21,6 +21,9 @@
 /* Define to 1 if you have the <cstring> header file. */
 #undef HAVE_CSTRING
 
+/* Define to 1 if you have the <cwchar> header file. */
+#undef HAVE_CWCHAR
+
 /* define if the compiler supports basic C++11 syntax */
 #undef HAVE_CXX11
 
@@ -32,6 +35,9 @@
 
 /* Define to 1 if you have the <fstream> header file. */
 #undef HAVE_FSTREAM
+
+/* Define if you have the iconv() function and it works. */
+#undef HAVE_ICONV
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -83,6 +89,9 @@
 
 /* Define to 1 if you have the <vector> header file. */
 #undef HAVE_VECTOR
+
+/* Define as const if the declaration of iconv() needs const. */
+#undef ICONV_CONST
 
 /* Name of package */
 #undef PACKAGE

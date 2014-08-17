@@ -35,30 +35,13 @@
 #include "configfile.h"
 #endif
 
-#ifdef _WIN32
-/* Minimal version */
-#ifndef _WIN32_IE
-#define _WIN32_IE 0x0500
+#if defined(VPNES_USE_TTF)
+#include <iconv.h>
 #endif
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#include <windows.h>
-#endif
-
-#include <cstdlib>
+#include <cwchar>
 
 namespace vpnes_gui {
-
-#ifndef VPNES_MAX_PATH
-#ifdef MAX_PATH
-#define VPNES_MAX_PATH MAX_PATH
-#else
-#define VPNES_MAX_PATH 256
-#endif
-#endif
 
 #if !defined(VPNES_DISABLE_SYNC)
 /* Интерфейс для синхронизации */
@@ -114,9 +97,9 @@ private:
 	/* Текущее состояние окна */
 	WindowState CurState;
 	/* Имя файла */
-	char FileName[VPNES_MAX_PATH];
+	VPNES_PATH FileName[VPNES_MAX_PATH];
 	/* WAV файл */
-	char WAVFile[VPNES_MAX_PATH];
+	VPNES_PATH WAVFile[VPNES_MAX_PATH];
 #ifdef _WIN32
 	/* Экземпляр */
 	HINSTANCE Instance;
@@ -127,9 +110,9 @@ private:
 #endif
 #if defined(VPNES_USE_TTF)
 	/* Буфер для сообщений */
-	char sbuf[20];
+	wchar_t sbuf[20];
 	/* Текущее собщение */
-	wchar_t *WindowText;
+	std::u16string WindowText;
 	/* Обновить сообщение */
 	bool UpdateText;
 #endif
@@ -159,7 +142,7 @@ private:
 	double PlayRate;
 #if defined(VPNES_INTERACTIVE)
 	/* Информация о файле */
-	const char *InfoText;
+	const wchar_t *InfoText;
 	/* Режим отладки */
 	bool DebugMode;
 	/* Флаг открытия файла */
@@ -167,7 +150,7 @@ private:
 	/* Флаг готовности файла */
 	bool FileReady;
 	/* Буфер для имени файла */
-	char FileNameBuf[VPNES_MAX_PATH];
+	VPNES_PATH FileNameBuf[VPNES_MAX_PATH];
 #ifdef _WIN32
 	/* Дескриптор меню */
 	HMENU Menu;
@@ -193,7 +176,7 @@ private:
 	/* Сбросить состояние указателя мыши */
 	void ResetMouse();
 public:
-	CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input);
+	CWindow(VPNES_PATH *DefaultFileName, CAudio *Audio, CInput *Input);
 	~CWindow();
 
 	/* Выполнить обработку сообщений */
@@ -204,35 +187,35 @@ public:
 	inline SDL_Surface * const &GetSurface() const { return Screen; }
 #if defined(VPNES_INTERACTIVE)
 	/* Имя файла */
-	const char *GetFileName();
+	VPNES_PATH *GetFileName();
 	/* Флаг открытия нового файла */
 	inline const bool &CanOpenFile() const { return OpenFile; }
 	/* Информация о файле */
-	inline const char *&GetInfoText() { return InfoText; }
+	inline const wchar_t *&GetInfoText() { return InfoText; }
 #else
 	/* Имя файла */
-	inline const char *GetFileName() { return FileName; }
+	inline VPNES_PATH *GetFileName() { return FileName; }
 #endif
 	/* Текущее состояние окна */
 	inline const WindowState &GetWindowState() const { return CurState; }
 #if defined(VPNES_USE_TTF)
 	/* Сообщение */
-	inline const wchar_t *GetText() const { return WindowText; }
+	inline const char16_t *GetText() const { return WindowText.c_str(); }
 	/* Обновить текст */
 	inline bool &GetUpdateTextFlag() { return UpdateText; }
 	/* Установить сообщение */
-	void SetText(const char *Text) {
-		size_t TextLen = 1, CharLen, MaxLen = strlen(Text);
-		const char *CurChar = Text;
-		while (MaxLen > 0) {
-			CharLen = mblen(CurChar, MaxLen);
-			CurChar += CharLen;
-			MaxLen -= CharLen;
-			TextLen++;
-		}
-		delete [] WindowText;
-		WindowText = new wchar_t[TextLen];
-		mbstowcs(WindowText, Text, TextLen);
+	void SetText(const wchar_t *Text) {
+		ICONV_CONST char *InBuf = (ICONV_CONST char *)reinterpret_cast<const char *>(Text);
+		size_t InSize = (wcslen(Text) + 1) * sizeof(wchar_t);
+		char16_t *OutStr = new char16_t[InSize];
+		ICONV_CONST char *OutBuf = (ICONV_CONST char *)reinterpret_cast<const char *>(OutStr);
+		size_t OutSize = InSize * sizeof(char16_t);
+		iconv_t cd = iconv_open("UCS-2-INTERNAL", "WCHAR_T");
+
+		iconv(cd, &InBuf, &InSize, &OutBuf, &OutSize);
+		WindowText = OutStr;
+		delete [] OutStr;
+		iconv_close(cd);
 		UpdateText = true;
 	}
 #endif
