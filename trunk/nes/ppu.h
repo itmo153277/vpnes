@@ -305,7 +305,7 @@ private:
 	};
 
 	/* Рендерер спрайтов */
-	struct SSpriteRenderer: public SPPUUnit, ManagerID<PPUID::SpriteRendererID> {
+	struct SSpriteRenderer: public SPPUUnit, public ManagerID<PPUID::SpriteRendererID> {
 		using SPPUUnit::InternalClock;
 
 		/* Обработка */
@@ -326,7 +326,8 @@ private:
 	} SpriteRenderer;
 
 	/* Рендерер фона */
-	struct SBackgroundRenderer: public SPPUUnit, ManagerID<PPUID::BackgroundRendererID> {
+	struct SBackgroundRenderer: public SPPUUnit,
+		public ManagerID<PPUID::BackgroundRendererID> {
 		using SPPUUnit::InternalClock;
 
 		/* Обработка */
@@ -347,7 +348,7 @@ private:
 	} BackgroundRenderer;
 
 	/* Обработчик шины */
-	struct SBusHandler: public SPPUUnit, ManagerID<PPUID::BusHandlerID> {
+	struct SBusHandler: public SPPUUnit, public ManagerID<PPUID::BusHandlerID> {
 		using SPPUUnit::InternalClock;
 		enum {
 			FetchBG = 0,

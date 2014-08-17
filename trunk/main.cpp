@@ -27,10 +27,47 @@
 
 #include "gui/gui.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
+namespace vpnes {
+
+/* Операции с wchar_t */
+wchar_t *ConvertToWChar(const char *Text) {
+	size_t TextLen = 1, CharLen, MaxLen = strlen(Text);
+	const char *CurChar = Text;
+	wchar_t *OutText;
+
+	while (MaxLen > 0) {
+		CharLen = mblen(CurChar, MaxLen);
+		CurChar += CharLen;
+		MaxLen -= CharLen;
+		TextLen++;
+	}
+	OutText = new wchar_t[TextLen];
+	mbstowcs(OutText, Text, TextLen);
+	return OutText;
+}
+
+char *ConvertFromWChar(const wchar_t *Text) {
+	size_t TextLen = wcslen(Text) + 1;
+	char *OutText = new char[TextLen];
+
+	wcstombs(OutText, Text, TextLen);
+	return OutText;
+}
+
+}
+
 /* Точка входа в программу */
 int main(int argc, char *argv[]) {
 	vpnes_gui::CNESGUI *GUI = NULL;
-	const char *FileName = NULL;
+	VPNES_PATH *FileName = NULL;
+#ifdef _WIN32
+	LPWSTR * wargv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
+#endif
 
 	setlocale(LC_ALL, "");
 #ifdef BUILDNUM
@@ -43,8 +80,13 @@ int main(int argc, char *argv[]) {
 #endif
 	std::clog << std::internal << std::hex << std::showbase;
 	std::cout << std::internal << std::hex << std::showbase;
-	if (argc >= 2)
+	if (argc >= 2) {
+#ifdef _WIN32
+		FileName = wargv[1];
+#else
 		FileName = argv[1];
+#endif
+	}
 	try {
 		GUI = new vpnes_gui::CNESGUI(FileName);
 		GUI->Start(argc == 3);
@@ -53,5 +95,8 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	delete GUI;
+#ifdef _WIN32
+	::LocalFree(wargv);
+#endif
 	return 0;
 }

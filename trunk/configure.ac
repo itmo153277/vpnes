@@ -74,6 +74,18 @@ else
 		[AC_MSG_WARN([SDL_ttf was not found: TTF support will be disabled])])
 fi
 
+dnl iconv необходим для вывода в Unicode
+
+if test "x$sdl_ttf_use" = "xyes" ; then
+	AM_ICONV
+	if test "x$am_cv_func_iconv" = "xyes" ; then
+		SDL_ttf_LIBS="$SDL_ttf_LIBS $LIBICONV"
+	else
+		AC_MSG_WARN([couldn't find libiconv: TTF support will be disabled])
+		sdl_ttf_use="no"
+	fi
+fi
+
 if test "x$sdl_ttf_use" = "xyes" ; then
 	AC_CHECK_FT2([2.4.0], [], [PKG_CHECK_MODULES([FT2], [FreeType >= 15.0.0], [],
 	[
@@ -100,8 +112,9 @@ AC_LANG_POP
 AC_CHECK_HEADERS([inttypes.h stdint.h], [break], [], [])
 
 dnl C++ standards
-AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib algorithm vector istream \
-	iostream iomanip fstream sstream], [], [AC_MSG_ERROR([required headers not found])], [])
+AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib cwchar algorithm vector \
+	istream iostream iomanip fstream sstream], [],
+	[AC_MSG_ERROR([required headers not found])], [])
 
 if test "x$host_os_windows" = "xyes" ; then
 	LIBS="-luser32 $LIBS"

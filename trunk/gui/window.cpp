@@ -40,21 +40,21 @@ namespace vpnes_gui {
 
 /* CWindow */
 
-CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
-	FileName[VPNES_MAX_PATH - 1] = '\0';
-	WAVFile[VPNES_MAX_PATH - 1] = '\0';
+CWindow::CWindow(VPNES_PATH *DefaultFileName, CAudio *Audio, CInput *Input) {
+	FileName[VPNES_MAX_PATH - 1] = 0;
+	WAVFile[VPNES_MAX_PATH - 1] = 0;
 #if !defined(VPNES_INTERACTIVE)
 	if (DefaultFileName == NULL)
 		throw CGenericException("Nothing to run");
-	strncpy(FileName, DefaultFileName, VPNES_MAX_PATH - 1);
+	VPNES_PATH_COPY(FileName, DefaultFileName, VPNES_MAX_PATH - 1);
 #else
-	FileNameBuf[VPNES_MAX_PATH - 1] = '\0';
+	FileNameBuf[VPNES_MAX_PATH - 1] = 0;
 	DebugMode = false;
 	if (DefaultFileName != NULL) {
 		if (!std::clog.fail())
 			DebugMode = true;
 		FileReady = true;
-		strncpy(FileNameBuf, DefaultFileName, VPNES_MAX_PATH - 1);
+		VPNES_PATH_COPY(FileNameBuf, DefaultFileName, VPNES_MAX_PATH - 1);
 	} else {
 		FileReady = false;
 		FileNameBuf[0] = '\0';
@@ -70,7 +70,6 @@ CWindow::CWindow(const char *DefaultFileName, CAudio *Audio, CInput *Input) {
 #endif
 	CurState = wsNormal;
 #if defined(VPNES_USE_TTF)
-	WindowText = NULL;
 	UpdateText = false;
 #endif
 #ifdef _WIN32
@@ -122,9 +121,6 @@ CWindow::~CWindow() {
 #endif
 	::DestroyIcon(Icon);
 #endif
-#if defined(VPNES_USE_TTF)
-	delete [] WindowText;
-#endif
 }
 
 /* Обработка событий */
@@ -152,9 +148,9 @@ void CWindow::ProcessAction(WindowActions Action) {
 			Res = pAudio->StartWAVRecord(WAVFile);
 #if defined(VPNES_USE_TTF)
 			if (Res)
-				SetText("Start WAV Recording");
+				SetText(L"Start WAV Recording");
 			else
-				SetText("WAV Recording failure");
+				SetText(L"WAV Recording failure");
 #endif
 #if defined(VPNES_INTERACTIVE)
 			UpdateState(true);
@@ -166,9 +162,9 @@ void CWindow::ProcessAction(WindowActions Action) {
 			Res = pAudio->StopWAVRecord();
 #if defined(VPNES_USE_TTF)
 			if (Res)
-				SetText("Stop WAV Recording");
+				SetText(L"Stop WAV Recording");
 			else
-				SetText("WAV Recording failure");
+				SetText(L"WAV Recording failure");
 #endif
 #if defined(VPNES_INTERACTIVE)
 			UpdateState(true);
@@ -178,7 +174,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 			if (PauseState == psPaused)
 				break;
 #if defined(VPNES_USE_TTF)
-			SetText("Pause");
+			SetText(L"Pause");
 #endif
 			pAudio->StopDevice();
 			PauseState = psPaused;
@@ -188,7 +184,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 			break;
 		case waStep:
 #if defined(VPNES_USE_TTF)
-			SetText("Step");
+			SetText(L"Step");
 #endif
 			pAudio->StopDevice();
 			PauseState = psStep;
@@ -200,7 +196,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 			if (PauseState == psPlay)
 				break;
 #if defined(VPNES_USE_TTF)
-			SetText("Resume");
+			SetText(L"Resume");
 #endif
 			pAudio->ResumeDevice();
 			PauseState = psPlay;
@@ -213,7 +209,7 @@ void CWindow::ProcessAction(WindowActions Action) {
 			if (PlayRate > 4)
 				PlayRate = 0.5;
 #if defined(VPNES_USE_TTF)
-			snprintf(sbuf, 20, "Speed: x%.1lf", PlayRate);
+			snwprintf(sbuf, 20, L"Speed: x%.1lf", PlayRate);
 			SetText(sbuf);
 #endif
 			pAudio->ChangeSpeed(PlayRate);
@@ -439,11 +435,11 @@ LRESULT CALLBACK CWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
 BOOL CALLBACK CWindow::AboutProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
 		case WM_INITDIALOG:
-			SetDlgItemText(hwnd, IDC_STATICINFO, (const char *) lParam);
+			::SetDlgItemTextW(hwnd, IDC_STATICINFO, (const wchar_t *) lParam);
 			return TRUE;
 		case WM_COMMAND:
 			if (wParam == IDCANCEL) {
-				EndDialog(hwnd, wParam);
+				::EndDialog(hwnd, wParam);
 				return TRUE;
 			}
 			break;
@@ -455,13 +451,13 @@ BOOL CALLBACK CWindow::AboutProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 /* Обработчик сообщений */
 bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 #ifdef _WIN32
-	OPENFILENAME ofn;
+	OPENFILENAMEW ofn;
 	HDROP hDrop;
 
 	switch (Msg->msg) {
 		case WM_DROPFILES:
 			hDrop = (HDROP) Msg->wParam;
-			::DragQueryFile(hDrop, 0, FileNameBuf, VPNES_MAX_PATH);
+			::DragQueryFileW(hDrop, 0, FileNameBuf, VPNES_MAX_PATH);
 			::DragFinish(hDrop);
 			OpenFile = true;
 			FileReady = true;
@@ -486,18 +482,18 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					pSyncManager->SyncStop();
 #endif
 					pAudio->StopDevice();
-					memset(&ofn, 0, sizeof(OPENFILENAME));
-					ofn.lStructSize = sizeof(OPENFILENAME);
+					memset(&ofn, 0, sizeof(OPENFILENAMEW));
+					ofn.lStructSize = sizeof(OPENFILENAMEW);
 					ofn.hwndOwner = Handle;
 					ofn.hInstance = Instance;
-					ofn.lpstrFilter = "iNES 1.0 Files (*.nes)\0*.nes\0"
+					ofn.lpstrFilter = L"iNES 1.0 Files (*.nes)\0*.nes\0"
 						"All Files (*.*)\0*.*\0";
 					ofn.lpstrFile = FileNameBuf;
 					ofn.nMaxFile = VPNES_MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_LONGNAMES |
 						OFN_HIDEREADONLY;
-					ofn.lpstrDefExt = "nes";
-					if (::GetOpenFileName(&ofn)) {
+					ofn.lpstrDefExt = L"nes";
+					if (::GetOpenFileNameW(&ofn)) {
 						OpenFile = true;
 						FileReady = true;
 						CurState = wsQuit;
@@ -511,19 +507,19 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					pSyncManager->SyncStop();
 #endif
 					pAudio->StopDevice();
-					memset(&ofn, 0, sizeof(OPENFILENAME));
-					ofn.lStructSize = sizeof(OPENFILENAME);
+					memset(&ofn, 0, sizeof(OPENFILENAMEW));
+					ofn.lStructSize = sizeof(OPENFILENAMEW);
 					ofn.hwndOwner = Handle;
 					ofn.hInstance = Instance;
-					ofn.lpstrFilter = "WAV file (*.wav)\0*.wav\0"
+					ofn.lpstrFilter = L"WAV file (*.wav)\0*.wav\0"
 						"All Files (*.*)\0*.*\0";
 					WAVFile[0] = '\0';
 					ofn.lpstrFile = WAVFile;
 					ofn.nMaxFile = VPNES_MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_LONGNAMES |
 						OFN_HIDEREADONLY;
-					ofn.lpstrDefExt = "wav";
-					if (::GetSaveFileName(&ofn))
+					ofn.lpstrDefExt = L"wav";
+					if (::GetSaveFileNameW(&ofn))
 						ProcessAction(waWAVRecordStart);
 					ResetMouse();
 					break;
@@ -578,9 +574,9 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 }
 
 /* Получить имя файла */
-const char *CWindow::GetFileName() {
+VPNES_PATH *CWindow::GetFileName() {
 	if (!FileReady) {
-		const char DefaultInfoText[] = "No ROM";
+		const wchar_t DefaultInfoText[] = L"No ROM";
 		SDL_Event Event;
 
 		UpdateState(false);
@@ -606,7 +602,7 @@ const char *CWindow::GetFileName() {
 	}
 	FileReady = false;
 	OpenFile = false;
-	strncpy(FileName, FileNameBuf, VPNES_MAX_PATH - 1);
+	VPNES_PATH_COPY(FileName, FileNameBuf, VPNES_MAX_PATH - 1);
 	FileNameBuf[0] = '\0';
 	return FileName;
 }

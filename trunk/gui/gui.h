@@ -49,7 +49,7 @@ private:
 	/* Обработчик видео */
 	CVideo *Video;
 public:
-	CNESGUI(const char *FileName);
+	CNESGUI(VPNES_PATH *FileName);
 	~CNESGUI();
 
 	/* Запустить NES */

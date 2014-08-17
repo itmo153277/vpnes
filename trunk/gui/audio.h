@@ -65,7 +65,7 @@ private:
 	/* Флаг записи в WAV */
 	bool WriteWAV;
 	/* Файл записи */
-	std::ofstream WAVStream;
+	VPNES_PATH_OSTREAM WAVStream;
 
 	/* Формат WAV */
 #pragma pack(push, 1)
@@ -105,7 +105,7 @@ public:
 	/* Возобновить устройство */
 	void ResumeDevice();
 	/* Начать запись WAV */
-	bool StartWAVRecord(const char *FileName);
+	bool StartWAVRecord(VPNES_PATH *FileName);
 	/* Остановить запись WAV */
 	bool StopWAVRecord();
 	/* Обновить устройство */
