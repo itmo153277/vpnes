@@ -50,28 +50,28 @@
 
 #ifndef VPNES_PATH
 #ifdef VPNES_PATH_COPY
-#under VPNES_PATH_COPY
+#undef VPNES_PATH_COPY
 #endif
 #ifdef VPNES_PATH_CONVERT
-#under VPNES_PATH_CONVERT
+#undef VPNES_PATH_CONVERT
 #endif
 #ifdef VPNES_PATH_FREE
-#under VPNES_PATH_FREE
+#undef VPNES_PATH_FREE
 #endif
 #ifdef VPNES_PATH_CONVERTB
-#under VPNES_PATH_CONVERTB
+#undef VPNES_PATH_CONVERTB
 #endif
 #ifdef VPNES_PATH_FREEB
-#under VPNES_PATH_FREEB
+#undef VPNES_PATH_FREEB
 #endif
 #ifdef VPNES_PATH_ISTREAM
-#under VPNES_PATH_ISTREAN
+#undef VPNES_PATH_ISTREAN
 #endif
 #ifdef VPNES_PATH_OSTREAM
-#under VPNES_PATH_OSTREAN
+#undef VPNES_PATH_OSTREAN
 #endif
 #ifdef VPNES_PATH_IOSTREAM
-#under VPNES_PATH_IOSTREAN
+#undef VPNES_PATH_IOSTREAN
 #endif
 #ifdef _WIN32
 #define VPNES_PATH WCHAR
@@ -218,7 +218,7 @@ protected:
 		}
 		sync();
 		low = ::SetFilePointer(fd, low, &high, flag);
-		if (low == INVALID_SET_FILE_POINTER) 
+		if (low == INVALID_SET_FILE_POINTER)
 			return -1;
 		return low || (static_cast<std::streampos>(high) << 32);
 	}
@@ -286,7 +286,7 @@ public:
 		if (win32_filebuf::open(name, mode) >= 0)
 			clear();
 		else
-			setstate(ios_base::failbit);
+			setstate(std::ios_base::failbit);
 	}
 };
 
@@ -297,7 +297,7 @@ public:
 		if (win32_filebuf::open(name, mode) >= 0)
 			clear();
 		else
-			setstate(ios_base::failbit);
+			setstate(std::ios_base::failbit);
 	}
 };
 
@@ -308,7 +308,7 @@ public:
 		if (win32_filebuf::open(name, mode) >= 0)
 			clear();
 		else
-			setstate(ios_base::failbit);
+			setstate(std::ios_base::failbit);
 	}
 };
 
@@ -324,12 +324,12 @@ extern "C" {
 
 /* swnprintf */
 
-#ifndef HAVE_SWNPRINTF
-#ifdef HAVE_SWPRINTF_S
-#define snwprintf(str, num, format, param) swprintf_s(str, num, format, param)
-#else
+#ifndef HAVE_SNWPRINTF
 #ifdef NORMAL_SWPRINTF
 #define snwprintf(str, num, format, param) swprintf(str, num, format, param)
+#else
+#ifdef HAVE_SWPRINTF_S
+#define snwprintf(str, num, format, param) swprintf_s(str, num, format, param)
 #else
 #define snwprintf(str, num, format, param) swprintf(str, format, param)
 #endif
