@@ -50,7 +50,7 @@ int vpnes::ReadROM(std::istream &ROM, NES_ROM_Data *Data, NES_Type PerfferedType
 		Data->Header.TVSystem = Header.TV_system;
 		if (Header.RAMSize == 0)
 			Data->Header.RAMSize = 0x2000;
-		else 
+		else
 			Data->Header.RAMSize = Header.RAMSize * 0x2000;
 		if ((Header.RAMSize == 0) && (Header.Flags_unofficial & 0x10))
 			Data->Header.RAMSize = 0;

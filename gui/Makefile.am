@@ -15,8 +15,8 @@ endif
 if VPNES_USEFONT
 
 if WINDOWS
-FONT = 
-FONTFLAGS = 
+FONT =
+FONTFLAGS =
 else
 FONT = text.otf
 FONTFLAGS = -DVPNES_TTF_PATH='"$(datadir)/text.otf"'

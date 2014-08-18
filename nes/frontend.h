@@ -68,7 +68,7 @@ protected:
 		double RC = cos(0.162052 / Frequency);
 		double RS = sin(0.162052 / Frequency);
 
-		a[0] = RA * (RC + 1.13389  * RS);
+		a[0] = RA * (RC + 1.13389 * RS);
 		a[1] = RA * (-0.370405) * RS;
 		a[2] = RA * 6.17085 * RS;
 		a[3] = RA * (RC - 1.13389 * RS);

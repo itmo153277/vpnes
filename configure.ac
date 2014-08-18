@@ -129,6 +129,26 @@ fi
 
 #Functions
 
+dnl Запрещаем переопределять main для нормальной линковки
+CPPSAVE="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -Umain"
+
+dnl snwprintf не является стандартом
+AC_CHECK_FUNCS([snwprintf swprintf swprintf_s])
+if test "x$ac_cv_func_snwprintf" = "xno" -a "x$ac_cv_func_swprintf" = "xno" -a \
+	"x$ac_cv_func_swprintf_s" = "xno" ; then
+	AC_MSG_ERROR([need swprintf]);
+fi
+
+if test "x$ac_cv_func_snwprintf" = "xno" -a "x$ac_cv_func_swprintf" = "xyes" ; then
+	AC_MSG_CHECKING([if swprintf respects C++ standard])
+	AC_TRY_COMPILE([#include <cwchar>], [wchar_t *s = NULL; swprintf(s, sizeof(s), L"", "");],
+	[AC_DEFINE([NORMAL_SWPRINTF], 1, [Define to 1 if swprintf respects C++ standard])
+		AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no])])
+fi
+
+CPPFLAGS="$CPPSAVE"
+
 vpnes_configfile=yes
 AC_ARG_WITH(configfile, AS_HELP_STRING([--with-configfile=ARG],
 	[use configfile (global/local or full path) [default=local]]), [vpnes_configfile=$withval])

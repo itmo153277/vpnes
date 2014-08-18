@@ -60,6 +60,9 @@
 /* Define to 1 if you have the <shellapi.h> header file. */
 #undef HAVE_SHELLAPI_H
 
+/* Define to 1 if you have the `snwprintf' function. */
+#undef HAVE_SNWPRINTF
+
 /* Define to 1 if you have the <sstream> header file. */
 #undef HAVE_SSTREAM
 
@@ -74,6 +77,12 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
+
+/* Define to 1 if you have the `swprintf' function. */
+#undef HAVE_SWPRINTF
+
+/* Define to 1 if you have the `swprintf_s' function. */
+#undef HAVE_SWPRINTF_S
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
@@ -92,6 +101,9 @@
 
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
+
+/* Define to 1 if swprintf respects C++ standard */
+#undef NORMAL_SWPRINTF
 
 /* Name of package */
 #undef PACKAGE

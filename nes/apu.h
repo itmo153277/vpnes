@@ -730,7 +730,7 @@ private:
 					Buffer[Pos++].Length = Len;
 					BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod + Count - 1) /
 						(TimerPeriod + 1)) & 7);
-					Timer = TimerPeriod  - (Len + TimerPeriod) % (TimerPeriod + 1);
+					Timer = TimerPeriod - (Len + TimerPeriod) % (TimerPeriod + 1);
 					return Count;
 				}
 				if (Len < (TimerPeriod + 1))
