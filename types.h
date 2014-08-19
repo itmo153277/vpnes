@@ -214,7 +214,7 @@ protected:
 				flag = FILE_END;
 				break;
 			default:
-				;
+				flag = 0;
 		}
 		sync();
 		low = ::SetFilePointer(fd, low, &high, flag);
