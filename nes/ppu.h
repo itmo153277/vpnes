@@ -44,6 +44,7 @@ typedef PPUGroup<5>::ID::NoBatteryID EventDataID;
 typedef PPUGroup<6>::ID::NoBatteryID SpriteRendererID;
 typedef PPUGroup<7>::ID::NoBatteryID BackgroundRendererID;
 typedef PPUGroup<8>::ID::NoBatteryID BusHandlerID;
+typedef PPUGroup<9>::ID::NoBatteryID PalMemID;
 
 }
 
@@ -66,6 +67,8 @@ private:
 	int NominalFrameTimeOdd;
 	/* Chip Enable */
 	bool CE;
+	/* Палитра */
+	uint8 *PalMem;
 
 	/* Внутренние данные */
 	struct SInternalData: public ManagerID<PPUID::InternalDataID> {
@@ -86,6 +89,19 @@ private:
 	SEventData LocalEvents[MAX_EVENTS];
 	/* Указатели на события */
 	SEvent *EventChain[MAX_EVENTS];
+
+	/* Палитра */
+	inline uint8 ReadPalette(uint16 Address) {
+		if ((Address & 0x0003) == 0)
+			return PalMem[Address & 0x000c];
+		return PalMem[Address & 0x001f];
+	}
+	inline void WritePalette(uint16 Address, uint8 Src) {
+		if ((Address & 0x0003) == 0)
+			PalMem[Address & 0x000c] = Src & 0x3f;
+		else
+			PalMem[Address & 0x001f] = Src & 0x3f;
+	}
 
 	/* Статус PPU */
 	struct SState: public ManagerID<PPUID::StateID> {
@@ -302,11 +318,18 @@ private:
 	/* Устройство обработки для PPU */
 	struct SPPUUnit {
 		int InternalClock; /* Внутренние часы */
+
+		/*Сброс часов */
+		inline void ResetClock(int Time) {
+			InternalClock -= Time;
+		}
 	};
 
 	/* Рендерер спрайтов */
 	struct SSpriteRenderer: public SPPUUnit, public ManagerID<PPUID::SpriteRendererID> {
 		using SPPUUnit::InternalClock;
+		bool PrimNext; /* 0-object на следующем сканлайне */
+		bool Prim; /* 0-object на текущем сканлайне */
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -325,11 +348,121 @@ private:
 		}
 	} SpriteRenderer;
 
+
 	/* Рендерер фона */
 	struct SBackgroundRenderer: public SPPUUnit,
 		public ManagerID<PPUID::BackgroundRendererID> {
 		using SPPUUnit::InternalClock;
+		int x; /* Текущая координата */
+		uint32 BGReg; /* Сдвиговый регистр для фона*/
+		uint32 ARReg; /* Сдвиговый регистр для атрибутов */
 
+		/* Получить адрес для палитры */
+		inline uint8 GetPALAddress(uint8 Colour, uint8 Attribute) {
+			if ((Colour & 0x03) == 0)
+				return 0x00;
+			else
+				return ((Attribute & 0x03) << 2) | Colour;
+		}
+		/* Вывод точки */
+		void OutputPixel(CPPU &PPU, uint16 Addr) {
+			if ((x >= _Settings::Left) && (PPU.InternalData.Scanline >= _Settings::Top) &&
+				(x < _Settings::Right) && (PPU.InternalData.Scanline < _Settings::Bottom)) {
+				uint8 Colour = PPU.PalMem[Addr];
+
+				if (PPU.Registers.Grayscale)
+					Colour &= 0x30;
+				PPU.Bus->GetFrontend()->GetVideoFrontend()->PutPixel(Colour,
+					PPU.Registers.Tint);
+			}
+		}
+		/* Рисование точки */
+		void DrawPixel(CPPU &PPU) {
+				int i, SIndex;
+				uint8 Colour;
+				uint8 Sprite;
+				uint16 Addr;
+
+				if (PPU.Registers.ShowBackground && (PPU.Registers.BackgroundClip ||
+					(x > 7))) {
+					Colour = (BGReg >> PPU.Registers.FHIndex) & 0x03;
+					Addr = GetPALAddress(Colour, ARReg >> PPU.Registers.FHIndex);
+				} else {
+					Colour = 0;
+					Addr = 0;
+				}
+				Sprite = 0x10;
+				SIndex = 0;
+				for (i = 0; i < 8; i++)
+					if (PPU.Sprites[i].cx < 0)
+						continue;
+					else if (PPU.Sprites[i].x == x) {
+						if (PPU.Sprites[i].cx == 0)
+							continue;
+						PPU.Sprites[i].cx--;
+						PPU.Sprites[i].x++;
+						if (Sprite == 0x10) {
+							Sprite |= (PPU.Sprites[i].ShiftReg >> 14) & 0x03;
+							SIndex = i;
+						}
+						PPU.Sprites[i].ShiftReg <<= 2;
+					}
+				if ((Sprite != 0x10) && PPU.Registers.ShowSprites &&
+					(PPU.Registers.SpriteClip || (x > 7))) {
+					if (!SIndex && PPU.SpriteRenderer.Prim && (Colour != 0) && (x < 255)) {
+						PPU.State.SetSprite0Hit();
+					}
+					if ((Colour == 0) || PPU.Sprites[SIndex].Top)
+						Addr = GetPALAddress(Sprite, PPU.Sprites[SIndex].Attrib);
+				}
+				OutputPixel(PPU, Addr);
+		}
+		/* Внутренний обработчик */
+		int Execute(CPPU &PPU, int Time) {
+			int TimeLeft = Time;
+			uint8 DropColour;
+
+			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
+				return Time - Time % ClockDivider;
+			if (!PPU.Registers.RenderingEnabled())
+				DropColour = PPU.Registers.GetDropColour();
+			while ((TimeLeft >= ClockDivider) && (x < 256)) {
+				if (PPU.Registers.RenderingEnabled())
+					DrawPixel(PPU);
+				else
+					OutputPixel(PPU, DropColour);
+				TimeLeft -= ClockDivider;
+				BGReg <<= 2;
+				ARReg <<= 2;
+				if ((x & 7) == 7) {
+					BGReg |= ppu::ColourTable[PPU.BusHandler.Fetches[\
+						(x >> 3)].TileA] | (ppu::ColourTable[PPU.BusHandler.Fetches[\
+						(x >> 3)].TileB] << 1);
+					ARReg |= ppu::AttributeTable[PPU.BusHandler.Fetches[\
+						(x >> 3)].Attr];
+				}
+				x++;
+			}
+			if ((x >= 256) && (TimeLeft >= ClockDivider)) {
+				int Count = TimeLeft / ClockDivider;
+
+				x += Count;
+				TimeLeft -= Count * ClockDivider;
+			}
+			if (x == 341) {
+				x = 0;
+				BGReg = ((ppu::ColourTable[PPU.BusHandler.Fetches[\
+					SBusHandler::FetchBG2].TileA] | (ppu::ColourTable[PPU.BusHandler.Fetches[\
+					SBusHandler::FetchBG2].TileB] << 1)) << 16) |
+					ppu::ColourTable[PPU.BusHandler.Fetches[\
+					SBusHandler::FetchBG2 + 1].TileA] |	(ppu::ColourTable[\
+					PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].TileB] << 1);
+				ARReg = (ppu::AttributeTable[PPU.BusHandler.Fetches[\
+					SBusHandler::FetchBG2].Attr] << 16) | ppu::AttributeTable[\
+					PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].Attr];
+			}
+			return Time - TimeLeft;
+		}
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
 			while (InternalClock < PPU.InternalData.InternalClock)
@@ -339,7 +472,7 @@ private:
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
-			InternalClock = Time;
+			InternalClock += Execute(PPU, Time - InternalClock);
 			return true;
 		}
 		/* Новый сканлайн */
@@ -482,6 +615,10 @@ private:
 	inline void EventCall(int CallTime) {
 		Process(CallTime);
 		InternalData.IRQOffset -= CallTime;
+		InternalData.ScanlineClock -= CallTime;
+		SpriteRenderer.ResetClock(CallTime);
+		BackgroundRenderer.ResetClock(CallTime);
+		BusHandler.ResetClock(CallTime);
 	}
 
 	/* Вызов по шине CPU */
@@ -528,6 +665,10 @@ public:
 		Bus->GetManager()->template SetPointer<SBackgroundRenderer>(&BackgroundRenderer);
 		memset(&BusHandler, 0, sizeof(BusHandler));
 		Bus->GetManager()->template SetPointer<SBusHandler>(&BusHandler);
+		PalMem = static_cast<uint8 *>(
+			Bus->GetManager()->template GetPointer<ManagerID<PPUID::PalMemID> >(\
+				0x20 * sizeof(uint8)));
+		memset(PalMem, 0xff, 0x20 * sizeof(uint8));
 		NominalFrameTime = ClockDivider *
 			((_Settings::ActiveScanlines + _Settings::PostRender +
 			_Settings::VBlank + 1) * 341);

@@ -6,7 +6,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_CONFIG_HEADER([config.h])
 
 AC_COPYRIGHT([Copyright (c) 2012-2014 Ivanov Viktor])
-AC_REVISION([rev17])
+AC_REVISION([rev18])
 
 AC_CANONICAL_HOST
 
@@ -119,6 +119,8 @@ AC_CHECK_HEADERS([exception typeinfo cmath cstring cstdio cstdlib cwchar algorit
 if test "x$host_os_windows" = "xyes" ; then
 	LIBS="-luser32 $LIBS"
 	AC_CHECK_HEADER([windows.h], [], [AC_MSG_ERROR([required headers not found])], [])
+	AC_CHECK_HEADER([shellapi.h], [], [AC_MSG_ERROR([required headers not found])],
+		[#include <windows.h>])
 fi
 
 #Compilator characterics
@@ -142,7 +144,7 @@ fi
 
 if test "x$ac_cv_func_snwprintf" = "xno" -a "x$ac_cv_func_swprintf" = "xyes" ; then
 	AC_MSG_CHECKING([if swprintf respects C++ standard])
-	AC_TRY_COMPILE([#include <cwchar>], [wchar_t *s = NULL; swprintf(s, sizeof(s), L"", "");],
+	AC_TRY_COMPILE([#include <cwchar>], [wchar_t s[1]; swprintf(s, sizeof(s), L"%s", "");],
 	[AC_DEFINE([NORMAL_SWPRINTF], 1, [Define to 1 if swprintf respects C++ standard])
 		AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no])])
 fi
@@ -167,7 +169,7 @@ if test "x$vpnes_interactive" = "xyes" ; then
 	AC_DEFINE([VPNES_INTERACTIVE], 1, [Define to 1 to enable interactive mode for GUI])
 	if test "x$host_os_windows" = "xyes" ; then
 		LIBS="-lcomctl32 $LIBS"
-		AC_CHECK_HEADERS([commdlg.h commctrl.h shellapi.h], [],
+		AC_CHECK_HEADERS([commdlg.h commctrl.h], [],
 			[AC_MSG_ERROR([required headers not found])], [#include <windows.h>])
 	fi
 fi
