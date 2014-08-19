@@ -333,8 +333,7 @@ private:
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
-			while (InternalClock < PPU.InternalData.InternalClock)
-				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+			ProcessClocks(PPU, PPU.InternalData.InternalClock);
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
@@ -420,7 +419,7 @@ private:
 		/* Внутренний обработчик */
 		int Execute(CPPU &PPU, int Time) {
 			int TimeLeft = Time;
-			uint8 DropColour;
+			uint8 DropColour = 0;
 
 			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
 				return Time - Time % ClockDivider;
@@ -449,24 +448,11 @@ private:
 				x += Count;
 				TimeLeft -= Count * ClockDivider;
 			}
-			if (x == 341) {
-				x = 0;
-				BGReg = ((ppu::ColourTable[PPU.BusHandler.Fetches[\
-					SBusHandler::FetchBG2].TileA] | (ppu::ColourTable[PPU.BusHandler.Fetches[\
-					SBusHandler::FetchBG2].TileB] << 1)) << 16) |
-					ppu::ColourTable[PPU.BusHandler.Fetches[\
-					SBusHandler::FetchBG2 + 1].TileA] |	(ppu::ColourTable[\
-					PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].TileB] << 1);
-				ARReg = (ppu::AttributeTable[PPU.BusHandler.Fetches[\
-					SBusHandler::FetchBG2].Attr] << 16) | ppu::AttributeTable[\
-					PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].Attr];
-			}
 			return Time - TimeLeft;
 		}
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
-			while (InternalClock < PPU.InternalData.InternalClock)
-				ProcessClocks(PPU, PPU.InternalData.InternalClock);
+			ProcessClocks(PPU, PPU.InternalData.InternalClock);
 		}
 		/* Обработка ко времени */
 		bool ProcessClocks(CPPU &PPU, int Time) {
@@ -477,6 +463,18 @@ private:
 		}
 		/* Новый сканлайн */
 		void NewScanline(CPPU &PPU) {
+			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
+				return;
+			x = 0;
+			BGReg = ((ppu::ColourTable[PPU.BusHandler.Fetches[\
+				SBusHandler::FetchBG2].TileA] | (ppu::ColourTable[PPU.BusHandler.Fetches[\
+				SBusHandler::FetchBG2].TileB] << 1)) << 16) |
+				ppu::ColourTable[PPU.BusHandler.Fetches[\
+				SBusHandler::FetchBG2 + 1].TileA] |	(ppu::ColourTable[\
+				PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].TileB] << 1);
+			ARReg = (ppu::AttributeTable[PPU.BusHandler.Fetches[\
+				SBusHandler::FetchBG2].Attr] << 16) | ppu::AttributeTable[\
+				PPU.BusHandler.Fetches[SBusHandler::FetchBG2 + 1].Attr];
 		}
 	} BackgroundRenderer;
 
@@ -616,6 +614,7 @@ private:
 		Process(CallTime);
 		InternalData.IRQOffset -= CallTime;
 		InternalData.ScanlineClock -= CallTime;
+		InternalData.InternalClock -= CallTime;
 		SpriteRenderer.ResetClock(CallTime);
 		BackgroundRenderer.ResetClock(CallTime);
 		BusHandler.ResetClock(CallTime);
@@ -744,8 +743,9 @@ void CPPU<_Bus, _Settings>::Process(int Time) {
 
 	while ((InternalData.InternalClock + LeftTime) >= InternalData.ScanlineClock) {
 		InternalData.InternalClock = InternalData.ScanlineClock;
-		LeftTime -= InternalData.ScanlineClock;
+		LeftTime -= ClockDivider * 341;
 		BusHandler.Process(*this);
+		BackgroundRenderer.Process(*this);
 		InternalData.Scanline++;
 		InternalData.ScanlineClock += ClockDivider * 341;
 		if (InternalData.Scanline == (_Settings::ActiveScanlines + _Settings::PostRender +
