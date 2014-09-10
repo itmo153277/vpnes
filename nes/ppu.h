@@ -323,7 +323,7 @@ private:
 			uint8 Attrib;
 			bool Prim;
 		} Prerendered[256]; /* Данные об объектах на сканлайне */
-		uint8 OAM_sec[64]; /* Буфер для объектов следующего сканлайна */
+		uint8 OAM_sec[32]; /* Буфер для объектов следующего сканлайна */
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -338,9 +338,37 @@ private:
 		}
 		/* Новый сканлайн */
 		void NewScanline(CPPU &PPU) {
+			int i, j, k;
+			uint16 ShiftReg;
+
 			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
 				return;
 			memset(&Prerendered, 0, sizeof(SObjectData) * 256);
+			i = 0;
+			k = 0;
+			do {
+				if (OAM_sec[i] == 0xff) {
+					i += 4;
+					k++;
+					continue;
+				}
+				if (OAM_sec[i + 2] & 0x40)
+					ShiftReg = ppu::ColourTable[ppu::FlipTable[\
+						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileA]] |
+						(ppu::ColourTable[ppu::FlipTable[\
+						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileB]] << 8);
+				else
+					ShiftReg = ppu::ColourTable[\
+						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileA] |
+						(ppu::ColourTable[\
+						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileB] << 8);
+				for (j = OAM_sec[i + 3]; (j < 256) && (j < OAM_sec[i + 3]); j++) {
+					if (Prerendered[j].Colour == 0)
+						Prerendered[j].Colour = ShiftReg & 0x03;
+					ShiftReg >>= 2;
+				}
+				i += 4;
+			} while (i < 64);
 		}
 	} SpriteRenderer;
 
@@ -392,7 +420,7 @@ private:
 						PPU.State.SetSprite0Hit();
 					}
 					if ((Colour == 0) || (~PPU.SpriteRenderer.Prerendered[x].Attrib & 0x20))
-						Addr = GetPALAddress(PPU.SpriteRenderer.Prerendered[x].Colour | 0x10,
+						Addr = GetPALAddress(PPU.SpriteRenderer.Prerendered[x].Colour,
 							PPU.SpriteRenderer.Prerendered[x].Attrib);
 				}
 				OutputPixel(PPU, Addr);

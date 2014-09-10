@@ -36,7 +36,9 @@
 #endif
 
 #if defined(VPNES_USE_TTF)
+#ifdef HAVE_ICONV
 #include <iconv.h>
+#endif
 #endif
 
 #include <cwchar>
@@ -205,6 +207,7 @@ public:
 	inline bool &GetUpdateTextFlag() { return UpdateText; }
 	/* Установить сообщение */
 	void SetText(const wchar_t *Text) {
+#ifdef HAVE_ICONV
 		ICONV_CONST char *InBuf = (ICONV_CONST char *)reinterpret_cast<const char *>(Text);
 		size_t InSize = (wcslen(Text) + 1) * sizeof(wchar_t);
 		char16_t *OutStr = new char16_t[InSize];
@@ -217,6 +220,11 @@ public:
 		delete [] OutStr;
 		iconv_close(cd);
 		UpdateText = true;
+#else
+		std::u16string OutStr(Text, Text + wcslen(Text));
+		WindowText = OutStr;
+		UpdateText = true;
+#endif
 	}
 #endif
 	/* Очистить окно */
