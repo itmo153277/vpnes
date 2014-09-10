@@ -39,7 +39,6 @@ namespace PPUID {
 typedef PPUGroup<1>::ID::NoBatteryID InternalDataID;
 typedef PPUGroup<2>::ID::NoBatteryID StateID;
 typedef PPUGroup<3>::ID::NoBatteryID RegistersID;
-typedef PPUGroup<4>::ID::NoBatteryID SpritesID;
 typedef PPUGroup<5>::ID::NoBatteryID EventDataID;
 typedef PPUGroup<6>::ID::NoBatteryID SpriteRendererID;
 typedef PPUGroup<7>::ID::NoBatteryID BackgroundRendererID;
@@ -123,18 +122,6 @@ private:
 		/* Получаем байт по маске */
 		inline void ReadState(uint8 Src) { return State | (Src & 0x1f); }
 	} State;
-
-	/* Данные для спрайтов */
-	struct SSprite {
-		int y;
-		int x;
-		int sx;
-		int cx;
-		int Top;
-		uint16 ShiftReg;
-		uint8 Attrib;
-		uint8 Tile;
-	} Sprites[8];
 
 	/* Внутренние регистры */
 	struct SRegisters: public ManagerID<PPUID::RegistersID> {
@@ -238,39 +225,40 @@ private:
 			return Addr_v & 0x3fff;
 		}
 		/* Получить адрес для спрайта */
-		inline uint16 GetSpriteAddress(int Scanline, SSprite &Sprite) {
+		inline uint16 GetSpriteAddress(int Sprite, CPPU &PPU) {
+			uint8 *SpriteOffset = PPU.SpriteRenderer.OAM_sec + (Sprite << 2);
 			switch (SpriteSize) {
 				case Size8x8:
-					if (Sprite.y > 240)
+					if (*(SpriteOffset) > 240)
 						return SpritePage | 0x0ff0;
-					if (Sprite.Attrib & 0x80)
-						return SpritePage | (Sprite.Tile << 4) | (7 +
-							Sprite.y - Scanline);
+					if (*(SpriteOffset + 2) & 0x80)
+						return SpritePage | (*(SpriteOffset + 1) << 4) | (7 +
+							*(SpriteOffset) - PPU.InternalData.Scanline);
 					else
-						return SpritePage | (Sprite.Tile << 4) | (Scanline -
-							Sprite.y);
+						return SpritePage | (*(SpriteOffset + 1) << 4) |
+							(PPU.InternalData.Scanline - *(SpriteOffset));
 					break;
 				case Size8x16:
-					if (Sprite.y > 240)
+					if (*(SpriteOffset) > 240)
 						return 0x1ff0;
-					if (Sprite.Attrib & 0x80) {
-						if ((Scanline - Sprite.y) > 7)
-							return ((Sprite.Tile & 0x01) << 12) |
-								((Sprite.Tile & 0xfe) << 4) | (15 +
-								Sprite.y - Scanline);
+					if (*(SpriteOffset + 2) & 0x80) {
+						if ((PPU.InternalData.Scanline - *(SpriteOffset)) > 7)
+							return ((*(SpriteOffset + 1) & 0x01) << 12) |
+								((*(SpriteOffset + 1) & 0xfe) << 4) | (15 +
+								*(SpriteOffset) - PPU.InternalData.Scanline);
 						else
-							return ((Sprite.Tile & 0x01) << 12) |
-								((Sprite.Tile | 0x01) << 4) | (7 +
-								Sprite.y - Scanline);
+							return ((*(SpriteOffset + 1) & 0x01) << 12) |
+								((*(SpriteOffset + 1) | 0x01) << 4) | (7 +
+								*(SpriteOffset) - PPU.InternalData.Scanline);
 					} else {
-						if ((Scanline - Sprite.y) > 7)
-							return ((Sprite.Tile & 0x01) << 12) |
-								((Sprite.Tile | 0x01) << 4) | (Scanline -
-								Sprite.y + 8);
+						if ((PPU.InternalData.Scanline - *(SpriteOffset)) > 7)
+							return ((*(SpriteOffset + 1) & 0x01) << 12) |
+								((*(SpriteOffset + 1) | 0x01) << 4) |
+								(PPU.InternalData.Scanline - *(SpriteOffset) + 8);
 						else
-							return ((Sprite.Tile & 0x01) << 12) |
-								((Sprite.Tile & 0xfe) << 4) | (Scanline -
-								Sprite.y);
+							return ((*(SpriteOffset + 1) & 0x01) << 12) |
+								((*(SpriteOffset + 1) & 0xfe) << 4) |
+								(PPU.InternalData.Scanline - *(SpriteOffset));
 					}
 					break;
 			}
@@ -330,6 +318,12 @@ private:
 		using SPPUUnit::InternalClock;
 		bool PrimNext; /* 0-object на следующем сканлайне */
 		bool Prim; /* 0-object на текущем сканлайне */
+		struct SObjectData {
+			uint8 Colour;
+			uint8 Attrib;
+			bool Prim;
+		} Prerendered[256]; /* Данные об объектах на сканлайне */
+		uint8 OAM_sec[64]; /* Буфер для объектов следующего сканлайна */
 
 		/* Обработка */
 		inline void Process(CPPU &PPU) {
@@ -344,6 +338,9 @@ private:
 		}
 		/* Новый сканлайн */
 		void NewScanline(CPPU &PPU) {
+			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
+				return;
+			memset(&Prerendered, 0, sizeof(SObjectData) * 256);
 		}
 	} SpriteRenderer;
 
@@ -377,9 +374,7 @@ private:
 		}
 		/* Рисование точки */
 		void DrawPixel(CPPU &PPU) {
-				int i, SIndex;
 				uint8 Colour;
-				uint8 Sprite;
 				uint16 Addr;
 
 				if (PPU.Registers.ShowBackground && (PPU.Registers.BackgroundClip ||
@@ -390,29 +385,15 @@ private:
 					Colour = 0;
 					Addr = 0;
 				}
-				Sprite = 0x10;
-				SIndex = 0;
-				for (i = 0; i < 8; i++)
-					if (PPU.Sprites[i].cx < 0)
-						continue;
-					else if (PPU.Sprites[i].x == x) {
-						if (PPU.Sprites[i].cx == 0)
-							continue;
-						PPU.Sprites[i].cx--;
-						PPU.Sprites[i].x++;
-						if (Sprite == 0x10) {
-							Sprite |= (PPU.Sprites[i].ShiftReg >> 14) & 0x03;
-							SIndex = i;
-						}
-						PPU.Sprites[i].ShiftReg <<= 2;
-					}
-				if ((Sprite != 0x10) && PPU.Registers.ShowSprites &&
-					(PPU.Registers.SpriteClip || (x > 7))) {
-					if (!SIndex && PPU.SpriteRenderer.Prim && (Colour != 0) && (x < 255)) {
+				if (PPU.SpriteRenderer.Prerendered[x].Colour != 0 &&
+					PPU.Registers.ShowSprites && (PPU.Registers.SpriteClip || (x > 7))) {
+					if (PPU.SpriteRenderer.Prerendered[x].Prim &&
+						(Colour != 0) && (x < 255)) {
 						PPU.State.SetSprite0Hit();
 					}
-					if ((Colour == 0) || PPU.Sprites[SIndex].Top)
-						Addr = GetPALAddress(Sprite, PPU.Sprites[SIndex].Attrib);
+					if ((Colour == 0) || (~PPU.SpriteRenderer.Prerendered[x].Attrib & 0x20))
+						Addr = GetPALAddress(PPU.SpriteRenderer.Prerendered[x].Colour | 0x10,
+							PPU.SpriteRenderer.Prerendered[x].Attrib);
 				}
 				OutputPixel(PPU, Addr);
 		}
@@ -545,8 +526,7 @@ private:
 							PPU.Registers.ReadNT();
 						else
 							PPU.Registers.CalcAddr = PPU.Registers.GetSpriteAddress(\
-								PPU.InternalData.Scanline,
-								PPU.Sprites[FetchPos - FetchSprite]);
+								FetchPos - FetchSprite, PPU);
 						PPU.Registers.CurAddrLine = PPU.Registers.CalcAddr & 0x3ff7;
 						break;
 					case 5:
@@ -558,8 +538,7 @@ private:
 							PPU.Registers.ReadNT();
 						else
 							PPU.Registers.CalcAddr = PPU.Registers.GetSpriteAddress(\
-								PPU.InternalData.Scanline,
-								PPU.Sprites[FetchPos - FetchSprite]);
+								FetchPos - FetchSprite, PPU);
 						PPU.Registers.CurAddrLine = PPU.Registers.CalcAddr | 0x0008;
 						break;
 					case 7:
@@ -652,9 +631,6 @@ public:
 		Bus->GetManager()->template SetPointer<SState>(&State);
 		memset(&Registers, 0, sizeof(Registers));
 		Bus->GetManager()->template SetPointer<SRegisters>(&Registers);
-		memset(Sprites, 0, sizeof(SSprite) * 8);
-		Bus->GetManager()->template SetPointer<ManagerID<PPUID::SpritesID> >(\
-			Sprites, sizeof(SSprite) * 8);
 		memset(LocalEvents, 0, sizeof(SEventData) * MAX_EVENTS);
 		Bus->GetManager()->template SetPointer<ManagerID<PPUID::EventDataID> >(LocalEvents,
 			sizeof(SEventData) * MAX_EVENTS);
