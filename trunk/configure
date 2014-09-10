@@ -6045,8 +6045,8 @@ $as_echo "yes" >&6; }
 fi
 fi
 
-
-if test "x$sdl_ttf_use" = "xyes" ; then
+if test "x$host_os_windows" = "xno" ; then
+		if test "x$sdl_ttf_use" = "xyes" ; then
 
       if test "X$prefix" = "XNONE"; then
     acl_final_prefix="$ac_default_prefix"
@@ -7047,12 +7047,13 @@ _ACEOF
 
   fi
 
-	if test "x$am_cv_func_iconv" = "xyes" ; then
-		SDL_ttf_LIBS="$SDL_ttf_LIBS $LIBICONV"
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: couldn't find libiconv: TTF support will be disabled" >&5
+		if test "x$am_cv_func_iconv" = "xyes" ; then
+			SDL_ttf_LIBS="$SDL_ttf_LIBS $LIBICONV"
+		else
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: couldn't find libiconv: TTF support will be disabled" >&5
 $as_echo "$as_me: WARNING: couldn't find libiconv: TTF support will be disabled" >&2;}
-		sdl_ttf_use="no"
+			sdl_ttf_use="no"
+		fi
 	fi
 fi
 

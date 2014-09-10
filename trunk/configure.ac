@@ -74,15 +74,16 @@ else
 		[AC_MSG_WARN([SDL_ttf was not found: TTF support will be disabled])])
 fi
 
-dnl iconv необходим для вывода в Unicode
-
-if test "x$sdl_ttf_use" = "xyes" ; then
-	AM_ICONV
-	if test "x$am_cv_func_iconv" = "xyes" ; then
-		SDL_ttf_LIBS="$SDL_ttf_LIBS $LIBICONV"
-	else
-		AC_MSG_WARN([couldn't find libiconv: TTF support will be disabled])
-		sdl_ttf_use="no"
+if test "x$host_os_windows" = "xno" ; then
+	dnl iconv необходим для вывода в Unicode
+	if test "x$sdl_ttf_use" = "xyes" ; then
+		AM_ICONV
+		if test "x$am_cv_func_iconv" = "xyes" ; then
+			SDL_ttf_LIBS="$SDL_ttf_LIBS $LIBICONV"
+		else
+			AC_MSG_WARN([couldn't find libiconv: TTF support will be disabled])
+			sdl_ttf_use="no"
+		fi
 	fi
 fi
 
