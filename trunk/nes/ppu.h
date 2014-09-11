@@ -135,6 +135,8 @@ private:
 		uint16 Addr_v;
 		/* Буфер адреса (Loopy_T) */
 		uint16 Addr_t;
+		/* Указатель на палитру */
+		int PalAddr;
 		/* Страница фона */
 		uint16 BGPage;
 		/* Индекс для рендеринга */
@@ -265,13 +267,13 @@ private:
 			return 0x0000;
 		}
 		/* Цвет при отсутствии рендеринга */
-		inline uint8 GetDropColour() {
+		inline void SetDropColour() {
 			if (CurAddrLine < 0x3f00)
-				return 0x00;
+				PalAddr = 0x00;
 			if (CurAddrLine & 0x0003)
-				return CurAddrLine & 0x001f;
+				PalAddr = CurAddrLine & 0x001f;
 			else
-				return CurAddrLine & 0x000c;
+				PalAddr = CurAddrLine & 0x000c;
 		}
 		/* Инкременты */
 		inline void IncrementX() {
@@ -368,7 +370,7 @@ private:
 					ShiftReg >>= 2;
 				}
 				i += 4;
-			} while (i < 64);
+			} while (i < 32);
 		}
 	} SpriteRenderer;
 
@@ -389,10 +391,10 @@ private:
 				return ((Attribute & 0x03) << 2) | Colour;
 		}
 		/* Вывод точки */
-		void OutputPixel(CPPU &PPU, uint16 Addr) {
+		void OutputPixel(CPPU &PPU) {
 			if ((x >= _Settings::Left) && (PPU.InternalData.Scanline >= _Settings::Top) &&
 				(x < _Settings::Right) && (PPU.InternalData.Scanline < _Settings::Bottom)) {
-				uint8 Colour = PPU.PalMem[Addr];
+				uint8 Colour = PPU.PalMem[PPU.Registers.PalAddr];
 
 				if (PPU.Registers.Grayscale)
 					Colour &= 0x30;
@@ -403,15 +405,15 @@ private:
 		/* Рисование точки */
 		void DrawPixel(CPPU &PPU) {
 				uint8 Colour;
-				uint16 Addr;
 
 				if (PPU.Registers.ShowBackground && (PPU.Registers.BackgroundClip ||
 					(x > 7))) {
 					Colour = (BGReg >> PPU.Registers.FHIndex) & 0x03;
-					Addr = GetPALAddress(Colour, ARReg >> PPU.Registers.FHIndex);
+					PPU.Registers.PalAddr = GetPALAddress(Colour, ARReg >>
+						PPU.Registers.FHIndex);
 				} else {
 					Colour = 0;
-					Addr = 0;
+					PPU.Registers.PalAddr = 0;
 				}
 				if (PPU.SpriteRenderer.Prerendered[x].Colour != 0 &&
 					PPU.Registers.ShowSprites && (PPU.Registers.SpriteClip || (x > 7))) {
@@ -420,25 +422,21 @@ private:
 						PPU.State.SetSprite0Hit();
 					}
 					if ((Colour == 0) || (~PPU.SpriteRenderer.Prerendered[x].Attrib & 0x20))
-						Addr = GetPALAddress(PPU.SpriteRenderer.Prerendered[x].Colour,
+						PPU.Registers.PalAddr = GetPALAddress(\
+							PPU.SpriteRenderer.Prerendered[x].Colour | 0x10,
 							PPU.SpriteRenderer.Prerendered[x].Attrib);
 				}
-				OutputPixel(PPU, Addr);
 		}
 		/* Внутренний обработчик */
 		int Execute(CPPU &PPU, int Time) {
 			int TimeLeft = Time;
-			uint8 DropColour = 0;
 
 			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
 				return Time - Time % ClockDivider;
-			if (!PPU.Registers.RenderingEnabled())
-				DropColour = PPU.Registers.GetDropColour();
 			while ((TimeLeft >= ClockDivider) && (x < 256)) {
 				if (PPU.Registers.RenderingEnabled())
 					DrawPixel(PPU);
-				else
-					OutputPixel(PPU, DropColour);
+				OutputPixel(PPU);
 				TimeLeft -= ClockDivider;
 				BGReg <<= 2;
 				ARReg <<= 2;
@@ -524,8 +522,10 @@ private:
 						FixScroll = (FetchPos > FetchScrollStart) &&
 							(FetchPos < FetchScrollEnd);
 				}
-				if (Cycles > 0)
+				if (Cycles > 0) {
 					PPU.Registers.CurAddrLine = PPU.Registers.Get2007Address();
+					PPU.Registers.SetDropColour();
+				}
 				return Cycles * ClockDivider;
 			}
 			while (TimeLeft >= ClockDivider) {
@@ -706,7 +706,6 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
-		Registers.ShowBackground = 0x08;
 	}
 
 	/* Сброс часов шины */
