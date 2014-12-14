@@ -154,11 +154,11 @@ private:
 
 	/* Положить в стек */
 	inline void PushByte(uint8 Src) {
-		RAM[0x0100 + Registers.s--] = Src;
+		WriteMemory(0x0100 + Registers.s--,  Src);
 	}
 	/* Достать из стека */
 	inline uint8 PopByte() {
-		return RAM[0x0100 + ++Registers.s];
+		return ReadMemory(0x0100 + ++Registers.s);
 	}
 	/* Положить в стек слово */
 	inline void PushWord(uint16 Src) {
