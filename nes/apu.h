@@ -242,21 +242,37 @@ private:
 			int Len = (Count + (Count & 1)) >> 1;
 			int RealCount = 0;
 
+			if (Timer > TimerPeriod) {
+				int Diff = Timer - TimerPeriod;
+
+				if (Diff > Len)
+					Diff = Len;
+				if (!TimerValid || (LengthCounter <= 0))
+					Buffer[Pos].Sample = 0;
+				else
+					Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Diff << 1;
+				RealCount += Diff << 1;
+				Timer -= Diff;
+				if (Pos == MAX_BUF)
+					return RealCount;
+				Len -= Diff;
+			}
 			if (Len == 0)
-				return 0;
+				return RealCount;
 			if (!TimerValid || (LengthCounter <= 0)) {
 				Buffer[Pos].Sample = 0;
 				Buffer[Pos++].Length = Len << 1;
-				DutyCycle = (DutyCycle + (TimerPeriod - Timer + Count) /
+				DutyCycle = (DutyCycle + (TimerPeriod - Timer + Len) /
 					(TimerPeriod + 1)) & 7;
 				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
-				return Len << 1;
+				return (Len << 1) + RealCount;
 			}
 			if (Len < (Timer + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = Len << 1;
 				Timer -= Len;
-				return Len << 1;
+				return (Len << 1) + RealCount;
 			}
 			if (Timer != TimerPeriod) {
 				Buffer[Pos].Sample = GetOutput();
@@ -403,24 +419,42 @@ private:
 			int RealCount = 0;
 			int Len = Count;
 
-			if (Count == 0)
-				return Count;
+			if (Timer > TimerPeriod) {
+				int Diff = Timer - TimerPeriod;
+
+				if (Diff > Len)
+					Diff = Len;
+				if ((LinearCounter <= 0) || (LengthCounter <= 0))
+					Buffer[Pos].Sample = 0;
+				else if (TimerPeriod < 2)
+					Buffer[Pos].Sample = -1;
+				else
+					Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
+				Buffer[Pos++].Length = Diff;
+				RealCount += Diff;
+				Timer -= Diff;
+				if (Pos == MAX_BUF)
+					return RealCount;
+				Len -= Diff;
+			}
+			if (Len == 0)
+				return RealCount;
 			if ((LinearCounter <= 0) || (LengthCounter <= 0) || (TimerPeriod < 2)) {
 				if ((TimerPeriod < 2) && (LengthCounter > 0) && (LinearCounter > 0)) {
 					Buffer[Pos].Sample = -1;
-					SequencePos = (SequencePos + (TimerPeriod - Timer + Count) /
+					SequencePos = (SequencePos + (TimerPeriod - Timer + Len) /
 						(TimerPeriod + 1)) & 31;
 				} else
 					Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
-				Buffer[Pos++].Length = Count;
-				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
-				return Count;
+				Buffer[Pos++].Length = Len;
+				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Len + RealCount;
 			}
 			if (Len < (Timer + 1)) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
 				Buffer[Pos++].Length = Len;
 				Timer -= Len;
-				return Count;
+				return Len + RealCount;
 			}
 			if (Timer != TimerPeriod) {
 				Buffer[Pos].Sample = Tables::SeqTable[SequencePos];
@@ -553,25 +587,41 @@ private:
 			int RealCount = 0;
 			int Len = Count;
 
-			if (Count == 0)
-				return Count;
+			if (Timer > TimerPeriod) {
+				int Diff = Timer - TimerPeriod;
+
+				if (Diff > Len)
+					Diff = Len;
+				if (LengthCounter <= 0)
+					Buffer[Pos].Sample = 0;
+				else
+					Buffer[Pos].Sample = GetOutput();
+				Buffer[Pos++].Length = Diff;
+				RealCount += Diff;
+				Timer -= Diff;
+				if (Pos == MAX_BUF)
+					return RealCount;
+				Len -= Diff;
+			}
+			if (Len == 0)
+				return RealCount;
 			if (LengthCounter <= 0) {
-				int ChCount = (TimerPeriod - Timer + Count) /
+				int ChCount = (TimerPeriod - Timer + Len) /
 					(TimerPeriod + 1);
 
 				for (; ChCount > 0; ChCount--)
 					Random = (((Random >> 14) ^ (Random >> ShiftCount)) & 0x01) |
 						(Random << 1);
 				Buffer[Pos].Sample = 0;
-				Buffer[Pos++].Length = Count;
-				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
-				return Count;
+				Buffer[Pos++].Length = Len;
+				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Len + RealCount;
 			}
 			if (Len < (Timer + 1)) {
 				Buffer[Pos].Sample = GetOutput();
 				Buffer[Pos++].Length = Len;
 				Timer -= Len;
-				return Count;
+				return Len + RealCount;
 			}
 			if (Timer != TimerPeriod) {
 				Buffer[Pos].Sample = GetOutput();
@@ -698,21 +748,34 @@ private:
 			int RealCount = 0;
 			int Len = Count;
 
-			if (Count == 0)
-				return Count;
+			if (Timer > TimerPeriod) {
+				int Diff = Timer - TimerPeriod;
+
+				if (Diff > Len)
+					Diff = Len;
+				Buffer[Pos].Sample = Sample;
+				Buffer[Pos++].Length = Diff;
+				RealCount += Diff;
+				Timer -= Diff;
+				if (Pos == MAX_BUF)
+					return RealCount;
+				Len -= Diff;
+			}
+			if (Len == 0)
+				return RealCount;
 			if (SilenceFlag && !NotEmpty) {
 				Buffer[Pos].Sample = Sample;
-				Buffer[Pos++].Length = Count;
-				BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod - Timer - 1 + Count) /
+				Buffer[Pos++].Length = Len;
+				BitsRemain = 7 - ((7 - BitsRemain + (TimerPeriod - Timer - 1 + Len) /
 					(TimerPeriod + 1)) & 7);
-				Timer = TimerPeriod - ((Count + TimerPeriod - Timer) % (TimerPeriod + 1));
-				return Count;
+				Timer = TimerPeriod - ((Len + TimerPeriod - Timer) % (TimerPeriod + 1));
+				return Len + RealCount;
 			}
 			if (Len < Timer) {
 				Buffer[Pos].Sample = Sample;
 				Buffer[Pos++].Length = Len;
 				Timer -= Len;
-				return Count;
+				return Len + RealCount;
 			}
 			if (Timer > 0) {
 				Buffer[Pos].Sample = Sample;
