@@ -487,7 +487,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					ofn.hwndOwner = Handle;
 					ofn.hInstance = Instance;
 					ofn.lpstrFilter = L"iNES 1.0 Files (*.nes)\0*.nes\0"
-						"All Files (*.*)\0*.*\0";
+						L"All Files (*.*)\0*.*\0";
 					ofn.lpstrFile = FileNameBuf;
 					ofn.nMaxFile = VPNES_MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_LONGNAMES |
@@ -512,7 +512,7 @@ bool CWindow::InteractiveDispatch(SDL_SysWMmsg *Msg) {
 					ofn.hwndOwner = Handle;
 					ofn.hInstance = Instance;
 					ofn.lpstrFilter = L"WAV file (*.wav)\0*.wav\0"
-						"All Files (*.*)\0*.*\0";
+						L"All Files (*.*)\0*.*\0";
 					WAVFile[0] = '\0';
 					ofn.lpstrFile = WAVFile;
 					ofn.nMaxFile = VPNES_MAX_PATH;
