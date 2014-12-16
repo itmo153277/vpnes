@@ -582,10 +582,10 @@ private:
 					if (FetchPos == FetchSprite)
 						PPU.Registers.IncrementY();
 					if (PPU.InternalData.Scanline == -1) {
-						if (FetchPos >= FetchScrollStart)
-							FixScroll = true;
-						else if (FetchPos >= FetchScrollEnd)
+						if (FetchPos >= FetchScrollEnd)
 							FixScroll = false;
+						else if (FetchPos >= FetchScrollStart)
+							FixScroll = true;
 					}
 				}
 				if (FixScroll)

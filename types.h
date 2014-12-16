@@ -32,7 +32,6 @@
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0500
 #endif
-
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -141,7 +140,7 @@ protected:
 
 		if ((n > 0) && (!::WriteFile(fd, buf, n, &w, NULL) || w < n))
 			return EOF;
-		pbump(-n);
+		pbump(-static_cast<int>(n));
 		if (c != EOF) {
 			*(pptr()) = c;
 			pbump(1);
