@@ -138,6 +138,20 @@ public:
 		InternalClock += Increment;
 	}
 
+	/* Вывести кадр */
+	bool PushFrame() {
+		int Time = PPU->GetFrameTime();
+		bool Quit;
+
+		APU->FlushBuffer(Time);
+		Quit = !Frontend->GetVideoFrontend()->UpdateFrame(\
+			Time * PPU->GetFreq());
+		Clock->Reset();
+		if (Quit)
+			Clock->Terminate();
+		return !Quit;
+	}
+
 	/* Интерфейс NES */
 	inline CNESFrontend * const &GetFrontend() const { return Frontend; }
 	/* Менеджер памяти */

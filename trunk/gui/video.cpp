@@ -148,7 +148,6 @@ void CVideo::UpdateSizes(int Width, int Height) {
 	_Height = Height;
 	InternalSurface = UpdateSurface();
 	Buf = reinterpret_cast<uint32 *>(InternalSurface->pixels);
-	Pixel = Buf;
 }
 
 /* Обновить кадр */
@@ -159,7 +158,6 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #if !defined(VPNES_DISABLE_SYNC)
 	LastFrameTime = FrameTime;
 #endif
-	Pixel = Buf;
 	do {
 		for (;;) {
 			RetState = pWindow->ProcessMessages();

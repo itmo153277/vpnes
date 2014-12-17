@@ -137,21 +137,10 @@ public:
 
 	/* Запустить цикл эмуляции */
 	int PowerOn() {
-		bool Quit;
-
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
-		Clock.Start([this, &Quit]() {
-			if (Bus.GetPPU()->IsFrameReady()) {
-				int Time = Bus.GetPPU()->GetFrameTime();
-				Bus.GetAPU()->FlushBuffer(Time);
-				Quit = !Bus.GetFrontend()->GetVideoFrontend()->UpdateFrame(\
-					Time * Bus.GetPPU()->GetFreq());
-				Clock.Reset();
-				if (Quit) {
-					Clock.Terminate();
-					return;
-				}
-			}
+		Clock.Start([this]() {
+			if (Bus.GetPPU()->IsFrameReady() && !Bus.PushFrame())
+				return;
 			Bus.GetCPU()->Execute();
 		});
 		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();
