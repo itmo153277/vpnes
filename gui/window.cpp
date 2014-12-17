@@ -57,7 +57,7 @@ CWindow::CWindow(VPNES_PATH *DefaultFileName, CAudio *Audio, CInput *Input) {
 		VPNES_PATH_COPY(FileNameBuf, DefaultFileName, VPNES_MAX_PATH - 1);
 	} else {
 		FileReady = false;
-		FileNameBuf[0] = '\0';
+		FileNameBuf[0] = 0;
 	}
 #endif
 	pAudio = Audio;

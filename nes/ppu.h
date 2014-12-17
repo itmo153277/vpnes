@@ -77,6 +77,7 @@ private:
 		int InternalClock;
 		int ScanlineClock;
 		int FrameTime;
+		int Offset;
 	} InternalData;
 
 	/* События */
@@ -112,7 +113,7 @@ private:
 		/* Set VBlank */
 		inline void SetVBlank() { if (!SupressVBlank) State |= 0x80; }
 		/* Get VBlank */
-		inline void GetVBlank() { return State & 0x80; }
+		inline bool GetVBlank() { return State & 0x80; }
 		/* Claer VBlank */
 		inline void ClearVBlank() { State &= 0x7f; SupressVBlank = true; }
 		/* Overflow */
@@ -120,7 +121,7 @@ private:
 		/* Сброс состояния */
 		inline void ClearState() { State = 0; }
 		/* Получаем байт по маске */
-		inline void ReadState(uint8 Src) { return State | (Src & 0x1f); }
+		inline uint8 ReadState(uint8 Src) { return State | (Src & 0x1f); }
 	} State;
 
 	/* Внутренние регистры */
@@ -164,6 +165,8 @@ private:
 		int ShowSprites;
 		/* Затемнение */
 		int Tint;
+		/* Буфер IO */
+		uint8 BufIO;
 
 		/* Состояние рендерера */
 		inline bool RenderingEnabled() {
@@ -345,7 +348,7 @@ private:
 
 			if (PPU.InternalData.Scanline >= _Settings::ActiveScanlines)
 				return;
-			memset(&Prerendered, 0, sizeof(SObjectData) * 256);
+			memset(Prerendered, 0, sizeof(SObjectData) * 256);
 			i = 0;
 			k = 0;
 			do {
@@ -354,7 +357,7 @@ private:
 					k++;
 					continue;
 				}
-				if (OAM_sec[i + 2] & 0x40)
+				if (OAM_sec[(i + 2) & 0x1f] & 0x40)
 					ShiftReg = ppu::ColourTable[ppu::FlipTable[\
 						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileA]] |
 						(ppu::ColourTable[ppu::FlipTable[\
@@ -364,7 +367,8 @@ private:
 						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileA] |
 						(ppu::ColourTable[\
 						PPU.BusHandler.Fetches[SBusHandler::FetchSprite + k].TileB] << 8);
-				for (j = OAM_sec[i + 3]; (j < 256) && (j < OAM_sec[i + 3]); j++) {
+				for (j = OAM_sec[(i + 3) & 0x1f]; (j < 256) && (j < OAM_sec[(i + 3) & 0x1f]);
+					j++) {
 					if (Prerendered[j].Colour == 0)
 						Prerendered[j].Colour = ShiftReg & 0x03;
 					ShiftReg >>= 2;
@@ -394,12 +398,16 @@ private:
 		void OutputPixel(CPPU &PPU) {
 			if ((x >= _Settings::Left) && (PPU.InternalData.Scanline >= _Settings::Top) &&
 				(x < _Settings::Right) && (PPU.InternalData.Scanline < _Settings::Bottom)) {
+				if (PPU.FrameReady)
+					PPU.Bus->PushFrame();
+
 				uint8 Colour = PPU.PalMem[PPU.Registers.PalAddr];
 
 				if (PPU.Registers.Grayscale)
 					Colour &= 0x30;
 				PPU.Bus->GetFrontend()->GetVideoFrontend()->PutPixel(Colour,
-					PPU.Registers.Tint);
+					PPU.Registers.Tint, PPU.InternalData.Offset);
+				PPU.InternalData.Offset++;
 			}
 		}
 		/* Рисование точки */
@@ -465,6 +473,8 @@ private:
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
+			if (Time > PPU.BusHandler.InternalClock)
+				PPU.BusHandler.ProcessClocks(PPU, Time);
 			InternalClock += Execute(PPU, Time - InternalClock);
 			return true;
 		}
@@ -603,6 +613,9 @@ private:
 		bool ProcessClocks(CPPU &PPU, int Time) {
 			if (InternalClock >= Time)
 				return true;
+			if ((FetchCycle <= FetchSprite) && ((FetchCycle + (Time - InternalClock) /
+				ClockDivider) > FetchSprite))
+				PPU.SpriteRenderer.ProcessClocks(PPU, Time);
 			InternalClock += Execute(PPU, Time - InternalClock);
 			return InternalClock == Time;
 		}
@@ -629,7 +642,7 @@ private:
 
 	/* Вызов по шине CPU */
 	inline void CPUCall(int Offset = 0) {
-		Process(Bus->GetInternalTime() + InternalData.IRQOffset + Offset);
+		Process(Bus->GetInternalClock() + InternalData.IRQOffset + Offset);
 	}
 
 	/* Вызов по шине CPU с учетом CE */
@@ -685,8 +698,6 @@ public:
 		NewEvent->Execute = [this] {
 			EventCall(InternalData.FrameTime);
 			BackgroundRenderer.Process(*this);
-			FrameReady = true;
-			FrameTime = InternalData.FrameTime;
 			InternalData.OddFrame ^= 1;
 			if (Registers.RenderingEnabled() && InternalData.OddFrame)
 				InternalData.FrameTime = NominalFrameTimeOdd;
@@ -714,10 +725,81 @@ public:
 	}
 	/* Чтение памяти */
 	inline uint8 ReadByte(uint16 Address) {
-		return 0x40;
+		switch (Address & 0x0007) {
+			case 2: /* 0x2002 */
+				CPUCallCELow();
+				BackgroundRenderer.Process(*this);
+				State.SupressVBlank = true;
+				Registers.BufIO = State.ReadState(Registers.BufIO);
+				State.ClearVBlank();
+				CPUCallCEHigh();
+				BackgroundRenderer.Process(*this);
+				State.SupressVBlank = false;
+				break;
+			// case 4: /* 0x2004 */
+				// CPUCallCELow();
+				// SpriteRenderer.Process(*this);
+				// Registers.BufIO = SpriteRenderer.BufIO;
+				// CPUCallCEHigh();
+				// break;
+			// case 7: /* 0x2007 */
+			default:
+				return 0x40;
+		}
+		return Registers.BufIO;
 	}
 	/* Запись памяти */
 	inline void WriteByte(uint16 Address, uint8 Src) {
+		bool OldNMI;
+
+		switch (Address & 0x0007) {
+			case 0: /* 0x2000 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				CPUCallCEHigh();
+				OldNMI = Registers.GenerateNMI;
+				Registers.Write2000(Src);
+				/* UpdateAddressBus() */
+				if (Registers.GenerateNMI && !OldNMI && State.GetVBlank())
+					Bus->GetCPU()->GenerateNMI(InternalData.InternalClock -
+						InternalData.IRQOffset + _Bus::CPUClass::ClockDivider);
+				break;
+			case 1: /* 0x2001 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				CPUCallCEHigh();
+				Registers.Write2000(Src);
+				/* UpdateAddressBus() */
+				break;
+			case 3: /* 0x2003 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				CPUCallCEHigh();
+				/* ... */
+				break;
+			case 4: /* 0x2004 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				CPUCallCEHigh();
+				/* ... */
+				break;
+			case 5: /* 0x2005 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				Registers.Write2005(Src);
+				CPUCallCEHigh();
+				/* ... */
+				break;
+			case 6: /* 0x2006 */
+				CPUCallCELow();
+				Registers.BufIO = Src;
+				Registers.Write2006(Src);
+				/* ... */
+				break;
+			case 7: /* 0x2007 */
+				/* ... */
+				break;
+		}
 	}
 
 	/* Обработать до текущего такта */
@@ -742,21 +824,28 @@ public:
 /* Обработчик */
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::Process(int Time) {
-	int LeftTime = Time;
+	int LeftTime = Time - InternalData.InternalClock;
 
 	while ((InternalData.InternalClock + LeftTime) >= InternalData.ScanlineClock) {
 		InternalData.InternalClock = InternalData.ScanlineClock;
 		LeftTime -= ClockDivider * 341;
-		BusHandler.Process(*this);
 		BackgroundRenderer.Process(*this);
 		InternalData.Scanline++;
 		InternalData.ScanlineClock += ClockDivider * 341;
 		if (InternalData.Scanline == (_Settings::ActiveScanlines + _Settings::PostRender +
-			_Settings::VBlank))
+			_Settings::VBlank)) {
 			InternalData.Scanline = -1;
+			FrameReady = true;
+			FrameTime = InternalData.FrameTime;
+			InternalData.Offset = 0;
+		}
 		SpriteRenderer.NewScanline(*this);
 		BackgroundRenderer.NewScanline(*this);
 		BusHandler.NewScanline(*this);
+	}
+	if (LeftTime > 0) {
+		InternalData.InternalClock += LeftTime;
+		BusHandler.Process(*this);
 	}
 }
 
