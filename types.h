@@ -240,9 +240,10 @@ public:
 		opened = false;
 	}
 	~win32_filebuf() {
-		if (opened)
+		if (opened) {
 			sync();
-		::CloseHandle(fd);
+			::CloseHandle(fd);
+		}
 		delete [] buf;
 	}
 	int open(wchar_t *name, std::ios_base::openmode mode) {
