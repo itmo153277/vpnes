@@ -139,8 +139,6 @@ public:
 	int PowerOn() {
 		Bus.GetFrontend()->GetAudioFrontend()->ResumeAudio();
 		Clock.Start([this]() {
-			if (Bus.GetPPU()->IsFrameReady() && !Bus.PushFrame())
-				return;
 			Bus.GetCPU()->Execute();
 		});
 		Bus.GetFrontend()->GetAudioFrontend()->StopAudio();

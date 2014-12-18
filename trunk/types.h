@@ -64,13 +64,13 @@
 #undef VPNES_PATH_FREEB
 #endif
 #ifdef VPNES_PATH_ISTREAM
-#undef VPNES_PATH_ISTREAN
+#undef VPNES_PATH_ISTREAM
 #endif
 #ifdef VPNES_PATH_OSTREAM
-#undef VPNES_PATH_OSTREAN
+#undef VPNES_PATH_OSTREAM
 #endif
 #ifdef VPNES_PATH_IOSTREAM
-#undef VPNES_PATH_IOSTREAN
+#undef VPNES_PATH_IOSTREAM
 #endif
 #ifdef _WIN32
 #define VPNES_PATH WCHAR
@@ -109,7 +109,6 @@ public:
 	const char * what() const throw() { return str; }
 };
 
-#include <cstdlib>
 #include <cwchar>
 
 #ifdef _WIN32
@@ -140,7 +139,7 @@ protected:
 
 		if ((n > 0) && (!::WriteFile(fd, buf, n, &w, NULL) || w < n))
 			return EOF;
-		pbump(-static_cast<int>(n));
+		pbump(-static_cast<int_type>(n));
 		if (c != EOF) {
 			*(pptr()) = c;
 			pbump(1);
@@ -156,7 +155,7 @@ protected:
 		return 0;
 	}
 	int_type sync() {
-		ssize_t n = pptr() - pbase();
+		int_type n = pptr() - pbase();
 
 		return (n > 0) ? overflow() : 0;
 	}
@@ -273,7 +272,7 @@ public:
 		if (!opened)
 			return;
 		sync();
-		CloseHandle(fd);
+		::CloseHandle(fd);
 		opened = false;
 	}
 	bool is_open() const { return opened; }

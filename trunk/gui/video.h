@@ -122,6 +122,8 @@ public:
 	void UpdateSizes(int Width, int Height);
 	/* Обновляем кадр */
 	bool UpdateFrame(double FrameTime);
+	/* Сбросить рендер */
+	void ResetRender();
 #if !defined(VPNES_DISABLE_SYNC)
 	/* Остановить синхронизацию */
 	void SyncStop();

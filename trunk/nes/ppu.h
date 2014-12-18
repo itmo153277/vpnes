@@ -77,7 +77,6 @@ private:
 		int InternalClock;
 		int ScanlineClock;
 		int FrameTime;
-		int Offset;
 	} InternalData;
 
 	/* События */
@@ -398,16 +397,12 @@ private:
 		void OutputPixel(CPPU &PPU) {
 			if ((x >= _Settings::Left) && (PPU.InternalData.Scanline >= _Settings::Top) &&
 				(x < _Settings::Right) && (PPU.InternalData.Scanline < _Settings::Bottom)) {
-				if (PPU.FrameReady)
-					PPU.Bus->PushFrame();
-
 				uint8 Colour = PPU.PalMem[PPU.Registers.PalAddr];
 
 				if (PPU.Registers.Grayscale)
 					Colour &= 0x30;
 				PPU.Bus->GetFrontend()->GetVideoFrontend()->PutPixel(Colour,
-					PPU.Registers.Tint, PPU.InternalData.Offset);
-				PPU.InternalData.Offset++;
+					PPU.Registers.Tint);
 			}
 		}
 		/* Рисование точки */
@@ -698,11 +693,11 @@ public:
 		NewEvent->Execute = [this] {
 			EventCall(InternalData.FrameTime);
 			BackgroundRenderer.Process(*this);
-			InternalData.OddFrame ^= 1;
-			if (Registers.RenderingEnabled() && InternalData.OddFrame)
-				InternalData.FrameTime = NominalFrameTimeOdd;
-			else
-				InternalData.FrameTime = NominalFrameTime;
+			//InternalData.OddFrame ^= 1;
+			//if (Registers.RenderingEnabled() && InternalData.OddFrame)
+			//	InternalData.FrameTime = NominalFrameTimeOdd;
+			//else
+			//	InternalData.FrameTime = NominalFrameTime;
 			Bus->GetClock()->SetEventTime(EventChain[EVENT_PPU_FRAME],
 				Bus->GetClock()->GetTime() + InternalData.FrameTime);
 		};
@@ -717,6 +712,8 @@ public:
 
 	/* Сброс */
 	inline void Reset() {
+		InternalData.Scanline = -1;
+		InternalData.ScanlineClock = InternalData.InternalClock + 341 * ClockDivider;
 	}
 
 	/* Сброс часов шины */
@@ -762,7 +759,8 @@ public:
 				/* UpdateAddressBus() */
 				if (Registers.GenerateNMI && !OldNMI && State.GetVBlank())
 					Bus->GetCPU()->GenerateNMI(InternalData.InternalClock -
-						InternalData.IRQOffset + _Bus::CPUClass::ClockDivider);
+						InternalData.IRQOffset - Bus->GetCPU()->GetIRQOffset() +
+						_Bus::CPUClass::ClockDivider);
 				break;
 			case 1: /* 0x2001 */
 				CPUCallCELow();
@@ -825,10 +823,12 @@ public:
 template <class _Bus, class _Settings>
 void CPPU<_Bus, _Settings>::Process(int Time) {
 	int LeftTime = Time - InternalData.InternalClock;
+	int Diff;
 
 	while ((InternalData.InternalClock + LeftTime) >= InternalData.ScanlineClock) {
+		Diff = InternalData.ScanlineClock - InternalData.InternalClock;
 		InternalData.InternalClock = InternalData.ScanlineClock;
-		LeftTime -= ClockDivider * 341;
+		LeftTime -= Diff;
 		BackgroundRenderer.Process(*this);
 		InternalData.Scanline++;
 		InternalData.ScanlineClock += ClockDivider * 341;
@@ -837,7 +837,7 @@ void CPPU<_Bus, _Settings>::Process(int Time) {
 			InternalData.Scanline = -1;
 			FrameReady = true;
 			FrameTime = InternalData.FrameTime;
-			InternalData.Offset = 0;
+			Bus->PushFrame();
 		}
 		SpriteRenderer.NewScanline(*this);
 		BackgroundRenderer.NewScanline(*this);
