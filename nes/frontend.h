@@ -149,8 +149,9 @@ public:
 	/* Вывести картинку на экран */
 	virtual bool UpdateFrame(double FrameTime) = 0;
 	/* Поместить пиксель в буфер */
-	inline void PutPixel(int Colour, int Tint, int Offset) {
-		*(Buf + Offset) = Pal[Colour + (Tint << 6)];
+	inline void PutPixel(int Colour, int Tint) {
+		*Pixel = Pal[Colour + (Tint << 6)];
+		Pixel++;
 	}
 };
 

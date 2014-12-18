@@ -197,6 +197,7 @@ void CNESGUI::Start(bool ForceDendyMode) {
 							Path = NULL;
 							if (!State.fail()) {
 								Flag = NES->LoadState(State);
+								Video->ResetRender();
 								State.close();
 							}
 #if defined(VPNES_USE_TTF)
