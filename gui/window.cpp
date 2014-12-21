@@ -325,10 +325,10 @@ CWindow::WindowState CWindow::ProcessMessages() {
 	/* FPS */
 	passed = ::SDL_GetTicks() - fpst;
 	if (passed > 1000) {
+		fpst += passed;
 		fps = cur_frame * 1000.0 / passed;
 		snprintf(buf, 20, "%.3lf", fps);
 		::SDL_WM_SetCaption(buf, NULL);
-		fpst = ::SDL_GetTicks();
 		cur_frame = 0;
 	}
 	cur_frame++;
@@ -395,7 +395,7 @@ void CWindow::ClearWindow() {
 void CWindow::PrintErrorMsg(const char *Msg) {
 	pAudio->StopDevice();
 #ifdef _WIN32
-	MessageBox(Handle, Msg, "Error", MB_ICONHAND);
+	MessageBoxA(Handle, Msg, "Error", MB_ICONHAND);
 #else
 	std::clog << Msg << std::endl;
 #endif

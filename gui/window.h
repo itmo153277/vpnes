@@ -41,6 +41,7 @@
 #endif
 #endif
 
+#include <exception>
 #include <cwchar>
 
 namespace vpnes_gui {
@@ -208,23 +209,39 @@ public:
 	/* Установить сообщение */
 	void SetText(const wchar_t *Text) {
 #ifdef HAVE_ICONV
-		ICONV_CONST char *InBuf = (ICONV_CONST char *)reinterpret_cast<const char *>(Text);
-		size_t InSize = (wcslen(Text) + 1) * sizeof(wchar_t);
-		char16_t *OutStr = new char16_t[InSize];
-		ICONV_CONST char *OutBuf = (ICONV_CONST char *)reinterpret_cast<const char *>(OutStr);
-		size_t OutSize = InSize * sizeof(char16_t);
-		iconv_t cd = iconv_open("UCS-2-INTERNAL", "WCHAR_T");
 
-		iconv(cd, &InBuf, &InSize, &OutBuf, &OutSize);
-		WindowText = OutStr;
-		delete [] OutStr;
-		iconv_close(cd);
-		UpdateText = true;
-#else
-		std::u16string OutStr(Text, Text + wcslen(Text));
-		WindowText = OutStr;
-		UpdateText = true;
+		iconv_t cd = iconv_open("UCS-2", "WCHAR_T");
+
+		if (cd < 0) {
 #endif
+			std::u16string OutStr(Text, Text + wcslen(Text));
+
+			WindowText = OutStr;
+#ifdef HAVE_ICONV
+		} else {
+			char16_t *OutStr = NULL;
+
+			try {
+				ICONV_CONST char *InBuf = (ICONV_CONST char *)
+					reinterpret_cast<const char *>(Text);
+				size_t InSize = (wcslen(Text) + 1) * sizeof(wchar_t);
+				OutStr = new char16_t[InSize];
+				ICONV_CONST char *OutBuf = (ICONV_CONST char *)
+					reinterpret_cast<const char *>(OutStr);
+				size_t OutSize = InSize * sizeof(char16_t);
+
+				iconv(cd, &InBuf, &InSize, &OutBuf, &OutSize);
+				WindowText = OutStr;
+				delete [] OutStr;
+				iconv_close(cd);
+			} catch (std::exception &e) {
+				delete [] OutStr;
+				iconv_close(cd);
+				throw e;
+			}
+		}
+#endif
+		UpdateText = true;
 	}
 #endif
 	/* Очистить окно */
@@ -249,6 +266,8 @@ public:
 		pConfig = Config;
 	}
 #endif
+	/* Скорость вывода */
+	inline double GetPlayRate() const { return PlayRate; }
 };
 
 }

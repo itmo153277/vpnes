@@ -161,6 +161,9 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #endif
 	Pixel = Buf;
 	do {
+#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
+		if (!SkipFrame) {
+#endif
 		for (;;) {
 			RetState = pWindow->ProcessMessages();
 			if (RetState != CWindow::wsUpdateBuffer)
@@ -212,9 +215,6 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #endif
 		}
 #endif
-#if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-		if (!SkipFrame) {
-#endif
 		/* Обновляем экран */
 		::SDL_SoftStretch(InternalSurface, NULL, Screen, NULL);
 #if defined(VPNES_USE_TTF)
@@ -226,7 +226,8 @@ bool CVideo::UpdateFrame(double FrameTime) {
 #endif
 		::SDL_Flip(Screen);
 #if !defined(VPNES_DISABLE_SYNC) && !defined(VPNES_DISABLE_FSKIP)
-		}
+		} else
+			Sync(pWindow->GetPlayRate());
 #endif
 	} while (RetState == CWindow::wsPause);
 	return pWindow->GetWindowState() == CWindow::wsNormal;
@@ -266,7 +267,6 @@ void CVideo::SyncReset() {
 	FrameStart = ::SDL_GetTicks();
 	Delta = 0.0;
 	FrameTimeCheck = FrameStart;
-	Jitter = 0;
 #if !defined(VPNES_DISABLE_FSKIP)
 	SkipFrame = false;
 #endif
@@ -277,44 +277,40 @@ void CVideo::SyncReset() {
 void CVideo::Sync(double PlayRate) {
 	Sint32 FrameTime;
 	Sint32 DelayTime;
+	double DFrameTime = LastFrameTime / PlayRate;
 
 	/* Синхронизация */
-	Delta += LastFrameTime / PlayRate;
+	Delta += DFrameTime;
 	FrameTime = (Sint32) Delta;
 	DelayTime = FrameTime - (::SDL_GetTicks() - FrameStart);
-	Delta -= FrameTime;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (!SkipFrame) {
 #endif
-	DelayTime -= Jitter / 2;
 	if (DelayTime > 0)
 		::SDL_Delay(DelayTime);
 #if !defined(VPNES_DISABLE_FSKIP)
 	}
 #endif
 	FrameStart = ::SDL_GetTicks();
-	Jitter += FrameStart - FrameTimeCheck - FrameTime;
+	Delta -= FrameStart - FrameTimeCheck;
 #if !defined(VPNES_DISABLE_FSKIP)
 	if (SkipFrame) {
-		SkippedTime += FrameStart - FrameTimeCheck;
-		if (SkippedTime > 50) {
-			Jitter = 0;
+		SkippedTime += DFrameTime;
+		if (SkippedTime > 100.0) {
+			Delta = 0.0;
 			/* log */
 		}
 		FramesSkipped++;
-		if (Jitter < FrameTime) {
+		if ((-Delta) < DFrameTime)
 			SkipFrame = false;
-			/* log */
-		}
-	} else if (Jitter > (FrameTime * 2)) {
+	} else if ((-Delta) > (DFrameTime * 2)) {
 		SkipFrame = true;
-		SkippedTime = 0;
+		SkippedTime = 0.0;
 		FramesSkipped = 0;
-		/* log */
 	}
 #else
-	if (Jitter > 50)
-		Jitter = 0; /* Сброс */
+	if ((-Delta) > 50)
+		Delta = 0.0; /* Сброс */
 #endif
 	FrameTimeCheck = FrameStart;
 #if defined(VPNES_USE_TTF)
