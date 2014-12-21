@@ -94,8 +94,6 @@ private:
 	Uint32 FrameTimeCheck;
 	/* Накапливаемая ошибка */
 	double Delta;
-	/* Смещение */
-	Sint32 Jitter;
 	/* Время остановки */
 	Uint32 StopTime;
 	/* Синхронизация остановлена */
@@ -106,7 +104,7 @@ private:
 	/* Всего пропущенно */
 	int FramesSkipped;
 	/* Пропущено времени */
-	Uint32 SkippedTime;
+	double SkippedTime;
 #endif
 #endif
 

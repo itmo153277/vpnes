@@ -137,6 +137,7 @@ public:
 		NewEvent = new SEvent;
 		NewEvent->Data = &LocalEvents[0];
 		NewEvent->Execute = [this]{
+			Bus->PushFrame();
 			Bus->GetClock()->SetEventTime(EventChain[0],
 				Bus->GetClock()->GetTime() + Period);
 			Ready = true;
@@ -223,9 +224,9 @@ struct Std_NES_Config {
 	};
 
 	template <class BusClass>
-	class PPU: public CPPU<BusClass, _Settings> {
+	class PPU: public EmptyPPU<BusClass, _Settings> {
 	public:
-		inline explicit PPU(BusClass *pBus): CPPU<BusClass, _Settings>(pBus) {}
+		inline explicit PPU(BusClass *pBus): EmptyPPU<BusClass, _Settings>(pBus) {}
 		inline ~PPU() {}
 	};
 
