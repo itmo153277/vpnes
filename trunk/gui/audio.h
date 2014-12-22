@@ -51,9 +51,10 @@ private:
 	/* Параметры аудио */
 	SDL_AudioSpec *ObtainedAudio;
 	/* Массив буферов */
-	sint16 *PCMBuffers[4];
+	enum { PCMBufs = 5 };
+	sint16 *PCMBuffers[PCMBufs + 1];
 	/* Флаги заполненности буферов */
-	bool BuffersFull[3];
+	bool BuffersFull[PCMBufs];
 	/* Текущий индекс */
 	int PCMIndex;
 	/* Заполняемый индекс */
@@ -64,6 +65,19 @@ private:
 	bool Stop;
 	/* Флаг записи в WAV */
 	bool WriteWAV;
+	/* Таймеры */
+	Uint32 LoadTimer;
+	Uint32 ReadTimer;
+	/* Нужный буфер */
+	int TargetBuf;
+	/* Начальная позиция */
+	int StartPos;
+	/* Количество семплов для выброса */
+	int SamplesToDrop;
+	/* Количество семплов для выброса */
+	int DelaySamples;
+	/* Количество семплов для выброшено */
+	int SamplesDropped;
 	/* Файл записи */
 	VPNES_PATH_OSTREAM WAVStream;
 
@@ -118,6 +132,8 @@ public:
 
 	/* Флаг записи WAV */
 	inline const bool &IsWritingWAV() const { return WriteWAV; }
+	/* Увеличить задержку */
+	inline void ChangeDelay(int Time) { DelaySamples += Time; }
 };
 
 }

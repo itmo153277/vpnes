@@ -83,6 +83,8 @@ private:
 		waHardReset,
 		waSaveState,
 		waLoadState,
+		waSyncInc,
+		waSyncDec,
 		waChangeSlot,
 		waWAVRecordStart,
 		waWAVRecordStop,
