@@ -140,6 +140,18 @@ void CWindow::ProcessAction(WindowActions Action) {
 		case waLoadState:
 			CurState = wsLoadState;
 			break;
+		case waSyncInc:
+			pAudio->ChangeDelay(441);
+#if defined(VPNES_USE_TTF)
+			SetText(L"Drop more samples");
+#endif
+			break;
+		case waSyncDec:
+			pAudio->ChangeDelay(-441);
+#if defined(VPNES_USE_TTF)
+			SetText(L"Drop less samples");
+#endif
+			break;
 		case waChangeSlot:
 			break;
 		case waWAVRecordStart:
@@ -277,6 +289,12 @@ CWindow::WindowState CWindow::ProcessMessages() {
 						break;
 					case SDLK_TAB:
 						Action = waSpeed;
+						break;
+					case SDLK_KP_PLUS:
+						Action = waSyncInc;
+						break;
+					case SDLK_KP_MINUS:
+						Action = waSyncDec;
 						break;
 					default:
 						break;
