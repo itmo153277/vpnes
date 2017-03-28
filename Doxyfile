@@ -102,7 +102,8 @@ WARN_LOGFILE           =
 
 INPUT                  = src \
                          include \
-                         main.cpp
+                         main.cpp \
+                         README.md
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.cpp, *.hpp
 RECURSIVE              = YES
