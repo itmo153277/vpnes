@@ -1,106 +1,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to 1 if you have the <algorithm> header file. */
-#undef HAVE_ALGORITHM
-
-/* Define to 1 if you have the <cmath> header file. */
-#undef HAVE_CMATH
-
-/* Define to 1 if you have the <commctrl.h> header file. */
-#undef HAVE_COMMCTRL_H
-
-/* Define to 1 if you have the <commdlg.h> header file. */
-#undef HAVE_COMMDLG_H
-
-/* Define to 1 if you have the <cstdio> header file. */
-#undef HAVE_CSTDIO
-
-/* Define to 1 if you have the <cstdlib> header file. */
-#undef HAVE_CSTDLIB
-
-/* Define to 1 if you have the <cstring> header file. */
-#undef HAVE_CSTRING
-
-/* Define to 1 if you have the <cwchar> header file. */
-#undef HAVE_CWCHAR
-
 /* define if the compiler supports basic C++11 syntax */
 #undef HAVE_CXX11
-
-/* Define if functional defines the std::bad_function_call class. */
-#undef HAVE_CXX_FUNCTION
-
-/* Define to 1 if you have the <exception> header file. */
-#undef HAVE_EXCEPTION
-
-/* Define to 1 if you have the <fstream> header file. */
-#undef HAVE_FSTREAM
-
-/* Define if you have the iconv() function and it works. */
-#undef HAVE_ICONV
-
-/* Define to 1 if you have the <inttypes.h> header file. */
-#undef HAVE_INTTYPES_H
-
-/* Define to 1 if you have the <iomanip> header file. */
-#undef HAVE_IOMANIP
-
-/* Define to 1 if you have the <iostream> header file. */
-#undef HAVE_IOSTREAM
-
-/* Define to 1 if you have the <istream> header file. */
-#undef HAVE_ISTREAM
-
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
-
-/* define if the compiler implements namespaces */
-#undef HAVE_NAMESPACES
-
-/* Define to 1 if you have the `snwprintf' function. */
-#undef HAVE_SNWPRINTF
-
-/* Define to 1 if you have the <sstream> header file. */
-#undef HAVE_SSTREAM
-
-/* Define to 1 if you have the <stdint.h> header file. */
-#undef HAVE_STDINT_H
-
-/* Define to 1 if you have the <stdlib.h> header file. */
-#undef HAVE_STDLIB_H
-
-/* Define to 1 if you have the <strings.h> header file. */
-#undef HAVE_STRINGS_H
-
-/* Define to 1 if you have the <string.h> header file. */
-#undef HAVE_STRING_H
-
-/* Define to 1 if you have the `swprintf' function. */
-#undef HAVE_SWPRINTF
-
-/* Define to 1 if you have the `swprintf_s' function. */
-#undef HAVE_SWPRINTF_S
-
-/* Define to 1 if you have the <sys/stat.h> header file. */
-#undef HAVE_SYS_STAT_H
-
-/* Define to 1 if you have the <sys/types.h> header file. */
-#undef HAVE_SYS_TYPES_H
-
-/* Define to 1 if you have the <typeinfo> header file. */
-#undef HAVE_TYPEINFO
-
-/* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
-
-/* Define to 1 if you have the <vector> header file. */
-#undef HAVE_VECTOR
-
-/* Define as const if the declaration of iconv() needs const. */
-#undef ICONV_CONST
-
-/* Define to 1 if swprintf respects C++ standard */
-#undef NORMAL_SWPRINTF
 
 /* Name of package */
 #undef PACKAGE
@@ -123,29 +24,5 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if you have the ANSI C header files. */
-#undef STDC_HEADERS
-
 /* Version number of package */
 #undef VERSION
-
-/* Define to local/global or full path to config file to use configurations */
-#undef VPNES_CONFIGFILE
-
-/* Define to 1 to disable frame skip */
-#undef VPNES_DISABLE_FSKIP
-
-/* Define to 1 to disable frame synchronization */
-#undef VPNES_DISABLE_SYNC
-
-/* Define to 1 to enable interactive mode for GUI */
-#undef VPNES_INTERACTIVE
-
-/* Define to 1 to show frame number in window title */
-#undef VPNES_SHOW_CURFRAME
-
-/* Define to 1 to show fps in window title */
-#undef VPNES_SHOW_FPS
-
-/* Define to 1 to enable TTF support */
-#undef VPNES_USE_TTF
