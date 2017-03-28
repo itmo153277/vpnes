@@ -1,4 +1,9 @@
 /*
+ * gui.hpp
+ *
+ * Defines main GUI classes
+ */
+/*
  NES Emulator
  Copyright (C) 2012-2017  Ivanov Viktor
 
@@ -18,36 +23,59 @@
 
  */
 
+#ifndef VPNES_INCLUDE_GUI_GUI_HPP_
+#define VPNES_INCLUDE_GUI_GUI_HPP_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <clocale>
-#include <iostream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/gui.hpp>
 
-using namespace std;
-using namespace vpnes;
-using namespace vpnes::gui;
+namespace vpnes {
+
+namespace gui {
 
 /**
- * Entry point
- *
- * @param argc Number of command line arguments
- * @param argv Array of command line arguments
- * @return Exit code
+ * Application configuration
  */
-int main(int argc, char **argv) {
-	/*
-	 * Setting up output
+struct SApplicationConfig {
+	/**
+	 * Sets default values
 	 */
-	setlocale(LC_ALL, "");
-	clog << internal << hex << showbase;
-	clog << PACKAGE_BUILD << endl << endl;
-	/*
-	 * Startup
+	SApplicationConfig() = default;
+};
+
+/**
+ * Main GUI class
+ */
+class CGUI {
+protected:
+	/**
+	 * Appication configuration
 	 */
-	CGUI gui;
-	return gui.startGUI(argc, argv);
+	SApplicationConfig config;
+public:
+	/**
+	 * Constructor
+	 */
+	CGUI() = default;
+	/**
+	 * Destroyer
+	 */
+	~CGUI() = default;
+	/**
+	 * Starts GUI
+	 *
+	 * @param argc Amount of parameters
+	 * @param argv Array of parameters
+	 * @return Exit code
+	 */
+	int startGUI(int argc, char **argv);
+};
+
 }
+
+}
+
+#endif /* VPNES_INCLUDE_GUI_GUI_HPP_ */

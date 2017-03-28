@@ -1,4 +1,9 @@
 /*
+ * gui.cpp
+ *
+ * Implements cross-platform console ui
+ */
+/*
  NES Emulator
  Copyright (C) 2012-2017  Ivanov Viktor
 
@@ -22,7 +27,6 @@
 #include "config.h"
 #endif
 
-#include <clocale>
 #include <iostream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/gui.hpp>
@@ -31,23 +35,17 @@ using namespace std;
 using namespace vpnes;
 using namespace vpnes::gui;
 
+/* CGUI */
+
 /**
- * Entry point
+ * Starts GUI
  *
- * @param argc Number of command line arguments
- * @param argv Array of command line arguments
+ * @param argc Amount of parameters
+ * @param argv Array of parameters
  * @return Exit code
  */
-int main(int argc, char **argv) {
-	/*
-	 * Setting up output
-	 */
-	setlocale(LC_ALL, "");
-	clog << internal << hex << showbase;
-	clog << PACKAGE_BUILD << endl << endl;
-	/*
-	 * Startup
-	 */
-	CGUI gui;
-	return gui.startGUI(argc, argv);
+int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
+	cerr << "Usage:" << endl;
+	cerr << argv[0] << " path_to_rom.nes" << endl;
+	return 0;
 }

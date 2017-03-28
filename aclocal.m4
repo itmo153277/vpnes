@@ -1088,3 +1088,4 @@ AC_SUBST([am__untar])
 
 m4_include([m4/ax_cxx_compile_stdcxx.m4])
 m4_include([m4/ax_cxx_compile_stdcxx_11.m4])
+m4_include([m4/ax_prog_doxygen.m4])
