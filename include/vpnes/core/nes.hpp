@@ -1,7 +1,7 @@
 /*
- * gui.cpp
+ * nes.hpp
  *
- * Implements cross-platform console ui
+ * Defines main NES classes
  */
 /*
  NES Emulator
@@ -23,45 +23,33 @@
 
  */
 
+#ifndef VPNES_INCLUDE_CORE_NES_HPP_
+#define VPNES_INCLUDE_CORE_NES_HPP_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <stdexcept>
-#include <iostream>
-#include <fstream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/gui.hpp>
-#include <vpnes/core/nes.hpp>
 
-using namespace std;
-using namespace vpnes;
-using namespace vpnes::gui;
-using namespace vpnes::core;
+namespace vpnes {
 
-/* CGUI */
+namespace core {
 
-/**
- * Starts GUI
- *
- * @param argc Amount of parameters
- * @param argv Array of parameters
- * @return Exit code
- */
-int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
-	config.parseOptions(argc, argv);
-	if (!config.hasInputFile()) {
-		cerr << "Usage:" << endl;
-		cerr << argv[0] << " path_to_rom.nes" << endl;
-		return 0;
-	}
-	try {
-		// expected transformation to move
-		ifstream inputFile = config.getInputFile();
-	} catch (fstream::failure &e) {
-		cerr << e.what() << endl;
-	} catch (invalid_argument &e) {
-		cerr << e.what() << endl;
-	}
-	return 0;
+class CNES {
+public:
+	/**
+	 * Constructor
+	 */
+	CNES() = default;
+	/*
+	 * Destroyer
+	 */
+	~CNES() = default;
+};
+
 }
+
+}
+
+#endif /* VPNES_INCLUDE_CORE_NES_HPP_ */

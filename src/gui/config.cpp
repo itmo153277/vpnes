@@ -28,6 +28,7 @@
 #endif
 
 #include <cassert>
+#include <cstring>
 #include <new>
 #include <iostream>
 #include <vpnes/gui/config.hpp>
@@ -61,6 +62,9 @@ SApplicationConfig::~SApplicationConfig() {
  */
 void SApplicationConfig::parseOptions(int argc, char **argv) {
 	//TODO: implement
+	if (argc >= 2) {
+		setInputFile(argv[1]);
+	}
 }
 
 /**
@@ -69,7 +73,10 @@ void SApplicationConfig::parseOptions(int argc, char **argv) {
  * @param fileName Input file path
  */
 void SApplicationConfig::setInputFile(const char *fileName) {
-
+	delete[] inputFile;
+	char *tempFile = new char[strlen(fileName)];
+	strcpy(tempFile, fileName);
+	inputFile = tempFile;
 }
 
 /**

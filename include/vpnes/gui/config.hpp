@@ -70,7 +70,7 @@ public:
 	 * @return True if input file is present
 	 */
 	inline bool hasInputFile() const noexcept {
-		return inputFile == NULL;
+		return inputFile != NULL;
 	}
 	/**
 	 * Sets input file

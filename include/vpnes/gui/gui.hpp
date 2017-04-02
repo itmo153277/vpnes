@@ -31,6 +31,7 @@
 #endif
 
 #include <vpnes/vpnes.hpp>
+#include <vpnes/gui/config.hpp>
 
 namespace vpnes {
 
@@ -42,7 +43,7 @@ namespace gui {
 class CGUI {
 protected:
 	/**
-	 * Appication configuration
+	 * Application configuration
 	 */
 	SApplicationConfig config;
 public:
