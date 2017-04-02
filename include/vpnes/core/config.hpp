@@ -1,7 +1,7 @@
 /*
- * nes.hpp
+ * config.hpp
  *
- * Defines main NES classes
+ * Defines class to configure NES
  */
 /*
  NES Emulator
@@ -23,38 +23,52 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_NES_HPP_
-#define VPNES_INCLUDE_CORE_NES_HPP_
+#ifndef INCLUDE_VPNES_CORE_CONFIG_HPP_
+#define INCLUDE_VPNES_CORE_CONFIG_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include <fstream>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/gui/config.hpp>
+#include <vpnes/core/nes.hpp>
 
 namespace vpnes {
 
 namespace core {
 
-class CNES {
-public:
+/**
+ * Defines NES instance
+ */
+struct SNESConfig {
 	/**
-	 * Starts NES
+	 * Configures the class
+	 *
+	 * @param appConfig Application configuration
+	 * @param inputFile Input file stream
 	 */
-	void powerUp() {
-	}
+	void configure(const gui::SApplicationConfig &appConfig,
+			std::ifstream &inputFile);
 	/**
-	 * Constructor
+	 * Creates an instance of NES
+	 *
+	 * @return Instance of NES
 	 */
-	CNES() = default;
-	/*
-	 * Destroyer
+	CNES createInstance();
+	/**
+	 * Default constructor
 	 */
-	~CNES() = default;
+	SNESConfig() = default;
+	/**
+	 * Default destructor
+	 */
+	~SNESConfig() = default;
 };
 
 }
 
 }
 
-#endif /* VPNES_INCLUDE_CORE_NES_HPP_ */
+#endif /* INCLUDE_VPNES_CORE_CONFIG_HPP_ */

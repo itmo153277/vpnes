@@ -1,7 +1,7 @@
 /*
- * gui.cpp
+ * config.cpp
  *
- * Implements cross-platform console ui
+ * Implements NES configure
  */
 /*
  NES Emulator
@@ -27,47 +27,32 @@
 #include "config.h"
 #endif
 
-#include <stdexcept>
-#include <iostream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/config.hpp>
-#include <vpnes/gui/gui.hpp>
 #include <vpnes/core/config.hpp>
-#include <vpnes/core/nes.hpp>
 
 using namespace ::std;
 using namespace ::vpnes;
 using namespace ::vpnes::gui;
 using namespace ::vpnes::core;
 
-/* CGUI */
+/* SNESConfig */
 
 /**
- * Starts GUI
+ * Configures the class
  *
- * @param argc Amount of parameters
- * @param argv Array of parameters
- * @return Exit code
+ * @param appConfig Application configuration
+ * @param inputFile Input file stream
  */
-int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
-	config.parseOptions(argc, argv);
-	if (!config.hasInputFile()) {
-		cerr << "Usage:" << endl;
-		cerr << argv[0] << " path_to_rom.nes" << endl;
-		return 0;
-	}
-	try {
-		// expected transformation to move
-		ifstream inputFile = config.getInputFile();
-		SNESConfig nesConfig;
-		nesConfig.configure(config, inputFile);
-		CNES nes = nesConfig.createInstance();
-		nes.powerUp();
-	} catch (fstream::failure &e) {
-		cerr << e.what() << endl;
-	} catch (invalid_argument &e) {
-		cerr << e.what() << endl;
-	}
-	return 0;
+void SNESConfig::configure(const SApplicationConfig &appConfig,
+		ifstream &inputFile) {
+}
+
+/**
+ * Creates an instance of NES
+ *
+ * @return Instance of NES
+ */
+CNES SNESConfig::createInstance() {
+	return CNES();
 }

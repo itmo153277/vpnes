@@ -29,13 +29,12 @@
 
 #include <cassert>
 #include <cstring>
-#include <new>
 #include <iostream>
 #include <vpnes/gui/config.hpp>
 
-using namespace std;
-using namespace vpnes;
-using namespace vpnes::gui;
+using namespace ::std;
+using namespace ::vpnes;
+using namespace ::vpnes::gui;
 
 /* SApplicationConfig */
 
