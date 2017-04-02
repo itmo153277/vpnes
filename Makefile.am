@@ -3,11 +3,13 @@ AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = vpnes
 vpnes_SOURCES = \
 	main.cpp \
-	src/gui/gui.cpp
+	src/gui/gui.cpp \
+	src/gui/config.cpp
 vpnes_CPPFLAGS = -I$(top_srcdir)/include $(AM_CPP_FLAGS)
 noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
-	include/vpnes/gui/gui.hpp
+	include/vpnes/gui/gui.hpp \
+	include/vpnes/gui/config.hpp
 
 @DX_RULES@
 EXTRA_DIST = README.md $(DX_CONFIG)

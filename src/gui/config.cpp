@@ -1,7 +1,7 @@
 /*
- * gui.cpp
+ * config.cpp
  *
- * Implements cross-platform console ui
+ * Implements configuration parsing
  */
 /*
  NES Emulator
@@ -27,39 +27,60 @@
 #include "config.h"
 #endif
 
-#include <stdexcept>
+#include <cassert>
+#include <new>
 #include <iostream>
-#include <fstream>
-#include <vpnes/vpnes.hpp>
-#include <vpnes/gui/gui.hpp>
+#include <vpnes/gui/config.hpp>
 
 using namespace std;
 using namespace vpnes;
 using namespace vpnes::gui;
 
-/* CGUI */
+/* SApplicationConfig */
 
 /**
- * Starts GUI
+ * Sets default values
+ */
+SApplicationConfig::SApplicationConfig() :
+		inputFile(NULL) {
+
+}
+
+/**
+ * Destroys the object
+ */
+SApplicationConfig::~SApplicationConfig() {
+	delete[] inputFile;
+}
+
+/**
+ * Parses command line options
  *
  * @param argc Amount of parameters
  * @param argv Array of parameters
- * @return Exit code
  */
-int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
-	config.parseOptions(argc, argv);
-	if (!config.hasInputFile()) {
-		cerr << "Usage:" << endl;
-		cerr << argv[0] << " path_to_rom.nes" << endl;
-		return 0;
-	}
-	try {
-		// expected transformation to move
-		ifstream inputFile = config.getInputFile();
-	} catch (fstream::failure &e) {
-		cerr << e.what() << endl;
-	} catch (invalid_argument &e) {
-		cerr << e.what() << endl;
-	}
-	return 0;
+void SApplicationConfig::parseOptions(int argc, char **argv) {
+	//TODO: implement
+}
+
+/**
+ * Sets input file
+ *
+ * @param fileName Input file path
+ */
+void SApplicationConfig::setInputFile(const char *fileName) {
+
+}
+
+/**
+ * Opens input file and constructs ifstream object
+ *
+ * @return std::ifstream for reading file
+ */
+ifstream SApplicationConfig::getInputFile() {
+	assert(inputFile != NULL);
+	ifstream file;
+	file.exceptions(file.exceptions() | fstream::failbit);
+	file.open(inputFile, fstream::binary);
+	return file;
 }

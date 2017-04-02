@@ -108,7 +108,8 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man3dir)"
 PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
-am_vpnes_OBJECTS = vpnes-main.$(OBJEXT) src/gui/vpnes-gui.$(OBJEXT)
+am_vpnes_OBJECTS = vpnes-main.$(OBJEXT) src/gui/vpnes-gui.$(OBJEXT) \
+	src/gui/vpnes-config.$(OBJEXT)
 vpnes_OBJECTS = $(am_vpnes_OBJECTS)
 vpnes_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -350,12 +351,14 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = subdir-objects
 vpnes_SOURCES = \
 	main.cpp \
-	src/gui/gui.cpp
+	src/gui/gui.cpp \
+	src/gui/config.cpp
 
 vpnes_CPPFLAGS = -I$(top_srcdir)/include $(AM_CPP_FLAGS)
 noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
-	include/vpnes/gui/gui.hpp
+	include/vpnes/gui/gui.hpp \
+	include/vpnes/gui/config.hpp
 
 EXTRA_DIST = README.md $(DX_CONFIG)
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
@@ -463,6 +466,8 @@ src/gui/$(DEPDIR)/$(am__dirstamp):
 	@: > src/gui/$(DEPDIR)/$(am__dirstamp)
 src/gui/vpnes-gui.$(OBJEXT): src/gui/$(am__dirstamp) \
 	src/gui/$(DEPDIR)/$(am__dirstamp)
+src/gui/vpnes-config.$(OBJEXT): src/gui/$(am__dirstamp) \
+	src/gui/$(DEPDIR)/$(am__dirstamp)
 
 vpnes$(EXEEXT): $(vpnes_OBJECTS) $(vpnes_DEPENDENCIES) $(EXTRA_vpnes_DEPENDENCIES) 
 	@rm -f vpnes$(EXEEXT)
@@ -476,6 +481,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vpnes-main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/gui/$(DEPDIR)/vpnes-config.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/gui/$(DEPDIR)/vpnes-gui.Po@am__quote@
 
 .cpp.o:
@@ -521,6 +527,20 @@ src/gui/vpnes-gui.obj: src/gui/gui.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/gui/gui.cpp' object='src/gui/vpnes-gui.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vpnes_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/gui/vpnes-gui.obj `if test -f 'src/gui/gui.cpp'; then $(CYGPATH_W) 'src/gui/gui.cpp'; else $(CYGPATH_W) '$(srcdir)/src/gui/gui.cpp'; fi`
+
+src/gui/vpnes-config.o: src/gui/config.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vpnes_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/gui/vpnes-config.o -MD -MP -MF src/gui/$(DEPDIR)/vpnes-config.Tpo -c -o src/gui/vpnes-config.o `test -f 'src/gui/config.cpp' || echo '$(srcdir)/'`src/gui/config.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/gui/$(DEPDIR)/vpnes-config.Tpo src/gui/$(DEPDIR)/vpnes-config.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/gui/config.cpp' object='src/gui/vpnes-config.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vpnes_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/gui/vpnes-config.o `test -f 'src/gui/config.cpp' || echo '$(srcdir)/'`src/gui/config.cpp
+
+src/gui/vpnes-config.obj: src/gui/config.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vpnes_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/gui/vpnes-config.obj -MD -MP -MF src/gui/$(DEPDIR)/vpnes-config.Tpo -c -o src/gui/vpnes-config.obj `if test -f 'src/gui/config.cpp'; then $(CYGPATH_W) 'src/gui/config.cpp'; else $(CYGPATH_W) '$(srcdir)/src/gui/config.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/gui/$(DEPDIR)/vpnes-config.Tpo src/gui/$(DEPDIR)/vpnes-config.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/gui/config.cpp' object='src/gui/vpnes-config.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vpnes_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/gui/vpnes-config.obj `if test -f 'src/gui/config.cpp'; then $(CYGPATH_W) 'src/gui/config.cpp'; else $(CYGPATH_W) '$(srcdir)/src/gui/config.cpp'; fi`
 install-man3: $(dist_man3_MANS)
 	@$(NORMAL_INSTALL)
 	@list1='$(dist_man3_MANS)'; \

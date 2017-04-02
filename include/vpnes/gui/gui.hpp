@@ -37,16 +37,6 @@ namespace vpnes {
 namespace gui {
 
 /**
- * Application configuration
- */
-struct SApplicationConfig {
-	/**
-	 * Sets default values
-	 */
-	SApplicationConfig() = default;
-};
-
-/**
  * Main GUI class
  */
 class CGUI {
