@@ -36,6 +36,9 @@ namespace vpnes {
 
 namespace core {
 
+/**
+ * Basic NES class
+ */
 class CNES {
 public:
 	/**

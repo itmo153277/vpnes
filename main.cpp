@@ -27,9 +27,9 @@
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/gui.hpp>
 
-using namespace std;
-using namespace vpnes;
-using namespace vpnes::gui;
+using namespace ::std;
+using namespace ::vpnes;
+using namespace ::vpnes::gui;
 
 /**
  * Entry point
