@@ -99,9 +99,6 @@
 
 #serial 21
 
-dnl quickfix for AM_DEFAULT_VERBOSITY not defined
-AX_REQUIRE_DEFINED([AM_DEFAULT_VERBOSITY])
-
 ## ----------##
 ## Defaults. ##
 ## ----------##
