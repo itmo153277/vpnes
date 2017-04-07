@@ -1,5 +1,5 @@
 dnl VPNES 0.5 configure
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 AC_INIT([vpnes], [0.5], [viktprog@gmail.com])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([auxdir])
