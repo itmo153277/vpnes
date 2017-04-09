@@ -6,7 +6,7 @@ Copyright &copy; 2012-2017  Ivanov Viktor
 
 ## Installation
 
-### Cross platform
+### Cross-platform
 
 To install from the source code run the following:
 
@@ -26,17 +26,16 @@ To install from the source code run the following:
 
 `$ make`
 
-### Microsoft Visual Studio 14.0 (Visual Studio 2015)
-
-Open vpnes_msvc.sln and build the solution in Relase configuration. Output directory will be ./Release.
-
 5. Install as root
 
 `# make install`
 
 For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`
 
+### Microsoft Visual Studio 14.0 (Visual Studio 2015)
+
+Open vpnes_msvc.sln and build the solution in Relase configuration. The output file will be in ./Release.
+
 ## Documentation
 
 To generate documentation via autotools+doxygen execute `$ make doxygen-doc` after configuring the project.
-
