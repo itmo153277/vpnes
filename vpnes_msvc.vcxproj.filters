@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\config.cpp">
+      <Filter>Sources\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\config.cpp">
+      <Filter>Sources\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\gui.cpp">
+      <Filter>Sources\gui</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="config.msvc.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\vpnes.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\config.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\nes.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\gui\config.hpp">
+      <Filter>Headers\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\gui\gui.hpp">
+      <Filter>Headers\gui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{2e258b28-2a9d-4964-b1ab-bec18eb2d2b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources">
+      <UniqueIdentifier>{eec005e3-847a-49f3-87ec-7fd87e0385d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\core">
+      <UniqueIdentifier>{0c6162f5-a0b8-42ef-a3be-3c69733bbec2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\gui">
+      <UniqueIdentifier>{94ce3f20-3d02-4cdf-8ae7-79aed552d2b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\core">
+      <UniqueIdentifier>{835912e7-1800-47fb-bc50-8a024b2782d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\gui">
+      <UniqueIdentifier>{d06f9a6a-1fe7-4d20-835a-1e82561fa320}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

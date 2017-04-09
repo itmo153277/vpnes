@@ -12,7 +12,7 @@ To install from the source code run the following:
 
 1. Clone repository
 
-`$ git clone http://github.com/itmo153277/vpnes .`
+`$ git clone http://github.com/itmo153277/vpnes.git .`
 
 2. Generate autotools scripts 
 
@@ -25,6 +25,10 @@ To install from the source code run the following:
 4. Compile
 
 `$ make`
+
+### Microsoft Visual Studio 14.0 (Visual Studio 2015)
+
+Open vpnes_msvc.sln and build the solution in Relase configuration. Output directory will be ./Release.
 
 5. Install as root
 

@@ -15,7 +15,14 @@ noinst_HEADERS = \
 	include/vpnes/core/nes.hpp
 
 @DX_RULES@
-EXTRA_DIST = README.md $(DX_CONFIG)
+EXTRA_DIST = \
+	autogen.sh \
+	vpnes_msvc.sln \
+	vpnes_msvc.vcxproj \
+	vpnes.msvc.vcxproj.filters \
+	config.msvc.h \
+	README.md \
+	$(DX_CONFIG)
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
 if MAKE_MAN
 dist_man3_MANS = $(top_builddir)/doc/man/man3/*.3
