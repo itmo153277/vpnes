@@ -21,7 +21,7 @@ EXTRA_DIST = \
 	autogen.sh \
 	vpnes_msvc.sln \
 	vpnes_msvc.vcxproj \
-	vpnes.msvc.vcxproj.filters \
+	vpnes_msvc.vcxproj.filters \
 	config.msvc.h \
 	README.md \
 	$(DX_CONFIG)
