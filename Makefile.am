@@ -5,13 +5,15 @@ vpnes_SOURCES = \
 	main.cpp \
 	src/gui/gui.cpp \
 	src/gui/config.cpp \
-	src/core/config.cpp
+	src/core/config.cpp \
+	src/core/ines.cpp
 vpnes_CPPFLAGS = -I$(top_srcdir)/include $(AM_CPP_FLAGS)
 noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
 	include/vpnes/gui/config.hpp \
 	include/vpnes/gui/gui.hpp \
 	include/vpnes/core/config.hpp \
+	include/vpnes/core/ines.hpp \
 	include/vpnes/core/nes.hpp
 
 @DX_RULES@

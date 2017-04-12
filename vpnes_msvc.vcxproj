@@ -152,12 +152,14 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\core\config.cpp" />
+    <ClCompile Include="src\core\ines.cpp" />
     <ClCompile Include="src\gui\config.cpp" />
     <ClCompile Include="src\gui\gui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.msvc.h" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
+    <ClInclude Include="include\vpnes\core\ines.hpp" />
     <ClInclude Include="include\vpnes\core\nes.hpp" />
     <ClInclude Include="include\vpnes\gui\config.hpp" />
     <ClInclude Include="include\vpnes\gui\gui.hpp" />

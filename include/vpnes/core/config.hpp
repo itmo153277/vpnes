@@ -1,6 +1,4 @@
-/*
- * config.hpp
- *
+/**
  * Defines class to configure NES
  */
 /*
@@ -23,13 +21,14 @@
 
  */
 
-#ifndef INCLUDE_VPNES_CORE_CONFIG_HPP_
-#define INCLUDE_VPNES_CORE_CONFIG_HPP_
+#ifndef VPNES_INCLUDE_CORE_CONFIG_HPP_
+#define VPNES_INCLUDE_CORE_CONFIG_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include <cstdint>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
@@ -40,9 +39,76 @@ namespace vpnes {
 namespace core {
 
 /**
+ * Type of mirroring
+ */
+enum EMirroring {
+	MirroringHorizontal,   //!< Horizontal mirroring
+	MirorringVertical,     //!< Vertical mirroring
+	MirorringSingleScreen1,//!< Single screen (1)
+	MirorringSingleScreen2,//!< Single screen (2)
+	MirorringFourScreens   //!< Four screens
+};
+
+/**
+ * NES type
+ */
+enum ENESType {
+	NESTypeAuto,    //!< Auto defined
+	NESTypeNTSC,    //!< NTSC NES
+	NESTypePAL,     //!< PAL NES
+	NESTypeFC,      //!< Famicom
+	NESTypeFamiclone//!< Famicom clone
+};
+
+/**
+ * MMC Type
+ */
+enum EMMCType {
+	MMCNROM//!< MMC Type
+};
+
+/**
  * Defines NES instance
  */
 struct SNESConfig {
+private:
+	/**
+	 * CHR ROM
+	 */
+	std::uint8_t *CHR;
+	/**
+	 * PRG ROM
+	 */
+	std::uint8_t *PRG;
+	/**
+	 * Trainer hack
+	 */
+	std::uint8_t *Trainer;
+	/**
+	 * PRG size
+	 */
+	std::size_t PRGSize;
+	/**
+	 * CHR size
+	 */
+	std::size_t CHRSize;
+	/**
+	 * RAM size
+	 */
+	std::size_t RAMSize;
+	/**
+	 * MMC type
+	 */
+	EMMCType MMCType;
+	/**
+	 * Mirroring type
+	 */
+	EMirroring Mirroring;
+	/**
+	 * NES Type
+	 */
+	ENESType NESType;
+public:
 	/**
 	 * Configures the class
 	 *
@@ -60,15 +126,15 @@ struct SNESConfig {
 	/**
 	 * Default constructor
 	 */
-	SNESConfig() = default;
+	SNESConfig();
 	/**
 	 * Default destructor
 	 */
-	~SNESConfig() = default;
+	~SNESConfig();
 };
 
 }
 
 }
 
-#endif /* INCLUDE_VPNES_CORE_CONFIG_HPP_ */
+#endif /* VPNES_INCLUDE_CORE_CONFIG_HPP_ */

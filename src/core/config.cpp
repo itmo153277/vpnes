@@ -1,6 +1,4 @@
-/*
- * config.cpp
- *
+/**
  * Implements NES configure
  */
 /*
@@ -27,9 +25,12 @@
 #include "config.h"
 #endif
 
+#include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/config.hpp>
+#include <vpnes/core/ines.hpp>
 
 using namespace ::std;
 using namespace ::vpnes;
@@ -39,6 +40,22 @@ using namespace ::vpnes::core;
 /* SNESConfig */
 
 /**
+ * Default constructor
+ */
+SNESConfig::SNESConfig() :
+		CHR(), PRG(), Trainer(), PRGSize(), CHRSize(), RAMSize(), Mirroring(), MMCType(), NESType() {
+
+}
+/**
+ * Default destructor
+ */
+SNESConfig::~SNESConfig() {
+	delete[] CHR;
+	delete[] PRG;
+	delete[] Trainer;
+}
+
+/**
  * Configures the class
  *
  * @param appConfig Application configuration
@@ -46,6 +63,13 @@ using namespace ::vpnes::core;
  */
 void SNESConfig::configure(const SApplicationConfig &appConfig,
 		ifstream &inputFile) {
+	ines::SNESData nesData(inputFile);
+	PRGSize = nesData.PRGSize;
+	CHRSize = nesData.CHRSize;
+	RAMSize = nesData.RAMSize;
+	Mirroring = nesData.Mirroring;
+	MMCType = nesData.MMCType;
+	NESType = nesData.NESType == NESTypeAuto ? NESTypeNTSC : nesData.NESType;
 }
 
 /**

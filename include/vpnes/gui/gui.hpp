@@ -1,6 +1,4 @@
-/*
- * gui.hpp
- *
+/**
  * Defines main GUI classes
  */
 /*

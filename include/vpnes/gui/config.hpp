@@ -1,6 +1,4 @@
-/*
- * config.hpp
- *
+/**
  * Defines application config
  */
 /*

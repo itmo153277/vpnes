@@ -1,6 +1,4 @@
-/*
- * vpnes.hpp
- *
+/**
  * Basic macros and types
  */
 /*

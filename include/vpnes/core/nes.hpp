@@ -1,6 +1,4 @@
-/*
- * nes.hpp
- *
+/**
  * Defines main NES classes
  */
 /*
@@ -50,7 +48,7 @@ public:
 	 * Constructor
 	 */
 	CNES() = default;
-	/*
+	/**
 	 * Destroyer
 	 */
 	~CNES() = default;

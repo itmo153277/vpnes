@@ -1,6 +1,4 @@
-/*
- * config.cpp
- *
+/**
  * Implements configuration parsing
  */
 /*
