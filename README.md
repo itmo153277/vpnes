@@ -3,7 +3,7 @@ vpnes 0.5
 
 NES Emulator
 
-Copyright &copy; 2012-2017  Ivanov Viktor
+Copyright &copy; 2012-2017 Ivanov Viktor
 
 ## Installation
 
@@ -11,65 +11,65 @@ Copyright &copy; 2012-2017  Ivanov Viktor
 
 #### From Git
 
-1. Clone repository
+Clone repository
 
-	```
-	$ git clone http://github.com/itmo153277/vpnes.git vpnes-0.5 && cd vpnes-0.5
-	```
+```
+$ git clone http://github.com/itmo153277/vpnes.git vpnes-0.5 && cd vpnes-0.5
+```
 
-2. Generate autotools scripts
+Generate autotools scripts
 
-	```
-	$ sh ./autogen.sh
-	```
+```	
+$ sh ./autogen.sh
+```
 
-3. Configure
+Configure
 
-	```
-	$ ./configure
-	```
+```
+$ ./configure
+```
 
-4. Compile
+ Compile
 
-	```
-	$ make
-	```
+ ```
+$ make
+```
 
-5. Install as root
+Install as root
 
-	```
-	# make install
-	```
+```
+# make install
+```
 
-For more detailed information about compiling the sources see INSTALL and `./configure --help`
+For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`
 
 #### From source tarball
 
-1. Extract sources
+Extract sources
 
-	```
-	$ tar xvf vpnes-0.5.tar.gz && cd vpnes-0.5
-	```
+```
+$ tar xvf vpnes-0.5.tar.gz && cd vpnes-0.5
+```
 
-2. Configure
+Configure
 
-	```
-	$ ./configure
-	```
+```
+$ ./configure
+```
 
-3. Compile
+ Compile
 
-	```
-	$ make
-	```
+ ```
+$ make
+```
 
-4. Install as root
+Install as root
 
-	```
-	# make install
-	```
+```
+# make install
+```
 
-For more detailed information about compiling the sources see INSTALL and `./configure --help`
+For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`
 
 ### Microsoft Visual Studio 14.0 (Visual Studio 2015)
 

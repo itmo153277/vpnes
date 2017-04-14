@@ -103,6 +103,7 @@ WARN_LOGFILE           =
 INPUT                  = src \
                          include \
                          main.cpp \
+						 config.msvc.h \
                          README.md
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.cpp, *.hpp
@@ -156,7 +157,7 @@ HTML_HEADER            =
 HTML_FOOTER            =
 HTML_STYLESHEET        =
 HTML_EXTRA_STYLESHEET  =
-HTML_EXTRA_FILES       =
+HTML_EXTRA_FILES       = INSTALL
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 100
 HTML_COLORSTYLE_GAMMA  = 80
