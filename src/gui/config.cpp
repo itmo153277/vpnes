@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Implements configuration parsing
  */
 /*

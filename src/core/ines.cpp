@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Implements iNES format routines
  */
 /*

@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Basic macros and types
  */
 /*

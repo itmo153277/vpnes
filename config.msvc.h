@@ -1,6 +1,12 @@
+/**
+ * @file
+ *
+ * Default config for msvc
+ */
+
 #pragma once
 
-/* define if the compiler supports basic C++11 syntax */
+/* Define if the compiler supports basic C++11 syntax */
 #define HAVE_CXX11 1
 
 /* Name of package */

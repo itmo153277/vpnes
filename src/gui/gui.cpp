@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Implements cross-platform console ui
  */
 /*

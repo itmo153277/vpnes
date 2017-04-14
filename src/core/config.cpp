@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Implements NES configure
  */
 /*

@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Defines application config
  */
 /*

@@ -1,4 +1,6 @@
 /**
+ * @file
+ *
  * Defines main GUI classes
  */
 /*
