@@ -1,4 +1,5 @@
-# vpnes 0.5
+vpnes 0.5
+=========
 
 NES Emulator
 
@@ -12,23 +13,33 @@ Copyright &copy; 2012-2017  Ivanov Viktor
 
 1. Clone repository
 
-	`$ git clone http://github.com/itmo153277/vpnes.git vpnes-0.5 && cd vpnes-0.5`
+	```
+	$ git clone http://github.com/itmo153277/vpnes.git vpnes-0.5 && cd vpnes-0.5
+	```
 
 2. Generate autotools scripts
 
-	`$ sh ./autogen.sh`
+	```
+	$ sh ./autogen.sh
+	```
 
 3. Configure
 
-	`$ ./configure`
+	```
+	$ ./configure
+	```
 
 4. Compile
 
-	`$ make`
+	```
+	$ make
+	```
 
 5. Install as root
 
-	`# make install`
+	```
+	# make install
+	```
 
 For more detailed information about compiling the sources see INSTALL and `./configure --help`
 
@@ -36,19 +47,27 @@ For more detailed information about compiling the sources see INSTALL and `./con
 
 1. Extract sources
 
-	`$ tar xvf vpnes-0.5.tar.gz && cd vpnes-0.5`
+	```
+	$ tar xvf vpnes-0.5.tar.gz && cd vpnes-0.5
+	```
 
 2. Configure
 
-	`$ ./configure`
+	```
+	$ ./configure
+	```
 
 3. Compile
 
-	`$ make`
+	```
+	$ make
+	```
 
 4. Install as root
 
-	`# make install`
+	```
+	# make install
+	```
 
 For more detailed information about compiling the sources see INSTALL and `./configure --help`
 
