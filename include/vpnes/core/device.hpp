@@ -34,7 +34,7 @@
 #include <cstddef>
 #include <utility>
 #include <algorithm>
-#include <vector>
+#include <list>
 #include <unordered_map>
 #include <set>
 #include <string>
@@ -51,6 +51,7 @@ class CDevice {
 protected:
 	/**
 	 * Default constructor
+	 *
 	 * Put as protected for converting into meta-class
 	 */
 	CDevice() = default;
@@ -139,11 +140,6 @@ public:
 };
 
 /**
- * Event ID type
- */
-typedef std::size_t eventId_t;
-
-/**
  * Base device event class
  */
 class CDeviceEvent {
@@ -157,24 +153,20 @@ protected:
 	 */
 	const char *m_Name;
 	/**
-	 * Event id
-	 */
-	eventId_t m_Id;
-	/**
 	 * Flag enabling the event
 	 */
 	bool m_Enabled;
 	/**
 	 * Default constructor
+	 *
 	 * Put as protected for converting into meta-class
 	 *
 	 * @param name Event name
-	 * @param id Event ID
 	 * @param time Firing time
 	 * @param enabled Enabled or not
 	 */
-	CDeviceEvent(const char *name, eventId_t id, clock_t time, bool enabled) :
-			m_Time(time), m_Name(name), m_Id(id), m_Enabled(enabled) {
+	CDeviceEvent(const char *name, clock_t time, bool enabled) :
+			m_Time(time), m_Name(name), m_Enabled(enabled) {
 	}
 public:
 	/**
@@ -209,14 +201,6 @@ public:
 	bool isEnabled() const {
 		return m_Enabled;
 	}
-	/**
-	 * Gets event id
-	 *
-	 * @return Event id
-	 */
-	eventId_t getId() const {
-		return m_Id;
-	}
 };
 
 /**
@@ -238,14 +222,13 @@ public:
 		 * Constructs the object
 		 *
 		 * @param name Name of event
-		 * @param id Event ID
 		 * @param time Event fire time
 		 * @param enabled Enabled or not
 		 * @param device Associated device
 		 */
-		CEvent(const char *name, eventId_t id, clock_t time, bool enabled,
+		CEvent(const char *name, clock_t time, bool enabled,
 				CEventDevice *device) :
-				CDeviceEvent(name, id, time, enabled), m_Device(device) {
+				CDeviceEvent(name, time, enabled), m_Device(device) {
 		}
 		/**
 		 * Destroys the object
@@ -258,7 +241,7 @@ public:
 		 */
 		void setFireTime(clock_t time) {
 			m_Time = time;
-			m_Device->updateBack(m_Id);
+			m_Device->updateBack(this);
 		}
 		/**
 		 * Enables or disables the event
@@ -267,7 +250,7 @@ public:
 		 */
 		void setEnabled(bool enabled) {
 			m_Enabled = enabled;
-			m_Device->updateBack(m_Id);
+			m_Device->updateBack(this);
 		}
 	};
 	/**
@@ -292,15 +275,14 @@ public:
 		 * Constructs the object
 		 *
 		 * @param name Name of event
-		 * @param id Event ID
 		 * @param time Event fire time
 		 * @param enabled Enabled or not
 		 * @param device Associated device
 		 * @param trigger Trigger that will be fired
 		 */
-		CLocalEvent(const char *name, eventId_t id, clock_t time, bool enabled,
-				T *device, local_trigger_t trigger) :
-				CEvent(name, id, time, enabled, device), m_LocalTrigger(trigger) {
+		CLocalEvent(const char *name, clock_t time, bool enabled, T *device,
+				local_trigger_t trigger) :
+				CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
 		}
 		/**
 		 * Destroys the object
@@ -360,16 +342,16 @@ private:
 		}
 	};
 	/**
-	 * Event data mapped to event ID
+	 * Event data mapped to event
 	 */
-	typedef std::unordered_map<eventId_t, SEventData> EventMap;
+	typedef std::unordered_map<CEvent *, SEventData> EventMap;
 	/**
 	 * Event queue
 	 */
 	typedef std::set<SEventData *,
 			bool (*)(SEventData * const, SEventData * const)> EventQueue;
 	/**
-	 * Event data mapped to event ID
+	 * Event data mapped to event
 	 */
 	EventMap m_EventData;
 	/**
@@ -449,10 +431,12 @@ public:
 	/**
 	 * Update trigger for event
 	 *
-	 * @param eventId Event id
+	 * @param event Event
 	 */
-	void updateBack(eventId_t eventId) {
-		SEventData &eventData = m_EventData.find(eventId)->second;
+	void updateBack(CEvent * event) {
+		EventMap::iterator iter = m_EventData.find(event);
+		assert(iter != m_EventData.end());
+		SEventData &eventData = iter->second;
 		if (eventData.m_Enabled) {
 			m_EventQueue.erase(&eventData);
 		}
@@ -480,14 +464,13 @@ public:
 	 *
 	 * @param event New event
 	 */
-	void registerEvent(CEvent &event) {
-		auto newData = m_EventData.emplace(event.getId(), &event);
-		if (newData.second) {
-			SEventData &eventData = newData.first->second;
-			if (eventData.m_Enabled) {
-				m_EventQueue.insert(&eventData);
-				updateClock();
-			}
+	void registerEvent(CEvent *event) {
+		assert(m_EventData.find(event) == m_EventData.end());
+		auto newData = m_EventData.emplace(event, event);
+		SEventData &eventData = newData.first->second;
+		if (eventData.m_Enabled) {
+			m_EventQueue.insert(&eventData);
+			updateClock();
 		}
 	}
 };
@@ -559,7 +542,7 @@ private:
 	/**
 	 * Array of pairs device-event
 	 */
-	typedef std::vector<EventPair> EventArr;
+	typedef std::list<EventPair> EventArr;
 	/**
 	 * Map of events and their names
 	 */
@@ -568,16 +551,12 @@ private:
 	 * Array of pairs device-event
 	 */
 	EventArr events;
-	/**
-	 * Last available ID for event
-	 */
-	eventId_t lastEventId;
 public:
 	/**
 	 * Constructs the object
 	 */
 	CEventManager() :
-			eventMap(), events(), lastEventId() {
+			eventMap(), events() {
 	}
 	/**
 	 * Destroys the object
@@ -602,12 +581,11 @@ public:
 	typename T::CEvent registerEvent(T *device, const char *name, clock_t time,
 			bool enabled, TArgs ... args) {
 		assert(eventMap.find(name) == eventMap.end());
-		eventId_t eventId = lastEventId++;
-		eventMap.emplace(name, eventId);
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
-				name, eventId, time, enabled, device, args...);
+				name, time, enabled, device, args...);
+		eventMap.emplace(name, event);
 		events.emplace(device, event);
-		device->registerEvent(*event);
+		device->registerEvent(event);
 		return event;
 	}
 	/**
