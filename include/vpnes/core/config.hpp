@@ -66,7 +66,7 @@ enum ENESType {
  * MMC Type
  */
 enum EMMCType {
-	MMCNROM//!< MMC Type
+	MMCNROM//!< NROM
 };
 
 /**

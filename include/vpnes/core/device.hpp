@@ -32,8 +32,12 @@
 
 #include <cassert>
 #include <cstddef>
+#include <utility>
+#include <algorithm>
+#include <vector>
 #include <unordered_map>
 #include <set>
+#include <string>
 #include <vpnes/vpnes.hpp>
 
 namespace vpnes {
@@ -186,6 +190,10 @@ public:
 		m_Time -= ticks;
 	}
 	/**
+	 * Fires the trigger
+	 */
+	virtual void fire() = 0;
+	/**
 	 * Gets time when event will fire
 	 *
 	 * @return Time when firing
@@ -220,22 +228,11 @@ public:
 	 * Local event
 	 */
 	class CEvent: public CDeviceEvent {
-	public:
-		/**
-		 * Event trigger
-		 *
-		 * @param Pointer to the event
-		 */
-		typedef void (*trigger_t)(CEvent *);
 	protected:
 		/**
 		 * Pointer to associated device
 		 */
 		CEventDevice *m_Device;
-		/**
-		 * Pointer to trigger
-		 */
-		trigger_t m_Trigger;
 	public:
 		/**
 		 * Constructs the object
@@ -245,23 +242,15 @@ public:
 		 * @param time Event fire time
 		 * @param enabled Enabled or not
 		 * @param device Associated device
-		 * @param trigger Trigger that will be fired
 		 */
 		CEvent(const char *name, eventId_t id, clock_t time, bool enabled,
-				CEventDevice *device, trigger_t trigger) :
-				CDeviceEvent(name, id, time, enabled), m_Device(device), m_Trigger(
-						trigger) {
+				CEventDevice *device) :
+				CDeviceEvent(name, id, time, enabled), m_Device(device) {
 		}
 		/**
 		 * Destroys the object
 		 */
 		~CEvent() = default;
-		/**
-		 * Fires the event
-		 */
-		void fire() {
-			(*m_Trigger)(this);
-		}
 		/**
 		 * Updates fire time
 		 *
@@ -279,6 +268,49 @@ public:
 		void setEnabled(bool enabled) {
 			m_Enabled = enabled;
 			m_Device->updateBack(m_Id);
+		}
+	};
+	/**
+	 * Template for local events
+	 */
+	template<class T>
+	class CLocalEvent: public CEvent {
+	public:
+		/**
+		 * Local event handler
+		 *
+		 * @param Occurred event
+		 */
+		typedef void (T::*local_trigger_t)(CEvent *);
+	private:
+		/**
+		 * Saved local event handler
+		 */
+		local_trigger_t m_LocalTrigger;
+	public:
+		/**
+		 * Constructs the object
+		 *
+		 * @param name Name of event
+		 * @param id Event ID
+		 * @param time Event fire time
+		 * @param enabled Enabled or not
+		 * @param device Associated device
+		 * @param trigger Trigger that will be fired
+		 */
+		CLocalEvent(const char *name, eventId_t id, clock_t time, bool enabled,
+				T *device, local_trigger_t trigger) :
+				CEvent(name, id, time, enabled, device), m_LocalTrigger(trigger) {
+		}
+		/**
+		 * Destroys the object
+		 */
+		~CLocalEvent() = default;
+		/**
+		 * Trigger for local event handler
+		 */
+		void fire() {
+			(static_cast<T *>(m_Device)->*m_LocalTrigger)(this);
 		}
 	};
 private:
@@ -507,6 +539,100 @@ public:
 	 */
 	void setEnabled(bool enabled) {
 		m_Enabled = enabled;
+	}
+
+};
+
+/**
+ * Basic event manager
+ */
+class CEventManager {
+private:
+	/**
+	 * Map of events and their names
+	 */
+	typedef std::unordered_map<std::string, CDeviceEvent *> EventMap;
+	/**
+	 * Pairs of devices and their events
+	 */
+	typedef std::pair<CEventDevice *, CDeviceEvent *> EventPair;
+	/**
+	 * Array of pairs device-event
+	 */
+	typedef std::vector<EventPair> EventArr;
+	/**
+	 * Map of events and their names
+	 */
+	EventMap eventMap;
+	/**
+	 * Array of pairs device-event
+	 */
+	EventArr events;
+	/**
+	 * Last available ID for event
+	 */
+	eventId_t lastEventId;
+public:
+	/**
+	 * Constructs the object
+	 */
+	CEventManager() :
+			eventMap(), events(), lastEventId() {
+	}
+	/**
+	 * Destroys the object
+	 */
+	~CEventManager() {
+		for (auto &v : events) {
+			delete v.second;
+		}
+	}
+
+	/**
+	 * Constructs an event and registers it
+	 *
+	 * @param device Event's owner
+	 * @param name Event name
+	 * @param time Event time
+	 * @param enabled Enabled or not
+	 * @param args Other arguments to pass to constructor
+	 * @return Constructed event
+	 */
+	template<class T, typename ... TArgs>
+	typename T::CEvent registerEvent(T *device, const char *name, clock_t time,
+			bool enabled, TArgs ... args) {
+		assert(eventMap.find(name) == eventMap.end());
+		eventId_t eventId = lastEventId++;
+		eventMap.emplace(name, eventId);
+		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
+				name, eventId, time, enabled, device, args...);
+		events.emplace(device, event);
+		device->registerEvent(*event);
+		return event;
+	}
+	/**
+	 * Looks up for an event
+	 *
+	 * @param name Name of event
+	 * @return Found event
+	 */
+	CDeviceEvent *getEvent(const char *name) {
+		EventMap::const_iterator iter = eventMap.find(name);
+		assert(iter != eventMap.end());
+		return iter->second;
+	}
+	/**
+	 * Unregisters all device's events
+	 *
+	 * @param device Events' owner
+	 */
+	void unregisterEvents(CEventDevice *device) {
+		for (EventArr::iterator iter = std::find_if(events.begin(),
+				events.end(), [&](EventPair &v) -> bool {
+					return v.first == device;
+				}); iter != events.end(); iter = events.erase(iter)) {
+			delete iter->second;
+		}
 	}
 };
 
