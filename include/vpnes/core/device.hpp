@@ -164,8 +164,9 @@ protected:
 	 * Default constructor
 	 * Put as protected for converting into meta-class
 	 *
-	 * @param time Firing time
 	 * @param name Event name
+	 * @param id Event ID
+	 * @param time Firing time
 	 * @param enabled Enabled or not
 	 */
 	CDeviceEvent(const char *name, eventId_t id, clock_t time, bool enabled) :
@@ -251,6 +252,9 @@ public:
 				CDeviceEvent(name, id, time, enabled), m_Device(device), m_Trigger(
 						trigger) {
 		}
+		/**
+		 * Destroys the object
+		 */
 		~CEvent() = default;
 		/**
 		 * Fires the event
