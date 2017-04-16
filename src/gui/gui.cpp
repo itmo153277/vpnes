@@ -71,11 +71,9 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 		nes.powerUp();
 	} catch (const invalid_argument &e) {
 		cerr << e.what() << endl;
-	} catch (const system_error &e) {
-		cerr << "System error [" << e.code() << "]: " << e.what() << endl;
 	} catch (const exception &e) {
-		cerr << "Unknown error [" << e.what() << "]: " << strerror(errno)
-				<< endl;
+		cerr << "Unknown error: " << e.what() << endl;
+		cerr << strerror(errno) << endl;
 	}
 	return 0;
 }
