@@ -27,6 +27,10 @@
 #include "config.h"
 #endif
 
+#include <cerrno>
+#include <cstring>
+#include <exception>
+#include <system_error>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
@@ -62,12 +66,16 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 		ifstream inputFile = config.getInputFile();
 		SNESConfig nesConfig;
 		nesConfig.configure(config, inputFile);
+		inputFile.close();
 		CNES nes = nesConfig.createInstance();
 		nes.powerUp();
-	} catch (fstream::failure &e) {
+	} catch (const invalid_argument &e) {
 		cerr << e.what() << endl;
-	} catch (invalid_argument &e) {
-		cerr << e.what() << endl;
+	} catch (const system_error &e) {
+		cerr << "System error [" << e.code() << "]: " << e.what() << endl;
+	} catch (const exception &e) {
+		cerr << "Unknown error [" << e.what() << "]: " << strerror(errno)
+				<< endl;
 	}
 	return 0;
 }
