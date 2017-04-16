@@ -30,6 +30,7 @@
 #include "config.h"
 #endif
 
+#include <cassert>
 #include <cstddef>
 #include <unordered_map>
 #include <set>
@@ -165,23 +166,16 @@ protected:
 	 *
 	 * @param time Firing time
 	 * @param name Event name
+	 * @param enabled Enabled or not
 	 */
 	CDeviceEvent(const char *name, eventId_t id, clock_t time, bool enabled) :
 			m_Time(time), m_Name(name), m_Id(id), m_Enabled(enabled) {
 	}
-	/**
-	 * Triggered after the event was changed
-	 */
-	virtual void updateBack() = 0;
 public:
 	/**
 	 * Default destructor
 	 */
 	virtual ~CDeviceEvent() = default;
-	/**
-	 * Fires the event
-	 */
-	virtual void fire() = 0;
 	/**
 	 * Synchronizes the clock
 	 *
@@ -199,30 +193,12 @@ public:
 		return m_Time;
 	}
 	/**
-	 * Updates fire time
-	 *
-	 * @param time Time when fired
-	 */
-	void setFireTime(clock_t time) {
-		m_Time = time;
-		updateBack();
-	}
-	/**
 	 * Checks if event is enabled
 	 *
 	 * @return True if enabled
 	 */
 	bool isEnabled() const {
 		return m_Enabled;
-	}
-	/**
-	 * Enables or disables the event
-	 *
-	 * @param enabled True to enable, false to disable
-	 */
-	void setEnabled(bool enabled) {
-		m_Enabled = enabled;
-		updateBack();
 	}
 	/**
 	 * Gets event id
@@ -238,6 +214,69 @@ public:
  * Event-based device
  */
 class CEventDevice: public CClockedDevice {
+public:
+	/**
+	 * Local event
+	 */
+	class CEvent: public CDeviceEvent {
+	public:
+		/**
+		 * Event trigger
+		 *
+		 * @param Pointer to the event
+		 */
+		typedef void (*trigger_t)(CEvent *);
+	protected:
+		/**
+		 * Pointer to associated device
+		 */
+		CEventDevice *m_Device;
+		/**
+		 * Pointer to trigger
+		 */
+		trigger_t m_Trigger;
+	public:
+		/**
+		 * Constructs the object
+		 *
+		 * @param name Name of event
+		 * @param id Event ID
+		 * @param time Event fire time
+		 * @param enabled Enabled or not
+		 * @param device Associated device
+		 * @param trigger Trigger that will be fired
+		 */
+		CEvent(const char *name, eventId_t id, clock_t time, bool enabled,
+				CEventDevice *device, trigger_t trigger) :
+				CDeviceEvent(name, id, time, enabled), m_Device(device), m_Trigger(
+						trigger) {
+		}
+		~CEvent() = default;
+		/**
+		 * Fires the event
+		 */
+		void fire() {
+			(*m_Trigger)(this);
+		}
+		/**
+		 * Updates fire time
+		 *
+		 * @param time Time when fired
+		 */
+		void setFireTime(clock_t time) {
+			m_Time = time;
+			m_Device->updateBack(m_Id);
+		}
+		/**
+		 * Enables or disables the event
+		 *
+		 * @param enabled True to enable, false to disable
+		 */
+		void setEnabled(bool enabled) {
+			m_Enabled = enabled;
+			m_Device->updateBack(m_Id);
+		}
+	};
 private:
 	/**
 	 * Saved event data
@@ -246,13 +285,13 @@ private:
 		/**
 		 * Link to the event
 		 */
-		CDeviceEvent *m_Event;
+		CEvent *m_Event;
 		/**
 		 * Saved time
 		 */
 		std::size_t m_Time;
 		/**
-		 * Saved flag if enabled
+		 * Saved enabling flag
 		 */
 		bool m_Enabled;
 		/**
@@ -260,7 +299,7 @@ private:
 		 *
 		 * @param event Event to add
 		 */
-		SEventData(CDeviceEvent *event) {
+		SEventData(CEvent *event) {
 			m_Event = event;
 			update();
 		}
@@ -280,11 +319,7 @@ private:
 		 * @return *Left < *Right
 		 */
 		static bool compare(SEventData * const left, SEventData * const right) {
-			if (!right->m_Enabled) {
-				return true;
-			} else if (!left->m_Enabled) {
-				return false;
-			}
+			assert(right->m_Enabled && left->m_Enabled);
 			return left->m_Time < right->m_Time;
 		}
 	};
@@ -318,7 +353,7 @@ protected:
 		clock_t newClock = m_Clock;
 		EventQueue::const_reverse_iterator iter = m_EventQueue.crbegin();
 
-		if (iter == m_EventQueue.rend()) {
+		if (iter == m_EventQueue.crend()) {
 			newClock = m_LocalTime;
 		} else {
 			newClock = (*iter)->m_Time;
@@ -329,12 +364,22 @@ protected:
 		setClock(newClock);
 	}
 	/**
+	 * Generates ticks
+	 *
+	 * @return New clock value
+	 */
+	clock_t generateTicks() {
+		EventQueue::const_reverse_iterator iter = m_EventQueue.crbegin();
+		assert(iter != m_EventQueue.crend());
+		return (*iter)->m_Time;
+	}
+	/**
 	 * Fires events that are available to
 	 */
 	void fireEvents() {
 		for (;;) {
 			EventQueue::const_reverse_iterator iter = m_EventQueue.crbegin();
-			if (iter == m_EventQueue.rend() || (*iter)->m_Time > m_Clock) {
+			if (iter == m_EventQueue.crend() || (*iter)->m_Time > m_Clock) {
 				break;
 			}
 			(*iter)->m_Event->fire();
@@ -399,7 +444,7 @@ public:
 	 *
 	 * @param event New event
 	 */
-	void registerEvent(CDeviceEvent &event) {
+	void registerEvent(CEvent &event) {
 		auto newData = m_EventData.emplace(event.getId(), &event);
 		if (newData.second) {
 			SEventData &eventData = newData.first->second;
@@ -408,6 +453,56 @@ public:
 				updateClock();
 			}
 		}
+	}
+};
+
+/**
+ * Device that can run with self-generated ticks
+ */
+class CGeneratorDevice: public CEventDevice {
+private:
+	/**
+	 * Enabling flag
+	 */
+	bool m_Enabled;
+public:
+	/**
+	 * Constructs the object
+	 *
+	 * @param enabled Enable or not
+	 */
+	CGeneratorDevice(bool enabled) :
+			m_Enabled(enabled) {
+	}
+	/**
+	 * Destroys the object
+	 */
+	~CGeneratorDevice() = default;
+
+	/**
+	 * Run while enabled
+	 */
+	void simulate() {
+		while (m_Enabled) {
+			setClock(generateTicks());
+			execute();
+		}
+	}
+	/**
+	 * Checks if the device is enabled or not
+	 *
+	 * @return True if enabled
+	 */
+	bool isEnabled() const {
+		return m_Enabled;
+	}
+	/**
+	 * Enables or disables the device
+	 *
+	 * @param enabled True to enable, false to disable
+	 */
+	void setEnabled(bool enabled) {
+		m_Enabled = enabled;
 	}
 };
 
