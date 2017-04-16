@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClInclude Include="config.msvc.h" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
+    <ClInclude Include="include\vpnes\core\device.hpp" />
     <ClInclude Include="include\vpnes\core\ines.hpp" />
     <ClInclude Include="include\vpnes\core\nes.hpp" />
     <ClInclude Include="include\vpnes\gui\config.hpp" />
