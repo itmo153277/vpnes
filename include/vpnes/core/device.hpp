@@ -32,6 +32,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 #include <algorithm>
 #include <list>
@@ -55,6 +56,12 @@ protected:
 	 * Put as protected for converting into meta-class
 	 */
 	CDevice() = default;
+	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	CDevice(const CDevice &s) = delete;
 public:
 	/**
 	 * Default destructor
@@ -168,6 +175,16 @@ protected:
 	CDeviceEvent(const char *name, clock_t time, bool enabled) :
 			m_Time(time), m_Name(name), m_Enabled(enabled) {
 	}
+	/**
+	 * Deleted default constructor
+	 */
+	CDeviceEvent() = delete;
+	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	CDeviceEvent(const CDeviceEvent &s) = delete;
 public:
 	/**
 	 * Default destructor
@@ -321,6 +338,16 @@ private:
 			m_Event = event;
 			update();
 		}
+		/**
+		 * Deleted default constructor
+		 */
+		SEventData() = delete;
+		/**
+		 * Deleted default copy constructor
+		 *
+		 * @param s Copied value
+		 */
+		SEventData(const SEventData &s) = delete;
 
 		/**
 		 * Updates the local data
@@ -559,6 +586,12 @@ public:
 			eventMap(), events() {
 	}
 	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	CEventManager(const CEventManager &s) = delete;
+	/**
 	 * Destroys the object
 	 */
 	~CEventManager() {
@@ -578,13 +611,16 @@ public:
 	 * @return Constructed event
 	 */
 	template<class T, typename ... TArgs>
-	typename T::CEvent registerEvent(T *device, const char *name, clock_t time,
+	typename T::CEvent *registerEvent(T *device, const char *name, clock_t time,
 			bool enabled, TArgs ... args) {
+		static_assert(std::is_base_of<CEventDevice, T>::value, "T is not event based device");
+		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
+				const char *, clock_t, bool, T *, TArgs...>::value, "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
 				name, time, enabled, device, args...);
 		eventMap.emplace(name, event);
-		events.emplace(device, event);
+		events.emplace(events.end(), device, event);
 		device->registerEvent(event);
 		return event;
 	}

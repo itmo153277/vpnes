@@ -30,7 +30,6 @@
 #include <cerrno>
 #include <cstring>
 #include <exception>
-#include <system_error>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
