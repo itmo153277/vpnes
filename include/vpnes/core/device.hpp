@@ -348,6 +348,12 @@ private:
 		 * @param s Copied value
 		 */
 		SEventData(const SEventData &s) = delete;
+		/**
+		 * Default move constructor
+		 *
+		 * @param s Copied value
+		 */
+		SEventData(SEventData &&s) noexcept =default;
 
 		/**
 		 * Updates the local data
@@ -612,13 +618,13 @@ public:
 	 */
 	template<class T, typename ... TArgs>
 	typename T::CEvent *registerEvent(T *device, const char *name, clock_t time,
-			bool enabled, TArgs ... args) {
+			bool enabled, TArgs && ... args) {
 		static_assert(std::is_base_of<CEventDevice, T>::value, "T is not event based device");
-		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
-				const char *, clock_t, bool, T *, TArgs...>::value, "T::LocalEvent cannot be constructed");
+		static_assert(std::is_constructible<typename T::template CLocalEvent<T>, const char *, clock_t,
+				bool, T *, decltype(std::forward<TArgs>(args))...>::value, "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
-				name, time, enabled, device, args...);
+				name, time, enabled, device, std::forward<TArgs>(args)...);
 		eventMap.emplace(name, event);
 		events.emplace(events.end(), device, event);
 		device->registerEvent(event);

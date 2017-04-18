@@ -61,7 +61,7 @@ public:
 	 *
 	 * @param s Copied value
 	 */
-	CNES(CNES &&s) noexcept = default;
+	CNES(CNES &&s) noexcept =default;
 	/**
 	 * Destroyer
 	 */
