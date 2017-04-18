@@ -60,6 +60,12 @@ public:
 	 */
 	SApplicationConfig();
 	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	SApplicationConfig(const SApplicationConfig &s) = delete;
+	/**
 	 * Destroys the object
 	 */
 	~SApplicationConfig();

@@ -51,6 +51,18 @@ public:
 	 */
 	CNES() = default;
 	/**
+	 * Deleted copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	CNES(const CNES &s) = delete;
+	/**
+	 * Move constructor
+	 *
+	 * @param s Copied value
+	 */
+	CNES(CNES &&s) noexcept = default;
+	/**
 	 * Destroyer
 	 */
 	~CNES() = default;

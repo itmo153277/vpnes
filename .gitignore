@@ -17,6 +17,7 @@ Makefile.in
 .deps
 .dirstamp
 *.o
+*~
 /vpnes
 /vpnes.*
 /.vs

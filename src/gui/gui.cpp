@@ -61,7 +61,6 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 		return 0;
 	}
 	try {
-		// expected transformation into move
 		ifstream inputFile = config.getInputFile();
 		SNESConfig nesConfig;
 		nesConfig.configure(config, inputFile);

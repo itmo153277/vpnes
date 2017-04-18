@@ -130,6 +130,12 @@ public:
 	 */
 	SNESConfig();
 	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	SNESConfig(const SNESConfig &s) = delete;
+	/**
 	 * Default destructor
 	 */
 	~SNESConfig();

@@ -52,6 +52,12 @@ public:
 	 */
 	CGUI() = default;
 	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	CGUI(const CGUI &s) = delete;
+	/**
 	 * Destroyer
 	 */
 	~CGUI() = default;

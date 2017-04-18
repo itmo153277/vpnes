@@ -139,6 +139,16 @@ struct SNESData {
 	 */
 	SNESData(std::ifstream &ROM);
 	/**
+	 * Deleted default constructor
+	 */
+	SNESData() = delete;
+	/**
+	 * Deleted default copy constructor
+	 *
+	 * @param s Copied value
+	 */
+	SNESData(const SNESData &s) = delete;
+	/**
 	 * Destroys the structure
 	 */
 	~SNESData();
