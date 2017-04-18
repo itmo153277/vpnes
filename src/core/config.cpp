@@ -45,7 +45,7 @@ using namespace ::vpnes::core;
  * Default constructor
  */
 SNESConfig::SNESConfig() :
-		CHR(), PRG(), Trainer(), PRGSize(), CHRSize(), RAMSize(), Mirroring(), MMCType(), NESType() {
+		CHR(), PRG(), Trainer(), PRGSize(), CHRSize(), RAMSize(), MMCType(), Mirroring(), NESType() {
 
 }
 /**
