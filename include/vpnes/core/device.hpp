@@ -32,12 +32,13 @@
 
 #include <cassert>
 #include <cstddef>
-#include <type_traits>
 #include <utility>
+#include <type_traits>
 #include <algorithm>
 #include <list>
 #include <unordered_map>
 #include <set>
+#include <vector>
 #include <string>
 #include <vpnes/vpnes.hpp>
 
@@ -69,6 +70,10 @@ public:
 	virtual ~CDevice() = default;
 };
 
+/**
+ * Device list
+ */
+typedef std::vector<CDevice *> DevicePtrList;
 /**
  * Clock ticks type
  */

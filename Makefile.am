@@ -12,6 +12,7 @@ noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
 	include/vpnes/gui/config.hpp \
 	include/vpnes/gui/gui.hpp \
+	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
 	include/vpnes/core/device.hpp \
 	include/vpnes/core/ines.hpp \

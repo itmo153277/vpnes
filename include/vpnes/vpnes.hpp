@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <utility>
+
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "vpnes core"
 #endif
@@ -39,5 +41,24 @@
 #else
 #define PACKAGE_BUILD PACKAGE_STRING " Build " __DATE__ " " __TIME__
 #endif
+
+namespace vpnes {
+
+/**
+ * Condition and
+ */
+template<typename ... Conds>
+struct cond_and: std::true_type {
+};
+
+/**
+ * Condition and recursive definition
+ */
+template<typename Cond, typename ... Conds>
+struct cond_and<Cond, Conds...> : std::conditional<Cond::value,
+		cond_and<Conds...>, std::false_type>::type {
+};
+
+}
 
 #endif /* VPNES_INCLUDE_VPNES_H_ */
