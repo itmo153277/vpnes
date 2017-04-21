@@ -36,6 +36,7 @@
 #include <utility>
 #include <type_traits>
 #include <vector>
+#include <unordered_map>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/device.hpp>
 
@@ -49,10 +50,211 @@ namespace core {
 typedef std::vector<std::uint8_t *> MemoryMap;
 
 /**
+ * Hook with address
+ */
+class CAddrHook {
+protected:
+	/**
+	 * Default constructor
+	 */
+	CAddrHook() = default;
+	/**
+	 * Executes the hook
+	 *
+	 * @param addr Address
+	 */
+	virtual void execute(std::uint16_t addr) {
+	}
+public:
+	/**
+	 * Default destructor
+	 */
+	virtual ~CAddrHook() = default;
+
+	/**
+	 * Executes the hook
+	 *
+	 * @param addr Address
+	 */
+	void operator()(std::uint16_t addr) {
+		execute(addr);
+	}
+};
+
+/**
+ * Hook with address mapped to a device
+ */
+template<class T>
+class CAddrHookMapped: public CAddrHook {
+	static_assert(std::is_base_of<CDevice, T>::value, "Can hook from devices only");
+public:
+	/**
+	 * Hook in device
+	 *
+	 * @param addr Address
+	 */
+	typedef void (T::*addrHook_t)(std::uint16_t addr);
+private:
+	/**
+	 * Device
+	 */
+	T *m_Device;
+	/**
+	 * Device hook
+	 */
+	addrHook_t m_Hook;
+protected:
+	/**
+	 * Executes the hook
+	 *
+	 * @param addr Address
+	 */
+	void execute(std::uint16_t addr) {
+		(m_Device->*m_Hook)(addr);
+	}
+public:
+	/**
+	 * Deleted default constructor
+	 */
+	CAddrHookMapped() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param device Device
+	 * @param hook Hook
+	 */
+	CAddrHookMapped(T & device, addrHook_t hook) :
+			m_Device(&device), m_Hook(hook) {
+	}
+
+};
+
+/**
+ * Hook with address and value
+ */
+class CAddrValHook {
+protected:
+	/**
+	 * Default constructor
+	 */
+	CAddrValHook() = default;
+protected:
+	/**
+	 * Executes the hook
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	virtual void execute(std::uint8_t s, std::uint16_t addr) {
+	}
+public:
+	/**
+	 * Default destructor
+	 */
+	virtual ~CAddrValHook() = default;
+
+	/**
+	 * Executes the hook
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	void operator()(std::uint8_t s, std::uint16_t addr) {
+		execute(s, addr);
+	}
+};
+
+/**
+ * Hook with address and value mapped to a device
+ */
+template<class T>
+class CAddrValHookMapped: public CAddrValHook {
+	static_assert(std::is_base_of<CDevice, T>::value, "Can hook from devices only");
+public:
+	/**
+	 * Hook in device
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	typedef void (T::*addrHook_t)(std::uint8_t s, std::uint16_t addr);
+private:
+	/**
+	 * Device
+	 */
+	T *m_Device;
+	/**
+	 * Device hook
+	 */
+	addrHook_t m_Hook;
+protected:
+	/**
+	 * Executes the hook
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	void execute(std::uint8_t s, std::uint16_t addr) {
+		(m_Device->*m_Hook)(s, addr);
+	}
+public:
+	/**
+	 * Deleted default constructor
+	 */
+	CAddrValHookMapped() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param device Device
+	 * @param hook Hook
+	 */
+	CAddrValHookMapped(T & device, addrHook_t hook) :
+			m_Device(&device), m_Hook(hook) {
+	}
+};
+
+/**
  * Defines basic bus
  */
-class CBaseBus {
+class CBus {
+public:
+	/**
+	 * Pre read hook
+	 */
+	typedef CAddrHook *readHookPre_t;
+	/**
+	 * Post read hook
+	 */
+	typedef CAddrValHook *readHookPost_t;
+	/**
+	 * Write hook
+	 */
+	typedef CAddrValHook *writeHook_t;
 protected:
+	/**
+	 * Pre read hooks mapped to address
+	 */
+	typedef std::unordered_multimap<std::uint16_t, readHookPre_t> ReadHooksPre;
+	/**
+	 * Post read hooks mapped to address
+	 */
+	typedef std::unordered_multimap<std::uint16_t, readHookPost_t> ReadHooksPost;
+	/**
+	 * Write hooks mapped to address
+	 */
+	typedef std::unordered_multimap<std::uint16_t, writeHook_t> WriteHooks;
+	/**
+	 * Pre read hooks mapped to address
+	 */
+	ReadHooksPre m_ReadHooksPre;
+	/**
+	 * Post read hooks mapped to address
+	 */
+	ReadHooksPost m_ReadHooksPost;
+	/**
+	 * Write hooks mapped to address
+	 */
+	WriteHooks m_WriteHooks;
 	/**
 	 * Open bus value
 	 */
@@ -65,23 +267,71 @@ protected:
 	 * Dummy write buffer
 	 */
 	std::uint8_t m_DummyWrite;
+
+	/**
+	 * Executes all pre read hooks for an address
+	 *
+	 * @param addr Address
+	 */
+	void processPreReadHooks(std::uint16_t addr) {
+		auto range = m_ReadHooksPre.equal_range(addr);
+		for (auto hook = range.first; hook != range.second; ++hook) {
+			(*hook->second)(addr);
+		}
+	}
+	/**
+	 * Executes all post read hooks for an address
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	void processPostReadHooks(std::uint8_t s, std::uint16_t addr) {
+		auto range = m_ReadHooksPost.equal_range(addr);
+		for (auto hook = range.first; hook != range.second; ++hook) {
+			(*hook->second)(s, addr);
+		}
+	}
+	/**
+	 * Executes all write hooks for an address
+	 *
+	 * @param s Value
+	 * @param addr Address
+	 */
+	void processWriteHooks(std::uint8_t s, std::uint16_t addr) {
+		auto range = m_WriteHooks.equal_range(addr);
+		for (auto hook = range.first; hook != range.second; ++hook) {
+			(*hook->second)(s, addr);
+		}
+	}
+
 	/**
 	 * Constructs the object
 	 */
-	CBaseBus() :
-			m_OpenBus(0x40), m_WriteBuf(), m_DummyWrite() {
+	CBus() :
+			m_ReadHooksPre(), m_ReadHooksPost(), m_WriteHooks(), m_OpenBus(
+					0x40), m_WriteBuf(), m_DummyWrite() {
 	}
 	/**
 	 * Deleted copy constructor
 	 *
 	 * @param s Copied value
 	 */
-	CBaseBus(const CBaseBus &s) = delete;
+	CBus(const CBus &s) = delete;
 public:
 	/**
 	 * Destroys the object
 	 */
-	virtual ~CBaseBus() = default;
+	virtual ~CBus() {
+		for (auto & hook : m_ReadHooksPre) {
+			delete hook.second;
+		}
+		for (auto & hook : m_ReadHooksPost) {
+			delete hook.second;
+		}
+		for (auto & hook : m_WriteHooks) {
+			delete hook.second;
+		}
+	}
 
 	/**
 	 * Reads memory from the bus
@@ -98,7 +348,42 @@ public:
 	 */
 	virtual void writeMemory(std::uint8_t s, std::uint16_t addr) = 0;
 
-	//TODO: add hooks
+	/**
+	 * Adds new pre read hook
+	 *
+	 * @param addr Address
+	 * @param device Device
+	 * @param hook Hook in device
+	 */
+	template<class T>
+	void addPreReadHook(std::uint16_t addr, T &device,
+			typename CAddrHookMapped<T>::addrHook_t hook) {
+		m_ReadHooksPre.emplace(addr, new CAddrHookMapped<T>(device, hook));
+	}
+	/**
+	 * Adds new post read hook
+	 *
+	 * @param addr Address
+	 * @param device Device
+	 * @param hook Hook in device
+	 */
+	template<class T>
+	void addPostReadHook(std::uint16_t addr, T &device,
+			typename CAddrValHookMapped<T>::addrHook_t hook) {
+		m_ReadHooksPost.emplace(addr, new CAddrValHookMapped<T>(device, hook));
+	}
+	/**
+	 * Adds new write hook
+	 *
+	 * @param addr Address
+	 * @param device Device
+	 * @param hook Hook in device
+	 */
+	template<class T>
+	void addWriteHook(std::uint16_t addr, T &device,
+			typename CAddrValHookMapped<T>::addrHook_t hook) {
+		m_WriteHooks.emplace(addr, new CAddrValHookMapped<T>(device, hook));
+	}
 };
 
 namespace Banks {
@@ -1037,22 +1322,22 @@ struct COpenBusDevice: public CDevice {
  * Configured bus
  */
 template<class ...>
-class CBus;
+class CBusConfig;
 
 /**
  * Empty bus
  */
 template<>
-class CBus<> : public CBaseBus {
+class CBusConfig<> : public CBus {
 public:
 	/**
 	 * Constructor
 	 */
-	CBus() = default;
+	CBusConfig() = default;
 	/**
 	 * Destructor
 	 */
-	~CBus() = default;
+	~CBusConfig() = default;
 
 	/**
 	 * Reads memory from the bus
@@ -1077,7 +1362,7 @@ public:
  * Configured bus
  */
 template<class ... Devices>
-class CBus: public CBaseBus {
+class CBusConfig: public CBus {
 private:
 	static_assert(cond_and<std::is_base_of<CDevice, Devices>...>::value,
 			"Bus can contain devices only");
@@ -1182,13 +1467,13 @@ public:
 	/**
 	 * Deleted default constructor
 	 */
-	CBus() = delete;
+	CBusConfig() = delete;
 	/**
 	 * Constructs the bus
 	 *
 	 * @param devices Devices
 	 */
-	CBus(Devices & ... devices) :
+	CBusConfig(Devices & ... devices) :
 			m_OpenBusDevice(), m_ReadArr(
 					BusAggregate<Devices ..., COpenBusDevice>::ReadSize,
 					&m_OpenBus), m_WriteArr(
@@ -1204,7 +1489,7 @@ public:
 	/**
 	 * Destructor
 	 */
-	~CBus() = default;
+	~CBusConfig() = default;
 
 	/**
 	 * Reads memory from the bus
@@ -1213,10 +1498,13 @@ public:
 	 * @return Value at the address
 	 */
 	std::uint8_t readMemory(std::uint16_t addr) {
+		processPreReadHooks(addr);
 		MemoryMap::iterator iter =
 				BusAggregate<Devices..., COpenBusDevice>::getAddrRead(
 						m_DeviceArr.begin(), m_ReadArr.begin(), addr);
-		return **iter;
+		std::uint8_t res = **iter;
+		processPostReadHooks(res, addr);
+		return res;
 	}
 	/**
 	 * Writes memory on the bus
@@ -1231,6 +1519,7 @@ public:
 		m_WriteBuf = s;
 		m_WriteBuf &= **(iter.second);
 		**(iter.first) = m_WriteBuf;
+		processWriteHooks(m_WriteBuf, addr);
 	}
 };
 
