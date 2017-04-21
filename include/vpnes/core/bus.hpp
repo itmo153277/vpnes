@@ -194,7 +194,7 @@ private:
 };
 
 /**
- * Open bus bank (reads openbus, writes nothing, no bus conflict
+ * Open bus bank (reads open bus, writes nothing, no bus conflict
  */
 struct OpenBus: BaseBank {
 	enum {
@@ -278,7 +278,7 @@ struct OpenBus: BaseBank {
 /**
  * Read only bank (reads buf, writes nothing, no bus conflict
  */
-template<std::uint16_t Base, std::size_t Size>
+template<std::uint16_t Base, std::size_t Size, std::size_t BufSize>
 struct ReadOnly: BaseBank {
 	enum {
 		ReadSize = Size //!< Requested read bytes
@@ -299,9 +299,13 @@ struct ReadOnly: BaseBank {
 	 */
 	static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -364,7 +368,7 @@ struct ReadOnly: BaseBank {
 /**
  * Read only bank with conflicts (reads buf, writes nothing, bus conflict
  */
-template<std::uint16_t Base, std::size_t Size>
+template<std::uint16_t Base, std::size_t Size, std::size_t BufSize>
 struct ReadOnlyWithConflict: BaseBank {
 	enum {
 		ReadSize = Size //!< Requested read bytes
@@ -385,9 +389,13 @@ struct ReadOnlyWithConflict: BaseBank {
 	 */
 	static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -410,9 +418,13 @@ struct ReadOnlyWithConflict: BaseBank {
 	 */
 	static void mapMod(MemoryMap::iterator iter, std::uint8_t *writeBuf,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -453,7 +465,7 @@ struct ReadOnlyWithConflict: BaseBank {
 /**
  * Write only bank (reads open bus, writes buf, no bus conflict
  */
-template<std::uint16_t Base, std::size_t Size>
+template<std::uint16_t Base, std::size_t Size, std::size_t BufSize>
 struct WriteOnly: BaseBank {
 	enum {
 		ReadSize = 1 //!< Requested read bytes
@@ -485,9 +497,13 @@ struct WriteOnly: BaseBank {
 	 */
 	static void mapWrite(MemoryMap::iterator iter, std::uint8_t *dummy,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -539,7 +555,7 @@ struct WriteOnly: BaseBank {
 /**
  * Read-Write bank (reads buf, writes buf, no bus conflict
  */
-template<std::uint16_t Base, std::size_t Size>
+template<std::uint16_t Base, std::size_t Size, std::size_t BufSize>
 struct ReadWrite: BaseBank {
 	enum {
 		ReadSize = Size //!< Requested read bytes
@@ -560,9 +576,13 @@ struct ReadWrite: BaseBank {
 	 */
 	static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -574,9 +594,13 @@ struct ReadWrite: BaseBank {
 	 */
 	static void mapWrite(MemoryMap::iterator iter, std::uint8_t *dummy,
 			std::uint8_t *buf) {
-		for (MemoryMap::iterator end = iter + Size; iter != end;
-				iter++, buf++) {
-			*iter = buf;
+		std::size_t i = 0;
+		for (MemoryMap::iterator end = iter + Size; iter != end; ++iter) {
+			*iter = buf + i;
+			i++;
+			if (i >= BufSize) {
+				i = 0;
+			}
 		}
 	}
 	/**
@@ -689,30 +713,19 @@ struct BankConfig<> {
 		return iter;
 	}
 	/**
-	 * Gives write iterator
+	 * Gives pair of write and mod iterators
 	 *
-	 * @param iter Base iterator
+	 * @param iterWrite Base write iterator
+	 * @param iterMod Base mod iterator
 	 * @param bank Bank number
 	 * @param addr Address
-	 * @return Write iterator
+	 * @return Pair of write and mod iterator
 	 */
-	static MemoryMap::iterator getAddrWrite(MemoryMap::iterator iter,
+	static std::pair<MemoryMap::iterator, MemoryMap::iterator> getAddrWrite(
+			MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 			std::size_t bank, std::uint16_t addr) {
 		assert(false);
-		return iter;
-	}
-	/**
-	 * Gives mod iterator
-	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
-	 * @param addr Address
-	 * @return Mod iterator
-	 */
-	static MemoryMap::iterator getAddrMod(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		assert(false);
-		return iter;
+		return std::make_pair(iterWrite, iterMod);
 	}
 private:
 	/**
@@ -803,36 +816,24 @@ struct BankConfig<FirstClass, OtherClasses ...> {
 					iter + FirstClass::ReadSize, bank - 1, addr);
 	}
 	/**
-	 * Gives write iterator
+	 * Gives pair of write and mod iterators
 	 *
-	 * @param iter Base iterator
+	 * @param iterWrite Base write iterator
+	 * @param iterMod Base mod iterator
 	 * @param bank Bank number
 	 * @param addr Address
-	 * @return Write iterator
+	 * @return Pair of write and mod iterator
 	 */
-	static MemoryMap::iterator getAddrWrite(MemoryMap::iterator iter,
+	static std::pair<MemoryMap::iterator, MemoryMap::iterator> getAddrWrite(
+			MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 			std::size_t bank, std::uint16_t addr) {
 		if (bank == 0)
-			return FirstClass::getAddrWrite(iter, addr);
+			return std::make_pair(FirstClass::getAddrWrite(iterWrite, addr),
+					FirstClass::getAddrMod(iterMod, addr));
 		else
 			return BankConfig<OtherClasses ...>::getAddrWrite(
-					iter + FirstClass::WriteSize, bank - 1, addr);
-	}
-	/**
-	 * Gives mod iterator
-	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
-	 * @param addr Address
-	 * @return Mod iterator
-	 */
-	static MemoryMap::iterator getAddrMod(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		if (bank == 0)
-			return FirstClass::getAddrMod(iter, addr);
-		else
-			return BankConfig<OtherClasses ...>::getAddrMod(
-					iter + FirstClass::ModSize, bank - 1, addr);
+					iterWrite + FirstClass::WriteSize,
+					iterMod + FirstClass::ModSize, bank - 1, addr);
 	}
 private:
 	/**
@@ -864,54 +865,30 @@ struct BusAggregate<> {
 	/**
 	 * Gives read iterator
 	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
+	 * @param iter Device iterator
+	 * @param iterRead Base read iterator
 	 * @param addr Address
 	 * @return Read iterator
 	 */
-	static MemoryMap::iterator getAddrRead(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
+	static MemoryMap::iterator getAddrRead(DevicePtrList::iterator iter,
+			MemoryMap::iterator iterRead, std::uint16_t addr) {
 		assert(false);
-		return iter;
+		return iterRead;
 	}
 	/**
-	 * Gives write iterator
+	 * Gives pair of write and mod iterator
 	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
+	 * @param iter Device iterator
+	 * @param iterWrite Base write iterator
+	 * @param iterMod Base mod iterator
 	 * @param addr Address
-	 * @return Write iterator
+	 * @return Pair of write and mod iterator
 	 */
-	static MemoryMap::iterator getAddrWrite(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
+	static std::pair<MemoryMap::iterator, MemoryMap::iterator> getAddrWrite(
+			DevicePtrList::iterator iter, MemoryMap::iterator iterWrite,
+			MemoryMap::iterator iterMod, std::uint16_t addr) {
 		assert(false);
-		return iter;
-	}
-	/**
-	 * Gives mod iterator
-	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
-	 * @param addr Address
-	 * @return Mod iterator
-	 */
-	static MemoryMap::iterator getAddrMod(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		assert(false);
-		return iter;
-	}
-	/**
-	 * Calculates bank from address
-	 *
-	 * @param iter Device list
-	 * @param addr Address
-	 * @param offset Bank offset
-	 * @return Bank number
-	 */
-	static std::size_t getBank(DevicePtrList::iterator iter, std::uint16_t addr,
-			std::size_t offset = 0) {
-		assert(false);
-		return 0;
+		return std::make_pair(iterWrite, iterMod);
 	}
 private:
 	/**
@@ -941,76 +918,44 @@ struct BusAggregate<FirstDevice, OtherDevices...> {
 	/**
 	 * Gives read iterator
 	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
+	 * @param iter Device iterator
+	 * @param iterRead Base read iterator
 	 * @param addr Address
 	 * @return Read iterator
 	 */
-	static MemoryMap::iterator getAddrRead(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		if (bank < FirstDevice::BusConfig::BankConfig::BanksCount) {
-			return FirstDevice::BusConfig::BankConfig::getAddrRead(iter, bank,
-					addr);
-		} else {
-			return BusAggregate<OtherDevices...>::getAddrRead(
-					iter + FirstDevice::BusConfig::BankConfig::ReadSize,
-					bank - FirstDevice::BusConfig::BankConfig::BanksCount, addr);
-		}
-	}
-	/**
-	 * Gives write iterator
-	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
-	 * @param addr Address
-	 * @return Write iterator
-	 */
-	static MemoryMap::iterator getAddrWrite(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		if (bank < FirstDevice::BusConfig::BankConfig::BanksCount) {
-			return FirstDevice::BusConfig::BankConfig::getAddrWrite(iter, bank,
-					addr);
-		} else {
-			return BusAggregate<OtherDevices...>::getAddrWrite(
-					iter + FirstDevice::BusConfig::BankConfig::WriteSize,
-					bank - FirstDevice::BusConfig::BankConfig::BanksCount, addr);
-		}
-	}
-	/**
-	 * Gives mod iterator
-	 *
-	 * @param iter Base iterator
-	 * @param bank Bank number
-	 * @param addr Address
-	 * @return Mod iterator
-	 */
-	static MemoryMap::iterator getAddrMod(MemoryMap::iterator iter,
-			std::size_t bank, std::uint16_t addr) {
-		if (bank < FirstDevice::BusConfig::BankConfig::BanksCount) {
-			return FirstDevice::BusConfig::BankConfig::getAddrMod(iter, bank,
-					addr);
-		} else {
-			return BusAggregate<OtherDevices...>::getAddrMod(
-					iter + FirstDevice::BusConfig::BankConfig::ModSize,
-					bank - FirstDevice::BusConfig::BankConfig::BanksCount, addr);
-		}
-	}
-	/**
-	 * Calculates bank from address
-	 *
-	 * @param iter Device list
-	 * @param addr Address
-	 * @param offset Bank offset
-	 * @return Bank number
-	 */
-	static std::size_t getBank(DevicePtrList::iterator iter, std::uint16_t addr,
-			std::size_t offset = 0) {
+	static MemoryMap::iterator getAddrRead(DevicePtrList::iterator iter,
+			MemoryMap::iterator iterRead, std::uint16_t addr) {
 		if (FirstDevice::BusConfig::isDeviceEnabled(addr)) {
-			return FirstDevice::BusConfig::getBank(addr,
-					static_cast<FirstDevice &>(**iter)) + offset;
+			return FirstDevice::BusConfig::BankConfig::getAddrRead(iterRead,
+					FirstDevice::BusConfig::getBank(addr,
+							static_cast<FirstDevice &>(**iter)), addr);
 		} else {
-			return BusAggregate<OtherDevices...>::getBank(iter + 1, addr,
-					offset + FirstDevice::BusConfig::BankConfig::BanksCount);
+			return BusAggregate<OtherDevices...>::getAddrRead(iter + 1,
+					iterRead + FirstDevice::BusConfig::BankConfig::ReadSize,
+					addr);
+		}
+	}
+	/**
+	 * Gives pair of write and mod iterator
+	 *
+	 * @param iter Device iterator
+	 * @param iterWrite Base write iterator
+	 * @param iterMod Base mod iterator
+	 * @param addr Address
+	 * @return Pair of write and mod iterator
+	 */
+	static std::pair<MemoryMap::iterator, MemoryMap::iterator> getAddrWrite(
+			DevicePtrList::iterator iter, MemoryMap::iterator iterWrite,
+			MemoryMap::iterator iterMod, std::uint16_t addr) {
+		if (FirstDevice::BusConfig::isDeviceEnabled(addr)) {
+			return FirstDevice::BusConfig::BankConfig::getAddrWrite(iterWrite,
+					iterMod,
+					FirstDevice::BusConfig::getBank(addr,
+							static_cast<FirstDevice &>(**iter)), addr);
+		} else {
+			return BusAggregate<OtherDevices...>::getAddrWrite(iter + 1,
+					iterWrite + FirstDevice::BusConfig::BankConfig::WriteSize,
+					iterMod + FirstDevice::BusConfig::BankConfig::ModSize, addr);
 		}
 	}
 private:
@@ -1268,11 +1213,9 @@ public:
 	 * @return Value at the address
 	 */
 	std::uint8_t readMemory(std::uint16_t addr) {
-		std::size_t bank = BusAggregate<Devices..., COpenBusDevice>::getBank(
-				m_DeviceArr.begin(), addr);
 		MemoryMap::iterator iter =
 				BusAggregate<Devices..., COpenBusDevice>::getAddrRead(
-						m_ReadArr.begin(), bank, addr);
+						m_DeviceArr.begin(), m_ReadArr.begin(), addr);
 		return **iter;
 	}
 	/**
@@ -1282,17 +1225,12 @@ public:
 	 * @param addr Address
 	 */
 	void writeMemory(std::uint8_t s, std::uint16_t addr) {
-		std::size_t bank = BusAggregate<Devices..., COpenBusDevice>::getBank(
-				m_DeviceArr.begin(), addr);
-		MemoryMap::iterator iterWrite =
-				BusAggregate<Devices..., COpenBusDevice>::getAddrWrite(
-						m_WriteArr.begin(), bank, addr);
-		MemoryMap::iterator iterMod =
-				BusAggregate<Devices..., COpenBusDevice>::getAddrMod(
-						m_ModArr.begin(), bank, addr);
+		auto iter = BusAggregate<Devices..., COpenBusDevice>::getAddrWrite(
+				m_DeviceArr.begin(), m_WriteArr.begin(), m_ModArr.begin(),
+				addr);
 		m_WriteBuf = s;
-		m_WriteBuf &= **iterMod;
-		**iterWrite = m_WriteBuf;
+		m_WriteBuf &= **(iter.second);
+		**(iter.first) = m_WriteBuf;
 	}
 };
 
