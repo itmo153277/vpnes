@@ -33,8 +33,8 @@
 #include <cstdint>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/config.hpp>
 #include <vpnes/core/nes.hpp>
+#include <vpnes/gui/config.hpp>
 
 namespace vpnes {
 
@@ -44,29 +44,29 @@ namespace core {
  * Type of mirroring
  */
 enum EMirroring {
-	MirroringHorizontal,   //!< Horizontal mirroring
-	MirorringVertical,     //!< Vertical mirroring
-	MirorringSingleScreen1,//!< Single screen (1)
-	MirorringSingleScreen2,//!< Single screen (2)
-	MirorringFourScreens   //!< Four screens
+	MirroringHorizontal,     //!< Horizontal mirroring
+	MirorringVertical,       //!< Vertical mirroring
+	MirorringSingleScreen1,  //!< Single screen (1)
+	MirorringSingleScreen2,  //!< Single screen (2)
+	MirorringFourScreens     //!< Four screens
 };
 
 /**
  * NES type
  */
 enum ENESType {
-	NESTypeAuto,    //!< Auto defined
-	NESTypeNTSC,    //!< NTSC NES
-	NESTypePAL,     //!< PAL NES
-	NESTypeFC,      //!< Famicom
-	NESTypeFamiclone//!< Famicom clone
+	NESTypeAuto,      //!< Auto defined
+	NESTypeNTSC,      //!< NTSC NES
+	NESTypePAL,       //!< PAL NES
+	NESTypeFC,        //!< Famicom
+	NESTypeFamiclone  //!< Famicom clone
 };
 
 /**
  * MMC Type
  */
 enum EMMCType {
-	MMCNROM//!< NROM
+	MMCNROM  //!< NROM
 };
 
 /**
@@ -110,6 +110,7 @@ private:
 	 * NES Type
 	 */
 	ENESType NESType;
+
 public:
 	/**
 	 * Configures the class
@@ -117,8 +118,8 @@ public:
 	 * @param appConfig Application configuration
 	 * @param inputFile Input file stream
 	 */
-	void configure(const gui::SApplicationConfig &appConfig,
-			std::ifstream &inputFile);
+	void configure(
+	    const gui::SApplicationConfig &appConfig, std::ifstream &inputFile);
 	/**
 	 * Creates an instance of NES
 	 *
@@ -141,8 +142,8 @@ public:
 	~SNESConfig();
 };
 
-}
+} /* core */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_CORE_CONFIG_HPP_ */

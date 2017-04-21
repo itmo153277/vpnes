@@ -37,7 +37,8 @@
 #endif
 
 #ifdef BUILDNUM
-#define PACKAGE_BUILD PACKAGE_STRING " Build " BUILDNUM " " __DATE__ " " __TIME__
+#define PACKAGE_BUILD \
+	PACKAGE_STRING " Build " BUILDNUM " " __DATE__ " " __TIME__
 #else
 #define PACKAGE_BUILD PACKAGE_STRING " Build " __DATE__ " " __TIME__
 #endif
@@ -47,18 +48,17 @@ namespace vpnes {
 /**
  * Condition and
  */
-template<typename ... Conds>
-struct cond_and: std::true_type {
-};
+template <typename... Conds>
+struct cond_and : std::true_type {};
 
 /**
  * Condition and recursive definition
  */
-template<typename Cond, typename ... Conds>
-struct cond_and<Cond, Conds...> : std::conditional<Cond::value,
-		cond_and<Conds...>, std::false_type>::type {
+template <typename Cond, typename... Conds>
+struct cond_and<Cond, Conds...>
+    : std::conditional<Cond::value, cond_and<Conds...>, std::false_type>::type {
 };
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_VPNES_H_ */

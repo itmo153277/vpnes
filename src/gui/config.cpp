@@ -41,9 +41,7 @@ using namespace ::vpnes::gui;
 /**
  * Sets default values
  */
-SApplicationConfig::SApplicationConfig() :
-		inputFile(NULL) {
-
+SApplicationConfig::SApplicationConfig() : inputFile(NULL) {
 }
 
 /**
@@ -60,7 +58,7 @@ SApplicationConfig::~SApplicationConfig() {
  * @param argv Array of parameters
  */
 void SApplicationConfig::parseOptions(int argc, char **argv) {
-	//TODO: implement
+	// TODO: implement
 	if (argc >= 2) {
 		setInputFile(argv[1]);
 	}

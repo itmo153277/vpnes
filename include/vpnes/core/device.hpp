@@ -34,12 +34,12 @@
 #include <cstddef>
 #include <utility>
 #include <type_traits>
-#include <algorithm>
+#include <memory>
 #include <list>
-#include <unordered_map>
 #include <set>
-#include <vector>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <vpnes/vpnes.hpp>
 
 namespace vpnes {
@@ -63,6 +63,7 @@ protected:
 	 * @param s Copied value
 	 */
 	CDevice(const CDevice &s) = delete;
+
 public:
 	/**
 	 * Default destructor
@@ -82,7 +83,7 @@ typedef std::size_t clock_t;
 /**
  * Default clocked device
  */
-class CClockedDevice: public CDevice {
+class CClockedDevice : public CDevice {
 protected:
 	/**
 	 * Current clock value
@@ -100,12 +101,12 @@ protected:
 	 */
 	virtual void sync(clock_t ticks) {
 	}
+
 public:
 	/**
 	 * Constructs the object
 	 */
-	CClockedDevice() :
-			m_Clock() {
+	CClockedDevice() : m_Clock() {
 	}
 	/**
 	 * Destroys the object
@@ -177,8 +178,8 @@ protected:
 	 * @param time Firing time
 	 * @param enabled Enabled or not
 	 */
-	CDeviceEvent(const char *name, clock_t time, bool enabled) :
-			m_Time(time), m_Name(name), m_Enabled(enabled) {
+	CDeviceEvent(const char *name, clock_t time, bool enabled)
+	    : m_Time(time), m_Name(name), m_Enabled(enabled) {
 	}
 	/**
 	 * Deleted default constructor
@@ -190,6 +191,7 @@ protected:
 	 * @param s Copied value
 	 */
 	CDeviceEvent(const CDeviceEvent &s) = delete;
+
 public:
 	/**
 	 * Default destructor
@@ -228,17 +230,18 @@ public:
 /**
  * Event-based device
  */
-class CEventDevice: public CClockedDevice {
+class CEventDevice : public CClockedDevice {
 public:
 	/**
 	 * Local event
 	 */
-	class CEvent: public CDeviceEvent {
+	class CEvent : public CDeviceEvent {
 	protected:
 		/**
 		 * Pointer to associated device
 		 */
 		CEventDevice *m_Device;
+
 	public:
 		/**
 		 * Constructs the object
@@ -248,9 +251,9 @@ public:
 		 * @param enabled Enabled or not
 		 * @param device Associated device
 		 */
-		CEvent(const char *name, clock_t time, bool enabled,
-				CEventDevice *device) :
-				CDeviceEvent(name, time, enabled), m_Device(device) {
+		CEvent(
+		    const char *name, clock_t time, bool enabled, CEventDevice *device)
+		    : CDeviceEvent(name, time, enabled), m_Device(device) {
 		}
 		/**
 		 * Destroys the object
@@ -278,8 +281,8 @@ public:
 	/**
 	 * Template for local events
 	 */
-	template<class T>
-	class CLocalEvent: public CEvent {
+	template <class T>
+	class CLocalEvent : public CEvent {
 	public:
 		/**
 		 * Local event handler
@@ -287,11 +290,13 @@ public:
 		 * @param Occurred event
 		 */
 		typedef void (T::*local_trigger_t)(CEvent *);
+
 	private:
 		/**
 		 * Saved local event handler
 		 */
 		local_trigger_t m_LocalTrigger;
+
 	public:
 		/**
 		 * Constructs the object
@@ -303,8 +308,8 @@ public:
 		 * @param trigger Trigger that will be fired
 		 */
 		CLocalEvent(const char *name, clock_t time, bool enabled, T *device,
-				local_trigger_t trigger) :
-				CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
+		    local_trigger_t trigger)
+		    : CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
 		}
 		/**
 		 * Destroys the object
@@ -317,6 +322,7 @@ public:
 			(static_cast<T *>(m_Device)->*m_LocalTrigger)(this);
 		}
 	};
+
 private:
 	/**
 	 * Saved event data
@@ -358,7 +364,7 @@ private:
 		 *
 		 * @param s Copied value
 		 */
-		SEventData(SEventData &&s) noexcept =default;
+		SEventData(SEventData &&s) noexcept = default;
 
 		/**
 		 * Updates the local data
@@ -374,7 +380,7 @@ private:
 		 * @param right Right operand
 		 * @return *Left < *Right
 		 */
-		static bool compare(SEventData * const left, SEventData * const right) {
+		static bool compare(SEventData *const left, SEventData *const right) {
 			assert(right->m_Enabled && left->m_Enabled);
 			return left->m_Time < right->m_Time;
 		}
@@ -387,7 +393,8 @@ private:
 	 * Event queue
 	 */
 	typedef std::set<SEventData *,
-			bool (*)(SEventData * const, SEventData * const)> EventQueue;
+	    bool (*)(SEventData *const, SEventData *const)>
+	    EventQueue;
 	/**
 	 * Event data mapped to event
 	 */
@@ -396,6 +403,7 @@ private:
 	 * Event queue
 	 */
 	EventQueue m_EventQueue;
+
 protected:
 	/**
 	 * Local end time
@@ -441,12 +449,13 @@ protected:
 			(*iter)->m_Event->fire();
 		}
 	}
+
 public:
 	/**
 	 * Constructs the object
 	 */
-	CEventDevice() :
-			m_EventData(), m_EventQueue(SEventData::compare), m_LocalTime() {
+	CEventDevice()
+	    : m_EventData(), m_EventQueue(SEventData::compare), m_LocalTime() {
 	}
 	/**
 	 * Destroys the object
@@ -471,7 +480,7 @@ public:
 	 *
 	 * @param event Event
 	 */
-	void updateBack(CEvent * event) {
+	void updateBack(CEvent *event) {
 		EventMap::iterator iter = m_EventData.find(event);
 		assert(iter != m_EventData.end());
 		SEventData &eventData = iter->second;
@@ -516,20 +525,20 @@ public:
 /**
  * Device that can run with self-generated ticks
  */
-class CGeneratorDevice: public CEventDevice {
+class CGeneratorDevice : public CEventDevice {
 private:
 	/**
 	 * Enabling flag
 	 */
 	bool m_Enabled;
+
 public:
 	/**
 	 * Constructs the object
 	 *
 	 * @param enabled Enable or not
 	 */
-	CGeneratorDevice(bool enabled) :
-			m_Enabled(enabled) {
+	CGeneratorDevice(bool enabled) : m_Enabled(enabled) {
 	}
 	/**
 	 * Destroys the object
@@ -561,7 +570,6 @@ public:
 	void setEnabled(bool enabled) {
 		m_Enabled = enabled;
 	}
-
 };
 
 /**
@@ -576,7 +584,7 @@ private:
 	/**
 	 * Pairs of devices and their events
 	 */
-	typedef std::pair<CEventDevice *, CDeviceEvent *> EventPair;
+	typedef std::pair<CEventDevice *, std::unique_ptr<CDeviceEvent>> EventPair;
 	/**
 	 * Array of pairs device-event
 	 */
@@ -589,12 +597,12 @@ private:
 	 * Array of pairs device-event
 	 */
 	EventArr events;
+
 public:
 	/**
 	 * Constructs the object
 	 */
-	CEventManager() :
-			eventMap(), events() {
+	CEventManager() : eventMap(), events() {
 	}
 	/**
 	 * Deleted default copy constructor
@@ -605,11 +613,7 @@ public:
 	/**
 	 * Destroys the object
 	 */
-	~CEventManager() {
-		for (auto &v : events) {
-			delete v.second;
-		}
-	}
+	~CEventManager() = default;
 
 	/**
 	 * Constructs an event and registers it
@@ -621,15 +625,18 @@ public:
 	 * @param args Other arguments to pass to constructor
 	 * @return Constructed event
 	 */
-	template<class T, typename ... TArgs>
+	template <class T, typename... TArgs>
 	typename T::CEvent *registerEvent(T *device, const char *name, clock_t time,
-			bool enabled, TArgs && ... args) {
-		static_assert(std::is_base_of<CEventDevice, T>::value, "T is not event based device");
-		static_assert(std::is_constructible<typename T::template CLocalEvent<T>, const char *, clock_t,
-				bool, T *, decltype(std::forward<TArgs>(args))...>::value, "T::LocalEvent cannot be constructed");
+	    bool enabled, TArgs &&... args) {
+		static_assert(std::is_base_of<CEventDevice, T>::value,
+		    "T is not event based device");
+		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
+		                  const char *, clock_t, bool, T *,
+		                  decltype(std::forward<TArgs>(args))...>::value,
+		    "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
-				name, time, enabled, device, std::forward<TArgs>(args)...);
+		    name, time, enabled, device, std::forward<TArgs>(args)...);
 		eventMap.emplace(name, event);
 		events.emplace(events.end(), device, event);
 		device->registerEvent(event);
@@ -647,22 +654,18 @@ public:
 		return iter->second;
 	}
 	/**
-	 * Unregisters all device's events
+	 * Unregisters all device's events and destroys them
 	 *
 	 * @param device Events' owner
 	 */
 	void unregisterEvents(CEventDevice *device) {
-		for (EventArr::iterator iter = std::find_if(events.begin(),
-				events.end(), [&](EventPair &v) -> bool {
-					return v.first == device;
-				}); iter != events.end(); iter = events.erase(iter)) {
-			delete iter->second;
-		}
+		events.remove_if(
+		    [&](EventPair &v) -> bool { return v.first == device; });
 	}
 };
 
-}
+} /* core */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_CORE_DEVICE_HPP_ */

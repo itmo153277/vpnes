@@ -154,10 +154,10 @@ struct SNESData {
 	~SNESData();
 };
 
-}
+} /* ines */
 
-}
+} /* core */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDES_CORE_INES_HPP_ */

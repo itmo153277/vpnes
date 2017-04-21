@@ -44,9 +44,16 @@ using namespace ::vpnes::core;
 /**
  * Default constructor
  */
-SNESConfig::SNESConfig() :
-		CHR(), PRG(), Trainer(), PRGSize(), CHRSize(), RAMSize(), MMCType(), Mirroring(), NESType() {
-
+SNESConfig::SNESConfig()
+    : CHR()
+    , PRG()
+    , Trainer()
+    , PRGSize()
+    , CHRSize()
+    , RAMSize()
+    , MMCType()
+    , Mirroring()
+    , NESType() {
 }
 /**
  * Default destructor
@@ -63,8 +70,8 @@ SNESConfig::~SNESConfig() {
  * @param appConfig Application configuration
  * @param inputFile Input file stream
  */
-void SNESConfig::configure(const SApplicationConfig &appConfig,
-		ifstream &inputFile) {
+void SNESConfig::configure(
+    const SApplicationConfig &appConfig, ifstream &inputFile) {
 	ines::SNESData nesData(inputFile);
 	PRGSize = nesData.PRGSize;
 	CHRSize = nesData.CHRSize;

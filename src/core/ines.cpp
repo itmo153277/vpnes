@@ -46,8 +46,7 @@ using namespace ::vpnes::core::ines;
  * Constructs the structure from the data
  * @param ROM
  */
-SNESData::SNESData(ifstream &ROM) :
-		PRG(), CHR(), Trainer() {
+SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
 	try {
 		const char *iNESSignature = "NES\32";
 		uint8_t mapper;
@@ -95,13 +94,13 @@ SNESData::SNESData(ifstream &ROM) :
 			default:
 				NESType = NESTypeAuto;
 			}
-			RAMSize =
-					(header.RAMSize == 0 && !(header.Flags_unofficial & 0x10)) ?
-							0x2000 : header.RAMSize * 0x2000;
+			RAMSize = (header.RAMSize == 0 && !(header.Flags_unofficial & 0x10))
+			              ? 0x2000
+			              : header.RAMSize * 0x2000;
 		}
 		if (header.Flags & 0x04) {
 			Trainer = new uint8_t[0x0200];
-			ROM.read((char*) Trainer, 0x0200 * sizeof(uint8_t));
+			ROM.read((char *) Trainer, 0x0200 * sizeof(uint8_t));
 		}
 		PRG = new uint8_t[PRGSize];
 		ROM.read((char *) PRG, PRGSize * sizeof(uint8_t));

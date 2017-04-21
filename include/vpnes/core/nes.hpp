@@ -61,15 +61,15 @@ public:
 	 *
 	 * @param s Copied value
 	 */
-	CNES(CNES &&s) noexcept =default;
+	CNES(CNES &&s) noexcept = default;
 	/**
 	 * Destroyer
 	 */
 	~CNES() = default;
 };
 
-}
+} /* core */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_CORE_NES_HPP_ */

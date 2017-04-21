@@ -46,6 +46,7 @@ protected:
 	 * Application configuration
 	 */
 	SApplicationConfig config;
+
 public:
 	/**
 	 * Constructor
@@ -71,8 +72,8 @@ public:
 	int startGUI(int argc, char **argv);
 };
 
-}
+} /* gui */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_GUI_GUI_HPP_ */

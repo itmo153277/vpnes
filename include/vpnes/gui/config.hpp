@@ -30,7 +30,6 @@
 #include "config.h"
 #endif
 
-#include <iostream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 
@@ -47,6 +46,7 @@ private:
 	 * File name
 	 */
 	const char *inputFile;
+
 public:
 	/**
 	 * Parses command line options
@@ -92,8 +92,8 @@ public:
 	std::ifstream getInputFile();
 };
 
-}
+} /* gui */
 
-}
+} /* vpnes */
 
 #endif /* VPNES_INCLUDE_GUI_CONFIG_HPP_ */
