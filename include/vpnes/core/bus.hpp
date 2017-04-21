@@ -1247,13 +1247,13 @@ public:
 			m_OpenBusDevice(), m_ReadArr(
 					BusAggregate<Devices ..., COpenBusDevice>::ReadSize,
 					&m_OpenBus), m_WriteArr(
-					BusAggregate<Devices ..., COpenBusDevice>::ReadSize,
+					BusAggregate<Devices ..., COpenBusDevice>::WriteSize,
 					&m_DummyWrite), m_ModArr(
-					BusAggregate<Devices ..., COpenBusDevice>::ReadSize,
+					BusAggregate<Devices ..., COpenBusDevice>::ModSize,
 					&m_WriteBuf), m_DeviceArr(
 					{ &devices..., &m_OpenBusDevice }) {
 		mapRead(m_ReadArr.begin(), devices ..., m_OpenBusDevice);
-		mapWrtie(m_WriteArr.begin(), devices ..., m_OpenBusDevice);
+		mapWrite(m_WriteArr.begin(), devices ..., m_OpenBusDevice);
 		mapMod(m_ModArr.begin(), devices ..., m_OpenBusDevice);
 	}
 	/**
@@ -1288,7 +1288,7 @@ public:
 				BusAggregate<Devices..., COpenBusDevice>::getAddrWrite(
 						m_WriteArr.begin(), bank, addr);
 		MemoryMap::iterator iterMod =
-				BusAggregate<Devices..., COpenBusDevice>::getAddrWrite(
+				BusAggregate<Devices..., COpenBusDevice>::getAddrMod(
 						m_ModArr.begin(), bank, addr);
 		m_WriteBuf = s;
 		m_WriteBuf &= **iterMod;
