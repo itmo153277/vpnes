@@ -308,13 +308,19 @@ protected:
 	}
 
 	/**
-	 * Constructs the object
+	 * Deleted default constructor
 	 */
-	CBus()
+	CBus() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param openBus Open bus value
+	 */
+	CBus(std::uint8_t openBus)
 	    : m_ReadHooksPre()
 	    , m_ReadHooksPost()
 	    , m_WriteHooks()
-	    , m_OpenBus(0x40)
+	    , m_OpenBus(openBus)
 	    , m_WriteBuf()
 	    , m_DummyWrite() {
 	}
@@ -1492,8 +1498,11 @@ class CBusConfig<> : public CBus {
 public:
 	/**
 	 * Constructor
+	 *
+	 * @param openBus Open bus value
 	 */
-	CBusConfig() = default;
+	CBusConfig(std::uint8_t openBus) : CBus(openBus) {
+	}
 	/**
 	 * Destructor
 	 */
@@ -1557,10 +1566,13 @@ public:
 	/**
 	 * Constructs the bus
 	 *
+	 * @param openBus Open bus value
 	 * @param devices Devices
 	 */
-	CBusConfig(typename DeviceConfigs::Device &... devices)
-	    : m_OpenBusDevice()
+	CBusConfig(
+	    std::uint8_t openBus, typename DeviceConfigs::Device &... devices)
+	    : CBus(openBus)
+	    , m_OpenBusDevice()
 	    , m_ReadArr(BusAggregate<DeviceConfigs...,
 	                    COpenBusDevice::BusConfig>::ReadSize,
 	          &m_OpenBus)

@@ -16,6 +16,7 @@ noinst_HEADERS = \
 	include/vpnes/core/config.hpp \
 	include/vpnes/core/device.hpp \
 	include/vpnes/core/ines.hpp \
+	include/vpnes/core/mboard.hpp \
 	include/vpnes/core/nes.hpp
 
 @DX_RULES@

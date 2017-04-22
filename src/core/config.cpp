@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <utility>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/config.hpp>
