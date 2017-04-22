@@ -98,10 +98,10 @@ SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
 		Trainer.resize(0x0200);
 		ROM.read((char *) Trainer.data(), 0x0200 * sizeof(uint8_t));
 	}
-	PRG.reserve(PRGSize);
+	PRG.resize(PRGSize);
 	ROM.read((char *) PRG.data(), PRGSize * sizeof(uint8_t));
 	if (CHRSize) {
-		CHR.reserve(PRGSize);
+		CHR.resize(PRGSize);
 		ROM.read((char *) CHR.data(), CHRSize * sizeof(uint8_t));
 	}
 	switch (mapper) {
