@@ -41,14 +41,7 @@ using namespace ::vpnes::gui;
 /**
  * Sets default values
  */
-SApplicationConfig::SApplicationConfig() : inputFile(NULL) {
-}
-
-/**
- * Destroys the object
- */
-SApplicationConfig::~SApplicationConfig() {
-	delete[] inputFile;
+SApplicationConfig::SApplicationConfig() : inputFile() {
 }
 
 /**
@@ -65,24 +58,12 @@ void SApplicationConfig::parseOptions(int argc, char **argv) {
 }
 
 /**
- * Sets input file
- *
- * @param fileName Input file path
- */
-void SApplicationConfig::setInputFile(const char *fileName) {
-	delete[] inputFile;
-	char *tempFile = new char[strlen(fileName)];
-	strcpy(tempFile, fileName);
-	inputFile = tempFile;
-}
-
-/**
  * Opens input file and constructs ifstream object
  *
  * @return std::ifstream for reading file
  */
 ifstream SApplicationConfig::getInputFile() {
-	assert(inputFile != NULL);
+	assert(inputFile.size() > 0);
 	ifstream file;
 	file.exceptions(file.exceptions() | fstream::failbit);
 	file.open(inputFile, fstream::binary);

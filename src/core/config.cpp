@@ -55,14 +55,6 @@ SNESConfig::SNESConfig()
     , Mirroring()
     , NESType() {
 }
-/**
- * Default destructor
- */
-SNESConfig::~SNESConfig() {
-	delete[] CHR;
-	delete[] PRG;
-	delete[] Trainer;
-}
 
 /**
  * Configures the class
@@ -78,7 +70,10 @@ void SNESConfig::configure(
 	RAMSize = nesData.RAMSize;
 	Mirroring = nesData.Mirroring;
 	MMCType = nesData.MMCType;
-	NESType = nesData.NESType == NESTypeAuto ? NESTypeNTSC : nesData.NESType;
+	NESType = nesData.NESType;
+	PRG = std::move(nesData.PRG);
+	CHR = std::move(nesData.CHR);
+	Trainer = std::move(nesData.Trainer);
 }
 
 /**
@@ -87,5 +82,6 @@ void SNESConfig::configure(
  * @return Instance of NES
  */
 CNES SNESConfig::createInstance() {
+	// TODO: implement factory
 	return CNES();
 }

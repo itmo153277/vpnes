@@ -932,7 +932,6 @@ struct ReadWrite : BaseBank {
 		return iter;
 	}
 };
-}
 
 /**
  * Bank config
@@ -1132,6 +1131,8 @@ private:
 	 */
 	BankConfig();
 };
+
+} /* Banks */
 
 /**
  * Aggregate devices on bus
@@ -1350,7 +1351,7 @@ struct BusConfigBase {
 	/**
 	 * Banks config
 	 */
-	typedef BankConfig<> BankConfig;
+	typedef Banks::BankConfig<> BankConfig;
 
 	/**
 	 * Maps to read map
@@ -1401,6 +1402,12 @@ struct BusConfigBase {
 	static bool getBank(std::uint16_t addr, T &device) {
 		return 0;
 	}
+
+private:
+	/**
+	 * Forbid construction
+	 */
+	BusConfigBase();
 };
 
 /**
@@ -1414,7 +1421,7 @@ struct COpenBusDevice : public CDevice {
 		/**
 		 * Banks config
 		 */
-		typedef core::BankConfig<Banks::OpenBus> BankConfig;
+		typedef Banks::BankConfig<Banks::OpenBus> BankConfig;
 
 		/**
 		 * Maps to read map

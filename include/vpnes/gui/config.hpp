@@ -31,6 +31,7 @@
 #endif
 
 #include <fstream>
+#include <string>
 #include <vpnes/vpnes.hpp>
 
 namespace vpnes {
@@ -45,7 +46,7 @@ private:
 	/**
 	 * File name
 	 */
-	const char *inputFile;
+	std::string inputFile;
 
 public:
 	/**
@@ -68,7 +69,7 @@ public:
 	/**
 	 * Destroys the object
 	 */
-	~SApplicationConfig();
+	~SApplicationConfig() = default;
 
 	/**
 	 * Checks if the program has an input file
@@ -76,14 +77,16 @@ public:
 	 * @return True if input file is present
 	 */
 	inline bool hasInputFile() const noexcept {
-		return inputFile != NULL;
+		return inputFile.size() > 0;
 	}
 	/**
 	 * Sets input file
 	 *
 	 * @param fileName Input file path
 	 */
-	void setInputFile(const char *fileName);
+	void setInputFile(const char *fileName) {
+		inputFile = fileName;
+	}
 	/**
 	 * Opens input file and constructs ifstream object
 	 *

@@ -30,7 +30,9 @@
 #include "config.h"
 #endif
 
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/config.hpp>
@@ -124,15 +126,15 @@ struct SNESData {
 	/**
 	 * PRG ROM
 	 */
-	std::uint8_t *PRG;
+	std::vector<std::uint8_t> PRG;
 	/**
 	 * CHR ROM
 	 */
-	std::uint8_t *CHR;
+	std::vector<std::uint8_t> CHR;
 	/**
 	 * Trainer hacks
 	 */
-	std::uint8_t *Trainer;
+	std::vector<std::uint8_t> Trainer;
 	/**
 	 * Constructs the structure from the data
 	 * @param ROM
@@ -151,7 +153,7 @@ struct SNESData {
 	/**
 	 * Destroys the structure
 	 */
-	~SNESData();
+	~SNESData() = default;
 };
 
 } /* ines */

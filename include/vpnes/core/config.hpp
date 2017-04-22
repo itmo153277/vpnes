@@ -30,7 +30,9 @@
 #include "config.h"
 #endif
 
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/nes.hpp>
@@ -55,7 +57,6 @@ enum EMirroring {
  * NES type
  */
 enum ENESType {
-	NESTypeAuto,      //!< Auto defined
 	NESTypeNTSC,      //!< NTSC NES
 	NESTypePAL,       //!< PAL NES
 	NESTypeFC,        //!< Famicom
@@ -77,15 +78,15 @@ private:
 	/**
 	 * CHR ROM
 	 */
-	std::uint8_t *CHR;
+	std::vector<std::uint8_t> CHR;
 	/**
 	 * PRG ROM
 	 */
-	std::uint8_t *PRG;
+	std::vector<std::uint8_t> PRG;
 	/**
 	 * Trainer hack
 	 */
-	std::uint8_t *Trainer;
+	std::vector<std::uint8_t> Trainer;
 	/**
 	 * PRG size
 	 */
@@ -139,7 +140,7 @@ public:
 	/**
 	 * Default destructor
 	 */
-	~SNESConfig();
+	~SNESConfig() = default;
 };
 
 } /* core */

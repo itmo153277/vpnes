@@ -47,88 +47,68 @@ using namespace ::vpnes::core::ines;
  * @param ROM
  */
 SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
-	try {
-		const char *iNESSignature = "NES\32";
-		uint8_t mapper;
-		iNES_Header header;
+	const char *iNESSignature = "NES\32";
+	uint8_t mapper;
+	iNES_Header header;
 
-		ROM.read((char *) &header, sizeof(header));
-		if (strncmp(header.Signature, iNESSignature, 4)) {
-			throw invalid_argument("Unknown file format");
-		}
-		if ((header.Flags_ex & 0x0c) == 0x08) {
-			throw invalid_argument("Wrong version");
-		}
-		PRGSize = header.PRGSize * 0x4000;
-		CHRSize = header.CHRSize * 0x2000;
-		switch (header.Flags) {
-		case 0x01:
-			Mirroring = MirorringVertical;
-			break;
-		case 0x08:
-			Mirroring = MirorringSingleScreen1;
-			break;
-		case 0x09:
-			Mirroring = MirorringSingleScreen2;
-			break;
-		case 0x18:
-			Mirroring = MirorringFourScreens;
-			break;
-		default:
-			Mirroring = MirroringHorizontal;
-		}
-		BatterySize = (header.Flags & 0x02) ? 0x2000 : 0;
-		mapper = header.Flags >> 4;
-		if (header.BadROM) {
-			NESType = NESTypeAuto;
-			RAMSize = 0;
-		} else {
-			mapper |= header.Flags_ex & 0xf0;
-			switch (header.TV_system) {
-			case 0x01:
-				NESType = NESTypeNTSC;
-				break;
-			case 0x02:
-				NESType = NESTypePAL;
-				break;
-			default:
-				NESType = NESTypeAuto;
-			}
-			RAMSize = (header.RAMSize == 0 && !(header.Flags_unofficial & 0x10))
-			              ? 0x2000
-			              : header.RAMSize * 0x2000;
-		}
-		if (header.Flags & 0x04) {
-			Trainer = new uint8_t[0x0200];
-			ROM.read((char *) Trainer, 0x0200 * sizeof(uint8_t));
-		}
-		PRG = new uint8_t[PRGSize];
-		ROM.read((char *) PRG, PRGSize * sizeof(uint8_t));
-		if (CHRSize) {
-			CHR = new uint8_t[CHRSize];
-			ROM.read((char *) CHR, CHRSize * sizeof(uint8_t));
-		}
-		switch (mapper) {
-		case 0:
-			MMCType = MMCNROM;
-			break;
-		default:
-			throw invalid_argument("Unsupported mapper");
-		}
-	} catch (...) {
-		// Cleaning up and rethrow
-		delete[] PRG;
-		delete[] CHR;
-		delete[] Trainer;
-		throw;
+	ROM.read((char *) &header, sizeof(header));
+	if (strncmp(header.Signature, iNESSignature, 4)) {
+		throw invalid_argument("Unknown file format");
 	}
-}
-
-/**
- * Destroys the structure
- */
-SNESData::~SNESData() {
-	delete[] PRG;
-	delete[] CHR;
-	delete[] Trainer;
+	if ((header.Flags_ex & 0x0c) == 0x08) {
+		throw invalid_argument("Wrong version");
+	}
+	PRGSize = header.PRGSize * 0x4000;
+	CHRSize = header.CHRSize * 0x2000;
+	switch (header.Flags) {
+	case 0x01:
+		Mirroring = MirorringVertical;
+		break;
+	case 0x08:
+		Mirroring = MirorringSingleScreen1;
+		break;
+	case 0x09:
+		Mirroring = MirorringSingleScreen2;
+		break;
+	case 0x18:
+		Mirroring = MirorringFourScreens;
+		break;
+	default:
+		Mirroring = MirroringHorizontal;
+	}
+	BatterySize = (header.Flags & 0x02) ? 0x2000 : 0;
+	mapper = header.Flags >> 4;
+	if (header.BadROM) {
+		NESType = NESTypeNTSC;
+		RAMSize = 0;
+	} else {
+		mapper |= header.Flags_ex & 0xf0;
+		switch (header.TV_system) {
+		case 0x02:
+			NESType = NESTypePAL;
+			break;
+		default:
+			NESType = NESTypeNTSC;
+		}
+		RAMSize = (header.RAMSize == 0 && !(header.Flags_unofficial & 0x10))
+		              ? 0x2000
+		              : header.RAMSize * 0x2000;
+	}
+	if (header.Flags & 0x04) {
+		Trainer.resize(0x0200);
+		ROM.read((char *) Trainer.data(), 0x0200 * sizeof(uint8_t));
+	}
+	PRG.reserve(PRGSize);
+	ROM.read((char *) PRG.data(), PRGSize * sizeof(uint8_t));
+	if (CHRSize) {
+		CHR.reserve(PRGSize);
+		ROM.read((char *) CHR.data(), CHRSize * sizeof(uint8_t));
+	}
+	switch (mapper) {
+	case 0:
+		MMCType = MMCNROM;
+		break;
+	default:
+		throw invalid_argument("Unsupported mapper");
+	}
 }
