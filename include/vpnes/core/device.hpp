@@ -637,8 +637,8 @@ public:
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
 		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		eventMap.emplace(name, event);
 		events.emplace(events.end(), device, event);
+		eventMap.emplace(name, event);
 		device->registerEvent(event);
 		return event;
 	}
