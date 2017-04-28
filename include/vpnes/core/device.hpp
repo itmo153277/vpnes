@@ -35,7 +35,6 @@
 #include <utility>
 #include <type_traits>
 #include <memory>
-#include <list>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -78,7 +77,7 @@ typedef std::vector<CDevice *> DevicePtrList;
 /**
  * Clock ticks type
  */
-typedef std::size_t clock_t;
+typedef std::size_t ticks_t;
 
 /**
  * Default clocked device
@@ -88,7 +87,7 @@ protected:
 	/**
 	 * Current clock value
 	 */
-	clock_t m_Clock;
+	ticks_t m_Clock;
 
 	/**
 	 * Executes till reaching current clock value
@@ -99,7 +98,7 @@ protected:
 	 *
 	 * @param ticks New clock value
 	 */
-	virtual void sync(clock_t ticks) {
+	virtual void sync(ticks_t ticks) {
 	}
 
 public:
@@ -118,7 +117,7 @@ public:
 	 *
 	 * @param ticks End time
 	 */
-	virtual void simulate(clock_t ticks) {
+	virtual void simulate(ticks_t ticks) {
 		setClock(ticks);
 		execute();
 	}
@@ -128,7 +127,7 @@ public:
 	 *
 	 * @return Current clock value
 	 */
-	clock_t getClock() const {
+	ticks_t getClock() const {
 		return m_Clock;
 	}
 	/**
@@ -136,7 +135,7 @@ public:
 	 *
 	 * @param ticks Amount of ticks
 	 */
-	void setClock(clock_t ticks) {
+	void setClock(ticks_t ticks) {
 		if (ticks < m_Clock) {
 			sync(ticks);
 			m_Clock = ticks;
@@ -147,7 +146,7 @@ public:
 	 *
 	 * @param ticks Amount of ticks
 	 */
-	virtual void resetClock(clock_t ticks) {
+	virtual void resetClock(ticks_t ticks) {
 		m_Clock -= ticks;
 	}
 };
@@ -160,7 +159,7 @@ protected:
 	/**
 	 * Time when firing
 	 */
-	clock_t m_Time;
+	ticks_t m_Time;
 	/**
 	 * Event name
 	 */
@@ -178,7 +177,7 @@ protected:
 	 * @param time Firing time
 	 * @param enabled Enabled or not
 	 */
-	CDeviceEvent(const char *name, clock_t time, bool enabled)
+	CDeviceEvent(const char *name, ticks_t time, bool enabled)
 	    : m_Time(time), m_Name(name), m_Enabled(enabled) {
 	}
 	/**
@@ -202,7 +201,7 @@ public:
 	 *
 	 * @param ticks Amount of ticks
 	 */
-	void sync(clock_t ticks) {
+	void sync(ticks_t ticks) {
 		m_Time -= ticks;
 	}
 	/**
@@ -214,7 +213,7 @@ public:
 	 *
 	 * @return Time when firing
 	 */
-	clock_t getFireTime() const {
+	ticks_t getFireTime() const {
 		return m_Time;
 	}
 	/**
@@ -252,7 +251,7 @@ public:
 		 * @param device Associated device
 		 */
 		CEvent(
-		    const char *name, clock_t time, bool enabled, CEventDevice *device)
+		    const char *name, ticks_t time, bool enabled, CEventDevice *device)
 		    : CDeviceEvent(name, time, enabled), m_Device(device) {
 		}
 		/**
@@ -264,7 +263,7 @@ public:
 		 *
 		 * @param time Time when fired
 		 */
-		void setFireTime(clock_t time) {
+		void setFireTime(ticks_t time) {
 			m_Time = time;
 			m_Device->updateBack(this);
 		}
@@ -307,7 +306,7 @@ public:
 		 * @param device Associated device
 		 * @param trigger Trigger that will be fired
 		 */
-		CLocalEvent(const char *name, clock_t time, bool enabled, T *device,
+		CLocalEvent(const char *name, ticks_t time, bool enabled, T *device,
 		    local_trigger_t trigger)
 		    : CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
 		}
@@ -408,13 +407,13 @@ protected:
 	/**
 	 * Local end time
 	 */
-	clock_t m_LocalTime;
+	ticks_t m_LocalTime;
 
 	/**
 	 * Updates clock value
 	 */
 	void updateClock() {
-		clock_t newClock = m_Clock;
+		ticks_t newClock = m_Clock;
 		EventQueue::const_reverse_iterator iter = m_EventQueue.crbegin();
 
 		if (iter == m_EventQueue.crend()) {
@@ -432,7 +431,7 @@ protected:
 	 *
 	 * @return New clock value
 	 */
-	clock_t generateTicks() {
+	ticks_t generateTicks() {
 		EventQueue::const_reverse_iterator iter = m_EventQueue.crbegin();
 		assert(iter != m_EventQueue.crend());
 		return (*iter)->m_Time;
@@ -467,7 +466,7 @@ public:
 	 *
 	 * @param ticks End time
 	 */
-	void simulate(clock_t ticks) {
+	void simulate(ticks_t ticks) {
 		m_LocalTime = ticks;
 		do {
 			updateClock();
@@ -498,7 +497,7 @@ public:
 	 *
 	 * @param ticks Amount of ticks
 	 */
-	void resetClock(clock_t ticks) {
+	void resetClock(ticks_t ticks) {
 		CClockedDevice::resetClock(ticks);
 		for (auto &event : m_EventData) {
 			SEventData &eventData = event.second;
@@ -511,7 +510,7 @@ public:
 	 *
 	 * @param event New event
 	 */
-	void registerEvent(CEvent *event) {
+	void registerDeviceEvent(CEvent *event) {
 		assert(m_EventData.find(event) == m_EventData.end());
 		auto newData = m_EventData.emplace(event, event);
 		SEventData &eventData = newData.first->second;
@@ -552,6 +551,7 @@ public:
 		while (m_Enabled) {
 			setClock(generateTicks());
 			execute();
+			fireEvents();
 		}
 	}
 	/**
@@ -582,13 +582,11 @@ private:
 	 */
 	typedef std::unordered_map<std::string, CDeviceEvent *> EventMap;
 	/**
-	 * Pairs of devices and their events
-	 */
-	typedef std::pair<CEventDevice *, std::unique_ptr<CDeviceEvent>> EventPair;
-	/**
 	 * Array of pairs device-event
 	 */
-	typedef std::list<EventPair> EventArr;
+	typedef std::unordered_multimap<CEventDevice *,
+	    std::unique_ptr<CDeviceEvent>>
+	    EventArr;
 	/**
 	 * Map of events and their names
 	 */
@@ -626,20 +624,20 @@ public:
 	 * @return Constructed event
 	 */
 	template <class T, typename... TArgs>
-	typename T::CEvent *registerEvent(T *device, const char *name, clock_t time,
+	typename T::CEvent *registerEvent(T *device, const char *name, ticks_t time,
 	    bool enabled, TArgs &&... args) {
 		static_assert(std::is_base_of<CEventDevice, T>::value,
 		    "T is not event based device");
 		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
-		                  const char *, clock_t, bool, T *,
+		                  const char *, ticks_t, bool, T *,
 		                  decltype(std::forward<TArgs>(args))...>::value,
 		    "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
 		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		events.emplace(events.end(), device, event);
+		events.emplace(device, event);
 		eventMap.emplace(name, event);
-		device->registerEvent(event);
+		device->registerDeviceEvent(event);
 		return event;
 	}
 	/**
@@ -659,8 +657,7 @@ public:
 	 * @param device Events' owner
 	 */
 	void unregisterEvents(CEventDevice *device) {
-		events.remove_if(
-		    [&](EventPair &v) -> bool { return v.first == device; });
+		events.erase(device);
 	}
 };
 

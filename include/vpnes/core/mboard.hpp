@@ -37,6 +37,7 @@
 #include <memory>
 #include <vector>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/frontend.hpp>
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/bus.hpp>
 
@@ -65,6 +66,18 @@ private:
 	 * CPU bus
 	 */
 	std::unique_ptr<CBus> m_BusCPU;
+	/**
+	 * Front-end
+	 */
+	CFrontEnd *m_FrontEnd;
+	/**
+	 * Estimated frame time
+	 */
+	ticks_t m_FrameTime;
+	/**
+	 * Frequency
+	 */
+	double m_Freq;
 
 	/**
 	 * Adds hooks for PPU bus
@@ -99,6 +112,17 @@ private:
 		addHooksPPU(otherDevices...);
 	}
 
+	/**
+	 * Handles frame ending
+	 *
+	 * @param event Frame ending event
+	 */
+	void handleFrameEnd(CEvent *event) {
+		m_FrontEnd->handleFrameRender(event->getFireTime() * m_Freq);
+		resetClock(event->getFireTime());
+		event->setFireTime(m_FrameTime);
+	}
+
 protected:
 	/**
 	 * Executes the simulation
@@ -115,7 +139,7 @@ protected:
 	 *
 	 * @param ticks New time
 	 */
-	void sync(clock_t ticks) {
+	void sync(ticks_t ticks) {
 		if (m_CurrentDevice) {
 			m_CurrentDevice->setClock(ticks);
 		}
@@ -123,10 +147,23 @@ protected:
 
 public:
 	/**
-	 * Constructs the object
+	 * Deleted default constructor
 	 */
-	CMotherBoard()
-	    : CGeneratorDevice(true), CEventManager(), m_CurrentDevice() {
+	CMotherBoard() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param frequency Frequency
+	 */
+	CMotherBoard(CFrontEnd *frontEnd, double frequency, ticks_t frameTime)
+	    : CGeneratorDevice(true)
+	    , CEventManager()
+	    , m_CurrentDevice()
+	    , m_FrontEnd(frontEnd)
+	    , m_Freq(frequency)
+	    , m_FrameTime(frameTime) {
+		registerEvent(this, "FRAME_RENDER_END", m_FrameTime, true,
+		    &CMotherBoard::handleFrameEnd);
 	}
 	/**
 	 * Deleted copy constructor
@@ -191,6 +228,21 @@ public:
 	CBus &getBusCPU() const {
 		assert(m_BusCPU);
 		return *m_BusCPU;
+	}
+
+	double getFrequency() const {
+		return m_Freq;
+	}
+	/**
+	 * Resets the clock by ticks amount
+	 *
+	 * @param ticks Amount of ticks
+	 */
+	void resetClock(ticks_t ticks) {
+		CGeneratorDevice::resetClock(ticks);
+		for (CClockedDevice *device : m_Devices) {
+			device->resetClock(ticks);
+		}
 	}
 };
 

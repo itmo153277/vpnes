@@ -161,6 +161,7 @@
     <ClInclude Include="include\vpnes\core\bus.hpp" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
     <ClInclude Include="include\vpnes\core\device.hpp" />
+    <ClInclude Include="include\vpnes\core\frontend.hpp" />
     <ClInclude Include="include\vpnes\core\ines.hpp" />
     <ClInclude Include="include\vpnes\core\mboard.hpp" />
     <ClInclude Include="include\vpnes\core\nes.hpp" />

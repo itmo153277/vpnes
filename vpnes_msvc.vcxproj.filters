@@ -33,6 +33,9 @@
     <ClInclude Include="include\vpnes\core\device.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
+    <ClInclude Include="include\vpnes\core\frontend.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
     <ClInclude Include="include\vpnes\core\ines.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
