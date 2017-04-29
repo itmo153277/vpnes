@@ -35,6 +35,7 @@
 #include <vector>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/frontend.hpp>
 #include <vpnes/core/nes.hpp>
 #include <vpnes/gui/config.hpp>
 
@@ -57,17 +58,19 @@ enum EMirroring {
  * NES type
  */
 enum ENESType {
-	NESTypeNTSC,      //!< NTSC NES
-	NESTypePAL,       //!< PAL NES
-	NESTypeFC,        //!< Famicom
-	NESTypeFamiclone  //!< Famicom clone
+	NESTypeNTSC,       //!< NTSC NES
+	NESTypePAL,        //!< PAL NES
+	NESTypeFC,         //!< Famicom
+	NESTypeFamiclone,  //!< Famicom clone
 };
 
 /**
  * MMC Type
  */
 enum EMMCType {
-	MMCNROM  //!< NROM
+	MMCNROM128,  //!< NROM-128
+	MMCNROM256,  //!< NROM-256
+	MMCAmount    //!< Total amount
 };
 
 /**
@@ -124,9 +127,10 @@ public:
 	/**
 	 * Creates an instance of NES
 	 *
+	 * @param frontEnd Front-end
 	 * @return Instance of NES
 	 */
-	CNES createInstance();
+	CNES *createInstance(CFrontEnd *frontEnd);
 	/**
 	 * Default constructor
 	 */

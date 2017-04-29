@@ -44,8 +44,7 @@ public:
 	/**
 	 * Starts NES
 	 */
-	void powerUp() {
-	}
+	virtual void powerUp() = 0;
 	/**
 	 * Constructor
 	 */
@@ -57,15 +56,9 @@ public:
 	 */
 	CNES(const CNES &s) = delete;
 	/**
-	 * Move constructor
-	 *
-	 * @param s Copied value
-	 */
-	CNES(CNES &&s) noexcept = default;
-	/**
 	 * Destroyer
 	 */
-	~CNES() = default;
+	virtual ~CNES() = default;
 };
 
 } /* core */

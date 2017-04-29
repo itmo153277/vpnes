@@ -30,8 +30,10 @@
 #include "config.h"
 #endif
 
+#include <chrono>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
+#include <vpnes/core/frontend.hpp>
 
 namespace vpnes {
 
@@ -40,18 +42,30 @@ namespace gui {
 /**
  * Main GUI class
  */
-class CGUI {
+class CGUI : public core::CFrontEnd {
 protected:
+	/**
+	 * Jitter
+	 */
+	double m_Jitter;
+	/**
+	 * Time overhead
+	 */
+	double m_TimeOverhead;
+	/**
+	 * Frame start point
+	 */
+	std::chrono::high_resolution_clock::time_point m_Time;
 	/**
 	 * Application configuration
 	 */
-	SApplicationConfig config;
+	SApplicationConfig m_Config;
 
 public:
 	/**
 	 * Constructor
 	 */
-	CGUI() = default;
+	CGUI();
 	/**
 	 * Deleted default copy constructor
 	 *
@@ -70,6 +84,12 @@ public:
 	 * @return Exit code
 	 */
 	int startGUI(int argc, char **argv);
+	/**
+	 * Frame-ready callback
+	 *
+	 * @param frameTime Frame time
+	 */
+	void handleFrameRender(double frameTime);
 };
 
 } /* gui */

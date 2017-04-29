@@ -5,6 +5,7 @@ vpnes_SOURCES = \
 	main.cpp \
 	src/gui/gui.cpp \
 	src/gui/config.cpp \
+	src/core/mappers/nrom.cpp \
 	src/core/config.cpp \
 	src/core/ines.cpp
 vpnes_CPPFLAGS = -I$(top_srcdir)/include $(AM_CPP_FLAGS)
@@ -15,6 +16,7 @@ noinst_HEADERS = \
 	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
 	include/vpnes/core/device.hpp \
+	include/vpnes/core/factory.hpp \
 	include/vpnes/core/frontend.hpp \
 	include/vpnes/core/ines.hpp \
 	include/vpnes/core/mboard.hpp \

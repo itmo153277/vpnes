@@ -390,7 +390,7 @@ public:
 	}
 };
 
-namespace Banks {
+namespace banks {
 
 /**
  * Base bank meta class
@@ -1028,7 +1028,7 @@ private:
  */
 template <class FirstClass, class... OtherClasses>
 struct BankConfig<FirstClass, OtherClasses...> {
-	static_assert(std::is_base_of<Banks::BaseBank, FirstClass>::value,
+	static_assert(std::is_base_of<banks::BaseBank, FirstClass>::value,
 	    "Bank config contains non-bank class");
 	enum {
 		BanksCount =
@@ -1138,7 +1138,7 @@ private:
 	BankConfig();
 };
 
-} /* Banks */
+} /* banks */
 
 /**
  * Aggregate devices on bus
@@ -1357,7 +1357,7 @@ struct BusConfigBase {
 	/**
 	 * Banks config
 	 */
-	typedef Banks::BankConfig<> BankConfig;
+	typedef banks::BankConfig<> BankConfig;
 
 	/**
 	 * Maps to read map
@@ -1427,7 +1427,7 @@ struct COpenBusDevice : public CDevice {
 		/**
 		 * Banks config
 		 */
-		typedef Banks::BankConfig<Banks::OpenBus> BankConfig;
+		typedef banks::BankConfig<banks::OpenBus> BankConfig;
 
 		/**
 		 * Maps to read map

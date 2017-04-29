@@ -31,6 +31,9 @@
 #include <cstring>
 #include <exception>
 #include <stdexcept>
+#include <memory>
+#include <chrono>
+#include <thread>
 #include <iostream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
@@ -40,11 +43,18 @@
 #include <vpnes/core/nes.hpp>
 
 using namespace ::std;
+using namespace ::std::chrono;
 using namespace ::vpnes;
 using namespace ::vpnes::gui;
 using namespace ::vpnes::core;
 
 /* CGUI */
+
+/**
+ * Constructor
+ */
+CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
+}
 
 /**
  * Starts GUI
@@ -53,20 +63,23 @@ using namespace ::vpnes::core;
  * @param argv Array of parameters
  * @return Exit code
  */
-int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
-	config.parseOptions(argc, argv);
-	if (!config.hasInputFile()) {
+int CGUI::startGUI(int argc, char **argv) {
+	m_Config.parseOptions(argc, argv);
+	if (!m_Config.hasInputFile()) {
 		cerr << "Usage:" << endl;
 		cerr << argv[0] << " path_to_rom.nes" << endl;
 		return 0;
 	}
 	try {
-		ifstream inputFile = config.getInputFile();
+		ifstream inputFile = m_Config.getInputFile();
 		SNESConfig nesConfig;
-		nesConfig.configure(config, inputFile);
+		nesConfig.configure(m_Config, inputFile);
 		inputFile.close();
-		CNES nes = nesConfig.createInstance();
-		nes.powerUp();
+		unique_ptr<CNES> nes(nesConfig.createInstance(this));
+		m_Jitter = 0;
+		m_TimeOverhead = 0;
+		m_Time = high_resolution_clock::now();
+		nes->powerUp();
 	} catch (const invalid_argument &e) {
 		cerr << e.what() << endl;
 	} catch (const exception &e) {
@@ -74,4 +87,26 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 		cerr << strerror(errno) << endl;
 	}
 	return 0;
+}
+
+/**
+ * Frame-ready callback
+ *
+ * @param frameTime Frame time
+ */
+void CGUI::handleFrameRender(double frameTime) {
+	high_resolution_clock::time_point lastTime = m_Time;
+	m_Jitter += frameTime;
+	if (m_Jitter > m_TimeOverhead) {
+		long waitTime = static_cast<long>(m_Jitter - m_TimeOverhead);
+		this_thread::sleep_for(milliseconds(waitTime));
+		m_Time = high_resolution_clock::now();
+		long actualWait =
+		    duration_cast<milliseconds>(m_Time - lastTime).count();
+		m_TimeOverhead += (actualWait - waitTime) / 2;
+		m_Jitter -= actualWait;
+	} else {
+		m_Time = high_resolution_clock::now();
+		m_Jitter -= duration_cast<milliseconds>(m_Time - lastTime).count();
+	}
 }

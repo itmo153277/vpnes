@@ -27,6 +27,7 @@
 #include "config.h"
 #endif
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <utility>
@@ -34,11 +35,31 @@
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/config.hpp>
 #include <vpnes/core/ines.hpp>
+#include <vpnes/core/factory.hpp>
 
 using namespace ::std;
 using namespace ::vpnes;
 using namespace ::vpnes::gui;
 using namespace ::vpnes::core;
+
+/**
+ * Defines NES factory for MMC
+ *
+ * @param MMC MMC name
+ */
+#define DefineFactoryEntry(MMC)                    \
+	&vpnes::core::factory::Factory##MMC##_NTSC,    \
+	    &vpnes::core::factory::Factory##MMC##_PAL, \
+	    &vpnes::core::factory::Factory##MMC##_FC,  \
+	    &vpnes::core::factory::Factory##MMC##_Clone
+
+/**
+ * Factory list
+ */
+const NESFactory factoryList[MMCAmount] = {
+    &factory::FactoryNROM,  // NROM-128
+    &factory::FactoryNROM   // NROM-256
+};
 
 /* SNESConfig */
 
@@ -80,9 +101,10 @@ void SNESConfig::configure(
 /**
  * Creates an instance of NES
  *
+ * @param frontEnd Front-end
  * @return Instance of NES
  */
-CNES SNESConfig::createInstance() {
-	// TODO: implement factory
-	return CNES();
+CNES *SNESConfig::createInstance(CFrontEnd *frontEnd) {
+	assert(MMCType < MMCAmount);
+	return factoryList[MMCType](this, frontEnd);
 }

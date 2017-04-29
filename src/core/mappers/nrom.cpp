@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Defines interfaces between gui and core
+ * Defines NROM class and factories
  */
 /*
  NES Emulator
@@ -23,49 +23,23 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_FRONTEND_HPP_
-#define VPNES_INCLUDE_CORE_FRONTEND_HPP_
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/factory.hpp>
 
-namespace vpnes {
-
-namespace core {
+using namespace ::vpnes;
+using namespace ::vpnes::core;
 
 /**
- * Front-end
+ * NROM NES factory
+ *
+ * @param config NES config
+ * @param frontEnd Front-end
+ * @return NES
  */
-class CFrontEnd {
-public:
-	/**
-	 * Default constructor
-	 */
-	CFrontEnd() = default;
-	/**
-	 * Deleted copy constructor
-	 *
-	 * @param s Copied value
-	 */
-	CFrontEnd(const CFrontEnd &s) = delete;
-	/**
-	 * Default destructor
-	 */
-	virtual ~CFrontEnd() = default;
-
-	/**
-	 * Frame-ready callback
-	 *
-	 * @param frameTime Frame time
-	 */
-	virtual void handleFrameRender(double frameTime) = 0;
-};
-
-} /* core */
-
-} /* vpnes */
-
-#endif /* VPNES_INCLUDE_CORE_FRONTEND_HPP_ */
+CNES *factory::FactoryNROM(SNESConfig *config, CFrontEnd *frontEnd) {
+	return nullptr;
+}

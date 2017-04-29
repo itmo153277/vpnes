@@ -16,6 +16,9 @@
     <ClCompile Include="src\gui\gui.cpp">
       <Filter>Sources\gui</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\mappers\nrom.cpp">
+      <Filter>Sources\core\mappers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.msvc.h">
@@ -31,6 +34,9 @@
       <Filter>Headers\core</Filter>
     </ClInclude>
     <ClInclude Include="include\vpnes\core\device.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\factory.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
     <ClInclude Include="include\vpnes\core\frontend.hpp">
@@ -70,6 +76,9 @@
     </Filter>
     <Filter Include="Sources\gui">
       <UniqueIdentifier>{d06f9a6a-1fe7-4d20-835a-1e82561fa320}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\core\mappers">
+      <UniqueIdentifier>{550d0bbf-83e6-4418-9df1-88307159241c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -153,7 +153,9 @@ public:
 	/**
 	 * Constructs the object
 	 *
+	 * @param frontEnd Front-end
 	 * @param frequency Frequency
+	 * @param frameTime Basic frame time
 	 */
 	CMotherBoard(CFrontEnd *frontEnd, double frequency, ticks_t frameTime)
 	    : CGeneratorDevice(true)

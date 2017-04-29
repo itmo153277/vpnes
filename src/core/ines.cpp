@@ -106,7 +106,11 @@ SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
 	}
 	switch (mapper) {
 	case 0:
-		MMCType = MMCNROM;
+		if (PRGSize > 0x4000) {
+			MMCType = MMCNROM256;
+		} else {
+			MMCType = MMCNROM128;
+		}
 		break;
 	default:
 		throw invalid_argument("Unsupported mapper");
