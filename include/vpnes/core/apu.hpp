@@ -91,6 +91,15 @@ public:
 	 */
 	void addHooksPPU(CBus &bus) {
 	}
+
+	/**
+	 * Gets pending time
+	 *
+	 * @return Pending time
+	 */
+	ticks_t getPending() {
+		return 0;
+	}
 };
 
 } /* core */

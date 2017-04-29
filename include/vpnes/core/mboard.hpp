@@ -246,6 +246,18 @@ public:
 			device->resetClock(ticks);
 		}
 	}
+	/**
+	 * Gets pending time
+	 *
+	 * @return Pending time
+	 */
+	ticks_t getPending() {
+		if (m_CurrentDevice) {
+			return m_CurrentDevice->getPending();
+		} else {
+			return m_Clock;
+		}
+	}
 };
 
 } /* core */

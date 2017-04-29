@@ -80,6 +80,15 @@ public:
 	 */
 	void addHooksCPU(CBus &bus) {
 	}
+
+	/**
+	 * Gets pending time
+	 *
+	 * @return Pending time
+	 */
+	ticks_t getPending() {
+		return 0;
+	}
 };
 
 } /* core */

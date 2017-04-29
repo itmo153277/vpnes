@@ -150,6 +150,12 @@ public:
 	virtual void resetClock(ticks_t ticks) {
 		m_Clock -= ticks;
 	}
+	/**
+	 * Gets pending time
+	 *
+	 * @return Pending time
+	 */
+	virtual ticks_t getPending() = 0;
 };
 
 /**
