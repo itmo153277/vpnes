@@ -159,14 +159,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.msvc.h" />
+    <ClInclude Include="include\vpnes\core\mappers\helper.hpp" />
+    <ClInclude Include="include\vpnes\core\mappers\nrom.hpp" />
+    <ClInclude Include="include\vpnes\core\apu.hpp" />
     <ClInclude Include="include\vpnes\core\bus.hpp" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
+    <ClInclude Include="include\vpnes\core\cpu.hpp" />
     <ClInclude Include="include\vpnes\core\device.hpp" />
     <ClInclude Include="include\vpnes\core\factory.hpp" />
     <ClInclude Include="include\vpnes\core\frontend.hpp" />
     <ClInclude Include="include\vpnes\core\ines.hpp" />
     <ClInclude Include="include\vpnes\core\mboard.hpp" />
     <ClInclude Include="include\vpnes\core\nes.hpp" />
+    <ClInclude Include="include\vpnes\core\ppu.hpp" />
     <ClInclude Include="include\vpnes\gui\config.hpp" />
     <ClInclude Include="include\vpnes\gui\gui.hpp" />
     <ClInclude Include="include\vpnes\vpnes.hpp" />

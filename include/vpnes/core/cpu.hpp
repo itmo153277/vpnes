@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Defines NROM class and factories
+ * Defines basic CPU
  */
 /*
  NES Emulator
@@ -23,26 +23,67 @@
 
  */
 
+#ifndef VPNES_INCLUDE_CORE_CPU_HPP_
+#define VPNES_INCLUDE_CORE_CPU_HPP_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <vpnes/vpnes.hpp>
-#include <vpnes/core/factory.hpp>
-#include <vpnes/core/mappers/helper.hpp>
-#include <vpnes/core/mappers/nrom.hpp>
+#include <vpnes/core/device.hpp>
+#include <vpnes/core/bus.hpp>
+#include <vpnes/core/mboard.hpp>
 
-using namespace ::vpnes;
-using namespace ::vpnes::core;
-using namespace ::vpnes::core::factory;
+namespace vpnes {
+
+namespace core {
 
 /**
- * NROM NES factory
- *
- * @param config NES config
- * @param frontEnd Front-end
- * @return NES
+ * Basuc CPU
  */
-CNES *factory::factoryNROM(SNESConfig *config, CFrontEnd *frontEnd) {
-	return factoryNES<CNROM>(config, frontEnd);
-}
+class CCPU : public CEventDevice {
+public:
+	/**
+	 * CPU bus config
+	 */
+	typedef BusConfigBase<CCPU> CPUConfig;
+
+protected:
+	/**
+	 * Simulation routine
+	 */
+	void execute() {
+	}
+
+public:
+	/**
+	 * Deleted default constructor
+	 */
+	CCPU() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param motherBoard Motherboard
+	 */
+	CCPU(CMotherBoard &motherBoard) {
+	}
+	/**
+	 * Destroys the object
+	 */
+	~CCPU() = default;
+
+	/**
+	 * Adds CPU hooks
+	 *
+	 * @param bus CPU bus
+	 */
+	void addHooksCPU(CBus &bus) {
+	}
+};
+
+} /* core */
+
+} /* vpnes */
+
+#endif /* VPNES_INCLUDE_CORE_CPU_HPP_ */

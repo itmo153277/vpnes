@@ -43,22 +43,11 @@ using namespace ::vpnes::gui;
 using namespace ::vpnes::core;
 
 /**
- * Defines NES factory for MMC
- *
- * @param MMC MMC name
- */
-#define DefineFactoryEntry(MMC)                    \
-	&vpnes::core::factory::Factory##MMC##_NTSC,    \
-	    &vpnes::core::factory::Factory##MMC##_PAL, \
-	    &vpnes::core::factory::Factory##MMC##_FC,  \
-	    &vpnes::core::factory::Factory##MMC##_Clone
-
-/**
  * Factory list
  */
 const NESFactory factoryList[MMCAmount] = {
-    &factory::FactoryNROM,  // NROM-128
-    &factory::FactoryNROM   // NROM-256
+    &factory::factoryNROM,  // NROM-128
+    &factory::factoryNROM   // NROM-256
 };
 
 /* SNESConfig */

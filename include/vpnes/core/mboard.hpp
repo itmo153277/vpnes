@@ -162,8 +162,8 @@ public:
 	    , CEventManager()
 	    , m_CurrentDevice()
 	    , m_FrontEnd(frontEnd)
-	    , m_Freq(frequency)
-	    , m_FrameTime(frameTime) {
+	    , m_FrameTime(frameTime)
+	    , m_Freq(frequency) {
 		registerEvent(this, "FRAME_RENDER_END", m_FrameTime, true,
 		    &CMotherBoard::handleFrameEnd);
 	}

@@ -13,14 +13,19 @@ noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
 	include/vpnes/gui/config.hpp \
 	include/vpnes/gui/gui.hpp \
+	include/vpnes/core/mappers/helper.hpp \
+	include/vpnes/core/mappers/nrom.hpp \
+	include/vpnes/core/apu.hpp \
 	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
+	include/vpnes/core/cpu.hpp \
 	include/vpnes/core/device.hpp \
 	include/vpnes/core/factory.hpp \
 	include/vpnes/core/frontend.hpp \
 	include/vpnes/core/ines.hpp \
 	include/vpnes/core/mboard.hpp \
-	include/vpnes/core/nes.hpp
+	include/vpnes/core/nes.hpp \
+	include/vpnes/core/ppu.hpp
 
 @DX_RULES@
 EXTRA_DIST = \

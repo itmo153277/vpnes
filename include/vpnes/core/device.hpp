@@ -74,10 +74,11 @@ public:
  * Device list
  */
 typedef std::vector<CDevice *> DevicePtrList;
+
 /**
  * Clock ticks type
  */
-typedef std::size_t ticks_t;
+typedef std::intmax_t ticks_t;
 
 /**
  * Default clocked device
@@ -138,8 +139,8 @@ public:
 	void setClock(ticks_t ticks) {
 		if (ticks < m_Clock) {
 			sync(ticks);
-			m_Clock = ticks;
 		}
+		m_Clock = ticks;
 	}
 	/**
 	 * Resets the clock by ticks amount
@@ -334,7 +335,7 @@ private:
 		/**
 		 * Saved time
 		 */
-		std::size_t m_Time;
+		ticks_t m_Time;
 		/**
 		 * Saved enabling flag
 		 */

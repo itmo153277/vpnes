@@ -27,10 +27,16 @@
     <ClInclude Include="include\vpnes\vpnes.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="include\vpnes\core\apu.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
     <ClInclude Include="include\vpnes\core\bus.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
     <ClInclude Include="include\vpnes\core\config.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\cpu.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
     <ClInclude Include="include\vpnes\core\device.hpp">
@@ -51,11 +57,20 @@
     <ClInclude Include="include\vpnes\core\nes.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
+    <ClInclude Include="include\vpnes\core\ppu.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
     <ClInclude Include="include\vpnes\gui\config.hpp">
       <Filter>Headers\gui</Filter>
     </ClInclude>
     <ClInclude Include="include\vpnes\gui\gui.hpp">
       <Filter>Headers\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\mappers\helper.hpp">
+      <Filter>Headers\core\mappers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vpnes\core\mappers\nrom.hpp">
+      <Filter>Headers\core\mappers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -79,6 +94,9 @@
     </Filter>
     <Filter Include="Sources\core\mappers">
       <UniqueIdentifier>{550d0bbf-83e6-4418-9df1-88307159241c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\core\mappers">
+      <UniqueIdentifier>{e221750e-ae24-438c-912b-0655dce5c127}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

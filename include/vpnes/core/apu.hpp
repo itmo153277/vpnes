@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Defines factories
+ * Defines basic APU
  */
 /*
  NES Emulator
@@ -23,47 +23,78 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_FACTORY_HPP_
-#define VPNES_INCLUDE_CORE_FACTORY_HPP_
+#ifndef VPNES_INCLUDE_CORE_APU_HPP_
+#define VPNES_INCLUDE_CORE_APU_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <vpnes/vpnes.hpp>
-#include <vpnes/core/frontend.hpp>
-#include <vpnes/core/nes.hpp>
-#include <vpnes/core/config.hpp>
-#include <vpnes/gui/config.hpp>
+#include <vpnes/core/device.hpp>
+#include <vpnes/core/bus.hpp>
+#include <vpnes/core/mboard.hpp>
 
 namespace vpnes {
 
 namespace core {
 
 /**
- * NES factory
- *
- * @param appConfig Application config
- * @param config NES config
- * @return NES
+ * Basic APU
  */
-typedef CNES *(*NESFactory)(SNESConfig *config, CFrontEnd *frontEnd);
+class CAPU : public CEventDevice {
+public:
+	/**
+	 * CPU bus config
+	 */
+	typedef BusConfigBase<CAPU> CPUConfig;
+	/**
+	 * PPU bus config
+	 */
+	typedef BusConfigBase<CAPU> PPUConfig;
 
-namespace factory {
+protected:
+	/**
+	 * Simulation routine
+	 */
+	void execute() {
+	}
 
-/**
- * NROM NES factory
- *
- * @param config NES config
- * @param frontEnd Front-end
- * @return NES
- */
-CNES *factoryNROM(SNESConfig *config, CFrontEnd *frontEnd);
+public:
+	/**
+	 * Deleted default constructor
+	 */
+	CAPU() = delete;
+	/**
+	 * Constructs the object
+	 *
+	 * @param motherBoard Motherboard
+	 */
+	CAPU(CMotherBoard &motherBoard) {
+	}
+	/**
+	 * Destroys the object
+	 */
+	~CAPU() = default;
 
-} /* factory */
+	/**
+	 * Adds CPU hooks
+	 *
+	 * @param bus CPU bus
+	 */
+	void addHooksCPU(CBus &bus) {
+	}
+	/**
+	 * Adds PPU hooks
+	 *
+	 * @param bus PPU bus
+	 */
+	void addHooksPPU(CBus &bus) {
+	}
+};
 
 } /* core */
 
 } /* vpnes */
 
-#endif /* VPNES_INCLUDE_CORE_FACTORY_HPP_ */
+#endif /* VPNES_INCLUDE_CORE_APU_HPP_ */
