@@ -283,10 +283,25 @@ public:
 	};
 
 private:
+	/**
+	 * PRG
+	 */
 	std::vector<std::uint8_t> m_PRG;
+	/**
+	 * CHR
+	 */
 	std::vector<std::uint8_t> m_CHR;
+	/**
+	 * RAM
+	 */
 	std::vector<std::uint8_t> m_RAM;
+	/**
+	 * Mirroring
+	 */
 	EMirroring m_Mirroring;
+	/**
+	 * Nametable
+	 */
 	std::uint8_t m_NameTable[0x0800];
 
 protected:
@@ -305,13 +320,9 @@ public:
 	 * Constructs the object
 	 *
 	 * @param motherBoard Motherboard
+	 * @param config NES config
 	 */
-	CNROM(CMotherBoard &motherBoard, const SNESConfig &config)
-	    : m_PRG(config.PRG)
-	    , m_CHR(config.CHR)
-	    , m_RAM(config.RAMSize)
-	    , m_Mirroring(config.Mirroring) {
-	}
+	CNROM(CMotherBoard &motherBoard, const SNESConfig &config);
 	/**
 	 * Destroys the object
 	 */

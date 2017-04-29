@@ -27,7 +27,10 @@
 #include "config.h"
 #endif
 
+#include <stdexcept>
+#include <vector>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/config.hpp>
 #include <vpnes/core/factory.hpp>
 #include <vpnes/core/mappers/helper.hpp>
 #include <vpnes/core/mappers/nrom.hpp>
@@ -45,4 +48,26 @@ using namespace ::vpnes::core::factory;
  */
 CNES *factory::factoryNROM(SNESConfig *config, CFrontEnd *frontEnd) {
 	return factoryNES<CNROM>(config, frontEnd);
+}
+
+/* CNROM */
+
+/**
+ * Constructs the object
+ *
+ * @param motherBoard Motherboard
+ * @param config NES config
+ */
+CNROM::CNROM(CMotherBoard &motherBoard, const SNESConfig &config)
+    : m_PRG(config.PRG)
+    , m_CHR(config.CHR)
+    , m_RAM(config.RAMSize)
+    , m_Mirroring(config.Mirroring) {
+	if ((m_PRG.size() != 0x4000 && m_PRG.size() != 0x8000) ||
+	    (m_Mirroring != MirroringHorizontal &&
+	        m_Mirroring != MirroringVertical) ||
+	    m_CHR.size() != 0x2000 || m_RAM.size() > 0x2000 ||
+	    (m_RAM.size() & 0x07ff)) {
+		throw std::invalid_argument("Invalid ROM parameters");
+	}
 }
