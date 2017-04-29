@@ -87,7 +87,7 @@ typedef struct iNES_Header {
 	/**
 	 * Must be 0, check if it is a bad ROM
 	 */
-	std::uint8_t BadROM;
+	std::uint32_t BadROM;
 } iNES_Header;
 #pragma pack(pop)
 

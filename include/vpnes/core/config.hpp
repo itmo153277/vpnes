@@ -48,10 +48,10 @@ namespace core {
  */
 enum EMirroring {
 	MirroringHorizontal,     //!< Horizontal mirroring
-	MirorringVertical,       //!< Vertical mirroring
-	MirorringSingleScreen1,  //!< Single screen (1)
-	MirorringSingleScreen2,  //!< Single screen (2)
-	MirorringFourScreens     //!< Four screens
+	MirroringVertical,       //!< Vertical mirroring
+	MirroringSingleScreen1,  //!< Single screen (1)
+	MirroringSingleScreen2,  //!< Single screen (2)
+	MirroringFourScreens     //!< Four screens
 };
 
 /**
@@ -77,7 +77,6 @@ enum EMMCType {
  * Defines NES instance
  */
 struct SNESConfig {
-private:
 	/**
 	 * CHR ROM
 	 */
@@ -115,7 +114,6 @@ private:
 	 */
 	ENESType NESType;
 
-public:
 	/**
 	 * Configures the class
 	 *

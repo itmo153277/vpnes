@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <cstddef>
+#include <cstdint>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/bus.hpp>
@@ -47,11 +49,88 @@ public:
 	/**
 	 * CPU bus config
 	 */
-	typedef BusConfigBase<CAPU> CPUConfig;
+	struct CPUConfig : public BusConfigBase<CAPU> {
+		/**
+		 * Banks config
+		 */
+		typedef banks::BankConfig<banks::ReadWrite<0x4000, 0x0020, 1>>
+		    BankConfig;
+
+		/**
+		 * Maps to read map
+		 *
+		 * @param iter Read map iterator
+		 * @param openBus Open bus
+		 * @param device Device
+		 */
+		static void mapRead(
+		    MemoryMap::iterator iter, std::uint8_t *openBus, CAPU &device) {
+			BankConfig::mapRead(iter, openBus, &device.m_IOBuf);
+		}
+		/**
+		 * Maps to write map
+		 *
+		 * @param iter Write map iterator
+		 * @param dummy Dummy value
+		 * @param device Device
+		 */
+		static void mapWrite(
+		    MemoryMap::iterator iter, std::uint8_t *dummy, CAPU &device) {
+			BankConfig::mapWrite(iter, dummy, &device.m_IOBuf);
+		}
+		/**
+		 * Maps to mod map
+		 *
+		 * @param iter Mod map iterator
+		 * @param writeBuf Write buffer
+		 * @param device Device
+		 */
+		static void mapMod(
+		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CAPU &device) {
+			BankConfig::mapMod(iter, writeBuf, &device.m_IOBuf);
+		}
+		/**
+		 * Checks if device is enabled
+		 *
+		 * @param addr Address
+		 * @return True if enabled
+		 */
+		static bool isDeviceEnabled(std::uint16_t addr) {
+			return (addr >= 0x4000) && (addr < 0x4020);
+		}
+		/**
+		 * Determines active bank
+		 *
+		 * @param addr Address
+		 * @param device Device
+		 * @return Active bank
+		 */
+		static std::size_t getBank(std::uint16_t addr, CCPU &device) {
+			return 0;
+		}
+	};
+
+private:
 	/**
-	 * PPU bus config
+	 * IO Buffer
 	 */
-	typedef BusConfigBase<CAPU> PPUConfig;
+	std::uint8_t m_IOBuf;
+
+	/**
+	 * Reads register
+	 *
+	 * @param addr register address
+	 */
+	void readReg(std::uint16_t addr) {
+	}
+	/**
+	 * Writes to register
+	 *
+	 * @param val Value
+	 * @param addr Address
+	 */
+	void writeReg(std::uint8_t val, std::uint16_t addr) {
+	}
 
 protected:
 	/**
@@ -70,7 +149,7 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CAPU(CMotherBoard &motherBoard) {
+	CAPU(CMotherBoard &motherBoard) : CEventDevice(), m_IOBuf() {
 	}
 	/**
 	 * Destroys the object
@@ -83,13 +162,10 @@ public:
 	 * @param bus CPU bus
 	 */
 	void addHooksCPU(CBus &bus) {
-	}
-	/**
-	 * Adds PPU hooks
-	 *
-	 * @param bus PPU bus
-	 */
-	void addHooksPPU(CBus &bus) {
+		for (std::size_t addr = 0x2000; addr < 0x4000; addr++) {
+			bus.addPreReadHook(addr, *this, &CAPU::readReg);
+			bus.addWriteHook(addr, *this,  &CAPU::writeReg);
+		}
 	}
 
 	/**

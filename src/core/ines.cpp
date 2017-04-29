@@ -60,18 +60,12 @@ SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
 	}
 	PRGSize = header.PRGSize * 0x4000;
 	CHRSize = header.CHRSize * 0x2000;
-	switch (header.Flags) {
+	switch (header.Flags & 0x09) {
 	case 0x01:
-		Mirroring = MirorringVertical;
+		Mirroring = MirroringVertical;
 		break;
 	case 0x08:
-		Mirroring = MirorringSingleScreen1;
-		break;
-	case 0x09:
-		Mirroring = MirorringSingleScreen2;
-		break;
-	case 0x18:
-		Mirroring = MirorringFourScreens;
+		Mirroring = MirroringFourScreens;
 		break;
 	default:
 		Mirroring = MirroringHorizontal;

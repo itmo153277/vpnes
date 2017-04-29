@@ -1405,7 +1405,7 @@ struct BusConfigBase {
 	 * @param device Device
 	 * @return Active bank
 	 */
-	static bool getBank(std::uint16_t addr, T &device) {
+	static std::size_t getBank(std::uint16_t addr, T &device) {
 		return 0;
 	}
 
@@ -1478,7 +1478,7 @@ struct COpenBusDevice : public CDevice {
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static bool getBank(std::uint16_t addr, COpenBusDevice &device) {
+		static std::size_t getBank(std::uint16_t addr, COpenBusDevice &device) {
 			return 0;
 		}
 	};

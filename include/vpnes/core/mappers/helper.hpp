@@ -88,9 +88,9 @@ public:
 	    , m_CPU(m_MotherBoard)
 	    , m_PPU(m_MotherBoard)
 	    , m_APU(m_MotherBoard)
-	    , m_MMC(m_MotherBoard) {
+	    , m_MMC(m_MotherBoard, *config) {
 		m_MotherBoard.addBusCPU(m_CPU, m_APU, m_PPU, m_MMC);
-		m_MotherBoard.addBusPPU(m_PPU, m_MMC);
+		m_MotherBoard.addBusPPU(m_MMC, m_PPU);
 		m_MotherBoard.registerSimDevices(m_CPU, m_APU, m_PPU, m_MMC);
 	}
 	/**
@@ -98,6 +98,12 @@ public:
 	 */
 	void powerUp() {
 		m_MotherBoard.simulate();
+	}
+	/**
+	 * Stops the emulation
+	 */
+	void turnOff() {
+		m_MotherBoard.setEnabled(false);
 	}
 };
 

@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <cstddef>
+#include <cstdint>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/bus.hpp>
@@ -40,14 +42,79 @@ namespace vpnes {
 namespace core {
 
 /**
- * Basuc CPU
+ * Basic CPU
  */
 class CCPU : public CEventDevice {
 public:
 	/**
 	 * CPU bus config
 	 */
-	typedef BusConfigBase<CCPU> CPUConfig;
+	struct CPUConfig : public BusConfigBase<CCPU> {
+		/**
+		 * Banks config
+		 */
+		typedef banks::BankConfig<banks::ReadWrite<0x0000, 0x2000, 0x0800>>
+		    BankConfig;
+
+		/**
+		 * Maps to read map
+		 *
+		 * @param iter Read map iterator
+		 * @param openBus Open bus
+		 * @param device Device
+		 */
+		static void mapRead(
+		    MemoryMap::iterator iter, std::uint8_t *openBus, CCPU &device) {
+			BankConfig::mapRead(iter, openBus, device.m_RAM);
+		}
+		/**
+		 * Maps to write map
+		 *
+		 * @param iter Write map iterator
+		 * @param dummy Dummy value
+		 * @param device Device
+		 */
+		static void mapWrite(
+		    MemoryMap::iterator iter, std::uint8_t *dummy, CCPU &device) {
+			BankConfig::mapWrite(iter, dummy, device.m_RAM);
+		}
+		/**
+		 * Maps to mod map
+		 *
+		 * @param iter Mod map iterator
+		 * @param writeBuf Write buffer
+		 * @param device Device
+		 */
+		static void mapMod(
+		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CCPU &device) {
+			BankConfig::mapMod(iter, writeBuf, device.m_RAM);
+		}
+		/**
+		 * Checks if device is enabled
+		 *
+		 * @param addr Address
+		 * @return True if enabled
+		 */
+		static bool isDeviceEnabled(std::uint16_t addr) {
+			return (addr < 0x2000);
+		}
+		/**
+		 * Determines active bank
+		 *
+		 * @param addr Address
+		 * @param device Device
+		 * @return Active bank
+		 */
+		static std::size_t getBank(std::uint16_t addr, CCPU &device) {
+			return 0;
+		}
+	};
+
+private:
+	/**
+	 * CPU RAM
+	 */
+	std::uint8_t m_RAM[0x0800];
 
 protected:
 	/**
@@ -66,7 +133,7 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CCPU(CMotherBoard &motherBoard) {
+	CCPU(CMotherBoard &motherBoard) : CEventDevice() {
 	}
 	/**
 	 * Destroys the object

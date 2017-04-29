@@ -46,6 +46,10 @@ public:
 	 */
 	virtual void powerUp() = 0;
 	/**
+	 * Turns NES off
+	 */
+	virtual void turnOff() = 0;
+	/**
 	 * Constructor
 	 */
 	CNES() = default;
