@@ -46,7 +46,7 @@ using namespace ::vpnes::core::factory;
  * @param frontEnd Front-end
  * @return NES
  */
-CNES *factory::factoryNROM(SNESConfig *config, CFrontEnd *frontEnd) {
+CNES *factory::factoryNROM(SNESConfig &config, CFrontEnd &frontEnd) {
 	return factoryNES<CNROM>(config, frontEnd);
 }
 
@@ -63,6 +63,12 @@ CNROM::CNROM(CMotherBoard &motherBoard, const SNESConfig &config)
     , m_CHR(config.CHR)
     , m_RAM(config.RAMSize)
     , m_Mirroring(config.Mirroring) {
+	if (m_CHR.size() == 0) {
+		m_CHR.assign(0x2000, 0);
+		m_CHRBank = 1;
+	} else {
+		m_CHRBank = 0;
+	}
 	if ((m_PRG.size() != 0x4000 && m_PRG.size() != 0x8000) ||
 	    (m_Mirroring != MirroringHorizontal &&
 	        m_Mirroring != MirroringVertical) ||

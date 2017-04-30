@@ -93,7 +93,7 @@ void SNESConfig::configure(
  * @param frontEnd Front-end
  * @return Instance of NES
  */
-CNES *SNESConfig::createInstance(CFrontEnd *frontEnd) {
+CNES *SNESConfig::createInstance(CFrontEnd &frontEnd) {
 	assert(MMCType < MMCAmount);
-	return factoryList[MMCType](this, frontEnd);
+	return factoryList[MMCType](*this, frontEnd);
 }

@@ -30,6 +30,7 @@
 #include "config.h"
 #endif
 
+#include <cstddef>
 #include <utility>
 
 #ifndef PACKAGE_STRING
@@ -58,6 +59,18 @@ template <typename Cond, typename... Conds>
 struct cond_and<Cond, Conds...>
     : std::conditional<Cond::value, cond_and<Conds...>, std::false_type>::type {
 };
+
+/**
+ * Class pack helper
+ */
+template <typename... T>
+struct class_pack {};
+
+/**
+ * Indices pack helpers
+ */
+template <std::size_t... I>
+struct index_pack {};
 
 } /* vpnes */
 

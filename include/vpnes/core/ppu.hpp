@@ -57,37 +57,22 @@ public:
 		    BankConfig;
 
 		/**
-		 * Maps to read map
+		 * Maps IO
 		 *
-		 * @param iter Read map iterator
+		 * @param iterRead Read iterator
+		 * @param iterWrite Write iterator
+		 * @param iterMod Mod iterator
 		 * @param openBus Open bus
+		 * @param dummy Dummy write
+		 * @param writeBuf Write bus
 		 * @param device Device
 		 */
-		static void mapRead(
-		    MemoryMap::iterator iter, std::uint8_t *openBus, CPPU &device) {
-			BankConfig::mapRead(iter, openBus, &device.m_IOBuf);
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(
-		    MemoryMap::iterator iter, std::uint8_t *dummy, CPPU &device) {
-			BankConfig::mapWrite(iter, dummy, &device.m_IOBuf);
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(
-		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CPPU &device) {
-			BankConfig::mapMod(iter, writeBuf, &device.m_IOBuf);
+		static void mapIO(MemoryMap::iterator iterRead,
+		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
+		    CPPU &device) {
+			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+			    writeBuf, &device.m_IOBuf);
 		}
 		/**
 		 * Checks if device is enabled
@@ -106,69 +91,6 @@ public:
 		 * @return Active bank
 		 */
 		static std::size_t getBank(std::uint16_t addr, CPPU &device) {
-			return 0;
-		}
-	};
-	/**
-	 * PPU bus config
-	 */
-	struct PPUConfig : public BusConfigBase<CPPU> {
-		/**
-		 * Banks config
-		 */
-		typedef banks::BankConfig<banks::ReadWrite<0x3f00, 0x2000, 0x0020>>
-		    BankConfig;
-
-		/**
-		 * Maps to read map
-		 *
-		 * @param iter Read map iterator
-		 * @param openBus Open bus
-		 * @param device Device
-		 */
-		static void mapRead(
-		    MemoryMap::iterator iter, std::uint8_t *openBus, CPPU &device) {
-			BankConfig::mapRead(iter, openBus, device.m_Palette);
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(
-		    MemoryMap::iterator iter, std::uint8_t *dummy, CPPU &device) {
-			BankConfig::mapWrite(iter, dummy, device.m_Palette);
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(
-		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CPPU &device) {
-			BankConfig::mapMod(iter, writeBuf, device.m_Palette);
-		}
-		/**
-		 * Checks if device is enabled
-		 *
-		 * @param addr Address
-		 * @return True if enabled
-		 */
-		static bool isDeviceEnabled(std::uint16_t addr) {
-			return (addr & 0x3f00);
-		}
-		/**
-		 * Determines active bank
-		 *
-		 * @param addr Address
-		 * @param device Device
-		 * @return Active bank
-		 */
-		static bool getBank(std::uint16_t addr, CPPU &device) {
 			return 0;
 		}
 	};

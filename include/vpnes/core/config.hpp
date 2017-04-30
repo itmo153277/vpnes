@@ -128,7 +128,7 @@ struct SNESConfig {
 	 * @param frontEnd Front-end
 	 * @return Instance of NES
 	 */
-	CNES *createInstance(CFrontEnd *frontEnd);
+	CNES *createInstance(CFrontEnd &frontEnd);
 	/**
 	 * Default constructor
 	 */

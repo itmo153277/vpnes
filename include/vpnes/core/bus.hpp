@@ -940,6 +940,134 @@ struct ReadWrite : BaseBank {
 };
 
 /**
+ * Bank offset by index
+ */
+template <std::size_t Index, class... Banks>
+struct BankOffsetValue;
+
+/**
+ * Bank offset for index 0
+ */
+template <class FirstBank, class... OtherBanks>
+struct BankOffsetValue<0, FirstBank, OtherBanks...> {
+	enum {
+		ReadSize = FirstBank::ReadSize  //!< Requested read bytes
+	};
+	enum {
+		ReadOffset = 0  //!< Read offset
+	};
+	enum {
+		WriteSize = FirstBank::WriteSize  //!< Requested write bytes
+	};
+	enum {
+		WriteOffset = 0  //!< Write Offset
+	};
+	enum {
+		ModSize = FirstBank::ModSize  //!< Requested mod bytes
+	};
+	enum {
+		ModOffset = 0  //!< Mod offset
+	};
+};
+
+/**
+ * Bank offset for general index
+ */
+template <std::size_t Index, class FirstBank, class... OtherBanks>
+struct BankOffsetValue<Index, FirstBank, OtherBanks...> {
+	enum {
+		ReadSize = FirstBank::ReadSize +
+		           BankOffsetValue<Index - 1,
+		               OtherBanks...>::ReadSize  //!< Requested read bytes
+	};
+	enum {
+		ReadOffset = BankOffsetValue<Index - 1,
+		    OtherBanks...>::ReadSize  //!< Read offset
+	};
+	enum {
+		WriteSize = FirstBank::WriteSize +
+		            BankOffsetValue<Index - 1,
+		                OtherBanks...>::WriteSize  //!< Requested write bytes
+	};
+	enum {
+		WriteOffset = BankOffsetValue<Index - 1,
+		    OtherBanks...>::WriteSize  //!< Write Offset
+	};
+	enum {
+		ModSize = FirstBank::ModSize +
+		          BankOffsetValue<Index - 1,
+		              OtherBanks...>::ModSize  //!< Requested mod bytes
+	};
+	enum {
+		ModOffset =
+		    BankOffsetValue<Index - 1, OtherBanks...>::ModSize  //!< Mod offset
+	};
+};
+
+/**
+ * Expands bank offset values
+ */
+template <bool Expanded, class BankPack, class IndexPack>
+struct BankOffsetExpand;
+
+/**
+ * Expands bank offset values by 1
+ */
+template <std::size_t Index, std::size_t... Indices, class... Banks>
+struct BankOffsetExpand<false, class_pack<Banks...>,
+    index_pack<Index, Indices...>>
+    : public BankOffsetExpand<Index == 1, class_pack<Banks...>,
+          index_pack<Index - 1, Index, Indices...>> {};
+
+/**
+ * Expanded bank offset values
+ */
+template <std::size_t... Indices, class... Banks>
+struct BankOffsetExpand<true, class_pack<Banks...>, index_pack<Indices...>> {
+	/**
+	 * Gets read offset
+	 *
+	 * @param bank Bank number
+	 * @return Read offset
+	 */
+	static std::size_t getOffsetRead(std::size_t bank) {
+		static const int val[sizeof...(Indices)] = {
+		    BankOffsetValue<Indices, Banks...>::ReadOffset...};
+		return val[bank];
+	}
+	/**
+	 * Gets write offset
+	 *
+	 * @param bank Bank number
+	 * @return Read offset
+	 */
+	static std::size_t getOffsetWrite(std::size_t bank) {
+		static const int val[sizeof...(Indices)] = {
+		    BankOffsetValue<Indices, Banks...>::WriteOffset...};
+		return val[bank];
+	}
+	/**
+	 * Gets mod offset
+	 *
+	 * @param bank Bank number
+	 * @return Read offset
+	 */
+	static std::size_t getOffsetMod(std::size_t bank) {
+		static const int val[sizeof...(Indices)] = {
+		    BankOffsetValue<Indices, Banks...>::ModOffset...};
+		return val[bank];
+	}
+};
+
+/**
+ * Bank offsets
+ */
+template <class... Banks>
+struct BankOffset
+    : public BankOffsetExpand<sizeof...(Banks) == 1, class_pack<Banks...>,
+          index_pack<sizeof...(Banks) - 1>> {};
+
+/**
  * Bank config
  */
 template <class...>
@@ -951,9 +1079,6 @@ struct BankConfig;
 template <>
 struct BankConfig<> {
 	enum {
-		BanksCount = 0  //!< Total banks
-	};
-	enum {
 		ReadSize = 0  //!< Requested read bytes
 	};
 	enum {
@@ -964,28 +1089,18 @@ struct BankConfig<> {
 	};
 
 	/**
-	 * Maps to read map
+	 * Maps IO
 	 *
-	 * @param iter Read map iterator
-	 * @param openBus Open bus value
-	 */
-	static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus) {
-	}
-	/**
-	 * Maps to write map
-	 *
-	 * @param iter Write map iterator
-	 * @param dummy Dummy value
-	 */
-	static void mapWrite(MemoryMap::iterator iter, std::uint8_t *dummy) {
-	}
-	/**
-	 * Maps to mod map
-	 *
-	 * @param iter Mod map iterator
+	 * @param iterRead Read iterator
+	 * @param iterWrite Write iterator
+	 * @param iterMod Mod iterator
+	 * @param openBus Open bus
+	 * @param dummy Dummy write
 	 * @param writeBuf Write buffer
 	 */
-	static void mapMod(MemoryMap::iterator iter, std::uint8_t *writeBuf) {
+	static void mapIO(MemoryMap::iterator iterRead,
+	    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+	    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf) {
 	}
 	/**
 	 * Gives read iterator
@@ -1031,10 +1146,6 @@ struct BankConfig<FirstClass, OtherClasses...> {
 	static_assert(std::is_base_of<banks::BaseBank, FirstClass>::value,
 	    "Bank config contains non-bank class");
 	enum {
-		BanksCount =
-		    1 + BankConfig<OtherClasses...>::BanksCount  //!< Total banks
-	};
-	enum {
 		ReadSize =
 		    FirstClass::ReadSize +
 		    BankConfig<OtherClasses...>::ReadSize  //!< Requested read bytes
@@ -1051,47 +1162,26 @@ struct BankConfig<FirstClass, OtherClasses...> {
 	/**
 	 * Maps to read map
 	 *
-	 * @param iter Read map iterator
-	 * @param openBus Open bus value
-	 * @param buf Current buffer
-	 * @param args Buffers
-	 */
-	template <typename... Args>
-	static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus,
-	    std::uint8_t *buf, Args &&... args) {
-		FirstClass::mapRead(iter, openBus, buf);
-		BankConfig<OtherClasses...>::mapRead(
-		    iter + FirstClass::ReadSize, openBus, std::forward<Args>(args)...);
-	}
-	/**
-	 * Maps to write map
-	 *
-	 * @param iter Write map iterator
-	 * @param dummy Dummy value
-	 * @param buf Current buffer
-	 * @param args Buffers
-	 */
-	template <typename... Args>
-	static void mapWrite(MemoryMap::iterator iter, std::uint8_t *dummy,
-	    std::uint8_t *buf, Args &&... args) {
-		FirstClass::mapWrite(iter, dummy, buf);
-		BankConfig<OtherClasses...>::mapWrite(
-		    iter + FirstClass::WriteSize, dummy, std::forward<Args>(args)...);
-	}
-	/**
-	 * Maps to mod map
-	 *
-	 * @param iter Mod map iterator
+	 * @param iterRead Read iterator
+	 * @param iterWrite Write iterator
+	 * @param iterMod Mod iterator
+	 * @param openBus Open bus
+	 * @param dummy Dummy write
 	 * @param writeBuf Write buffer
 	 * @param buf Current buffer
 	 * @param args Buffers
 	 */
 	template <typename... Args>
-	static void mapMod(MemoryMap::iterator iter, std::uint8_t *writeBuf,
+	static void mapIO(MemoryMap::iterator iterRead,
+	    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+	    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
 	    std::uint8_t *buf, Args &&... args) {
-		FirstClass::mapMod(iter, writeBuf, buf);
-		BankConfig<OtherClasses...>::mapMod(
-		    iter + FirstClass::ModSize, writeBuf, std::forward<Args>(args)...);
+		FirstClass::mapRead(iterRead, openBus, buf);
+		FirstClass::mapWrite(iterWrite, dummy, buf);
+		FirstClass::mapMod(iterMod, writeBuf, buf);
+		BankConfig<OtherClasses...>::mapIO(iterRead + FirstClass::ReadSize,
+		    iterWrite + FirstClass::WriteSize, iterMod + FirstClass::ModSize,
+		    openBus, dummy, writeBuf, std::forward<Args>(args)...);
 	}
 	/**
 	 * Gives read iterator
@@ -1103,11 +1193,15 @@ struct BankConfig<FirstClass, OtherClasses...> {
 	 */
 	static MemoryMap::iterator getAddrRead(
 	    MemoryMap::iterator iter, std::size_t bank, std::uint16_t addr) {
-		if (bank == 0)
-			return FirstClass::getAddrRead(iter, addr);
-		else
-			return BankConfig<OtherClasses...>::getAddrRead(
-			    iter + FirstClass::ReadSize, bank - 1, addr);
+		typedef MemoryMap::iterator (*readAddr)(
+		    MemoryMap::iterator iter, std::uint16_t addr);
+
+		static const readAddr readAddrs[1 + sizeof...(OtherClasses)] = {
+		    &FirstClass::getAddrRead, &OtherClasses::getAddrRead...};
+
+		return (*readAddrs[bank])(
+		    iter + BankOffset<FirstClass, OtherClasses...>::getOffsetRead(bank),
+		    addr);
 	}
 	/**
 	 * Gives pair of write and mod iterators
@@ -1121,14 +1215,26 @@ struct BankConfig<FirstClass, OtherClasses...> {
 	static std::pair<MemoryMap::iterator, MemoryMap::iterator> getAddrWrite(
 	    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 	    std::size_t bank, std::uint16_t addr) {
-		if (bank == 0) {
-			return std::make_pair(FirstClass::getAddrWrite(iterWrite, addr),
-			    FirstClass::getAddrMod(iterMod, addr));
-		} else {
-			return BankConfig<OtherClasses...>::getAddrWrite(
-			    iterWrite + FirstClass::WriteSize,
-			    iterMod + FirstClass::ModSize, bank - 1, addr);
-		}
+		typedef MemoryMap::iterator (*writeAddr)(
+		    MemoryMap::iterator iter, std::uint16_t addr);
+		typedef MemoryMap::iterator (*modAddr)(
+		    MemoryMap::iterator iter, std::uint16_t addr);
+
+		static const writeAddr writeAddrs[1 + sizeof...(OtherClasses)] = {
+		    &FirstClass::getAddrWrite, &OtherClasses::getAddrWrite...};
+		static const modAddr modAddrs[1 + sizeof...(OtherClasses)] = {
+		    &FirstClass::getAddrMod, &OtherClasses::getAddrMod...};
+
+		return std::make_pair(
+		    (*writeAddrs[bank])(
+		        iterWrite +
+		            BankOffset<FirstClass, OtherClasses...>::getOffsetWrite(
+		                bank),
+		        addr),
+		    (*modAddrs[bank])(
+		        iterMod +
+		            BankOffset<FirstClass, OtherClasses...>::getOffsetMod(bank),
+		        addr));
 	}
 
 private:
@@ -1189,34 +1295,20 @@ struct BusAggregate<> {
 		return std::make_pair(iterWrite, iterMod);
 	}
 	/**
-	 * Maps read memory
+	 * Maps IO
 	 *
 	 * @param iter Device iterator
 	 * @param iterRead Read iterator
-	 * @param openBus Open bus
-	 */
-	static void mapRead(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterRead, std::uint8_t *openBus) {
-	}
-	/**
-	 * Maps write memory
-	 *
-	 * @param iter Device iterator
 	 * @param iterWrite Write iterator
-	 * @param dummy Dummy write buffer
-	 */
-	static void mapWrite(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterWrite, std::uint8_t *dummy) {
-	}
-	/**
-	 * Maps mod memory
-	 *
-	 * @param iter Device iterator
 	 * @param iterMod Mod iterator
+	 * @param openBus Open bus
+	 * @param dummy Dummy write
 	 * @param writeBuf Write buffer
 	 */
-	static void mapMod(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterMod, std::uint8_t *writeBuf) {
+	static void mapIO(DevicePtrList::iterator iter,
+	    MemoryMap::iterator iterRead, MemoryMap::iterator iterWrite,
+	    MemoryMap::iterator iterMod, std::uint8_t *openBus, std::uint8_t *dummy,
+	    std::uint8_t *writeBuf) {
 	}
 
 private:
@@ -1296,46 +1388,28 @@ struct BusAggregate<FirstDeviceConfig, OtherDevicesConfig...> {
 		}
 	}
 	/**
-	 * Maps read memory
+	 * Maps IO
 	 *
 	 * @param iter Device iterator
 	 * @param iterRead Read iterator
-	 * @param openBus Open bus
-	 */
-	static void mapRead(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterRead, std::uint8_t *openBus) {
-		FirstDeviceConfig::mapRead(iterRead, openBus,
-		    static_cast<typename FirstDeviceConfig::Device &>(**iter));
-		BusAggregate<OtherDevicesConfig...>::mapRead(iter + 1,
-		    iterRead + FirstDeviceConfig::BankConfig::ReadSize, openBus);
-	}
-	/**
-	 * Maps write memory
-	 *
-	 * @param iter Device iterator
 	 * @param iterWrite Write iterator
-	 * @param dummy Dummy write buffer
-	 */
-	static void mapWrite(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterWrite, std::uint8_t *dummy) {
-		FirstDeviceConfig::mapWrite(iterWrite, dummy,
-		    static_cast<typename FirstDeviceConfig::Device &>(**iter));
-		BusAggregate<OtherDevicesConfig...>::mapWrite(iter + 1,
-		    iterWrite + FirstDeviceConfig::BankConfig::WriteSize, dummy);
-	}
-	/**
-	 * Maps mod memory
-	 *
-	 * @param iter Device iterator
 	 * @param iterMod Mod iterator
+	 * @param openBus Open bus
+	 * @param dummy Dummy write
 	 * @param writeBuf Write buffer
 	 */
-	static void mapMod(DevicePtrList::iterator iter,
-	    MemoryMap::iterator iterMod, std::uint8_t *writeBuf) {
-		FirstDeviceConfig::mapMod(iterMod, writeBuf,
+	static void mapIO(DevicePtrList::iterator iter,
+	    MemoryMap::iterator iterRead, MemoryMap::iterator iterWrite,
+	    MemoryMap::iterator iterMod, std::uint8_t *openBus, std::uint8_t *dummy,
+	    std::uint8_t *writeBuf) {
+		FirstDeviceConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+		    writeBuf,
 		    static_cast<typename FirstDeviceConfig::Device &>(**iter));
-		BusAggregate<OtherDevicesConfig...>::mapMod(iter + 1,
-		    iterMod + FirstDeviceConfig::BankConfig::ModSize, writeBuf);
+		BusAggregate<OtherDevicesConfig...>::mapIO(iter + 1,
+		    iterRead + FirstDeviceConfig::BankConfig::ReadSize,
+		    iterWrite + FirstDeviceConfig::BankConfig::WriteSize,
+		    iterMod + FirstDeviceConfig::BankConfig::ModSize, openBus, dummy,
+		    writeBuf);
 	}
 
 private:
@@ -1360,34 +1434,20 @@ struct BusConfigBase {
 	typedef banks::BankConfig<> BankConfig;
 
 	/**
-	 * Maps to read map
+	 * Maps IO
 	 *
-	 * @param iter Read map iterator
+	 * @param iterRead Read iterator
+	 * @param iterWrite Write iterator
+	 * @param iterMod Mod iterator
 	 * @param openBus Open bus
+	 * @param dummy Dummy write
+	 * @param writeBuf Write bus
 	 * @param device Device
 	 */
-	static void mapRead(
-	    MemoryMap::iterator iter, std::uint8_t *openBus, T &device) {
-	}
-	/**
-	 * Maps to write map
-	 *
-	 * @param iter Write map iterator
-	 * @param dummy Dummy value
-	 * @param device Device
-	 */
-	static void mapWrite(
-	    MemoryMap::iterator iter, std::uint8_t *dummy, T &device) {
-	}
-	/**
-	 * Maps to mod map
-	 *
-	 * @param iter Mod map iterator
-	 * @param writeBuf Write buffer
-	 * @param device Device
-	 */
-	static void mapMod(
-	    MemoryMap::iterator iter, std::uint8_t *writeBuf, T &device) {
+	static void mapIO(MemoryMap::iterator iterRead,
+	    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+	    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
+	    T &device) {
 	}
 	/**
 	 * Checks if device is enabled
@@ -1430,37 +1490,22 @@ struct COpenBusDevice : public CDevice {
 		typedef banks::BankConfig<banks::OpenBus> BankConfig;
 
 		/**
-		 * Maps to read map
+		 * Maps IO
 		 *
-		 * @param iter Read map iterator
+		 * @param iterRead Read iterator
+		 * @param iterWrite Write iterator
+		 * @param iterMod Mod iterator
 		 * @param openBus Open bus
+		 * @param dummy Dummy write
+		 * @param writeBuf Write bus
 		 * @param device Device
 		 */
-		static void mapRead(MemoryMap::iterator iter, std::uint8_t *openBus,
+		static void mapIO(MemoryMap::iterator iterRead,
+		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
 		    COpenBusDevice &device) {
-			BankConfig::mapRead(iter, openBus, nullptr);
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(MemoryMap::iterator iter, std::uint8_t *dummy,
-		    COpenBusDevice &device) {
-			BankConfig::mapWrite(iter, dummy, nullptr);
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(MemoryMap::iterator iter, std::uint8_t *writeBuf,
-		    COpenBusDevice &device) {
-			BankConfig::mapMod(iter, writeBuf, nullptr);
+			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+			    writeBuf, nullptr);
 		}
 		/**
 		 * Checks if device is enabled
@@ -1583,12 +1628,9 @@ public:
 	                   COpenBusDevice::BusConfig>::ModSize,
 	          &m_WriteBuf)
 	    , m_DeviceArr({&devices..., &m_OpenBusDevice}) {
-		BusAggregate<DeviceConfigs..., COpenBusDevice::BusConfig>::mapRead(
-		    m_DeviceArr.begin(), m_ReadArr.begin(), &m_OpenBus);
-		BusAggregate<DeviceConfigs..., COpenBusDevice::BusConfig>::mapWrite(
-		    m_DeviceArr.begin(), m_WriteArr.begin(), &m_DummyWrite);
-		BusAggregate<DeviceConfigs..., COpenBusDevice::BusConfig>::mapMod(
-		    m_DeviceArr.begin(), m_ModArr.begin(), &m_WriteBuf);
+		BusAggregate<DeviceConfigs..., COpenBusDevice::BusConfig>::mapIO(
+		    m_DeviceArr.begin(), m_ReadArr.begin(), m_WriteArr.begin(),
+		    m_ModArr.begin(), &m_OpenBus, &m_DummyWrite, &m_WriteBuf);
 	}
 	/**
 	 * Destructor

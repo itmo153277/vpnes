@@ -75,7 +75,7 @@ int CGUI::startGUI(int argc, char **argv) {
 		SNESConfig nesConfig;
 		nesConfig.configure(m_Config, inputFile);
 		inputFile.close();
-		unique_ptr<CNES> nes(nesConfig.createInstance(this));
+		unique_ptr<CNES> nes(nesConfig.createInstance(*this));
 		m_Jitter = 0;
 		m_TimeOverhead = 0;
 		m_Time = high_resolution_clock::now();

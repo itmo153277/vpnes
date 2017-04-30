@@ -157,14 +157,14 @@ public:
 	 * @param frequency Frequency
 	 * @param frameTime Basic frame time
 	 */
-	CMotherBoard(CFrontEnd *frontEnd, double frequency, ticks_t frameTime)
+	CMotherBoard(CFrontEnd &frontEnd, double frequency, ticks_t frameTime)
 	    : CGeneratorDevice(true)
 	    , CEventManager()
 	    , m_CurrentDevice()
-	    , m_FrontEnd(frontEnd)
+	    , m_FrontEnd(&frontEnd)
 	    , m_FrameTime(frameTime)
 	    , m_Freq(frequency) {
-		registerEvent(this, "FRAME_RENDER_END", m_FrameTime, true,
+		registerEvent(*this, "FRAME_RENDER_END", m_FrameTime, true,
 		    &CMotherBoard::handleFrameEnd);
 	}
 	/**

@@ -258,8 +258,8 @@ public:
 		 * @param device Associated device
 		 */
 		CEvent(
-		    const char *name, ticks_t time, bool enabled, CEventDevice *device)
-		    : CDeviceEvent(name, time, enabled), m_Device(device) {
+		    const char *name, ticks_t time, bool enabled, CEventDevice &device)
+		    : CDeviceEvent(name, time, enabled), m_Device(&device) {
 		}
 		/**
 		 * Destroys the object
@@ -272,7 +272,7 @@ public:
 		 */
 		void setFireTime(ticks_t time) {
 			m_Time = time;
-			m_Device->updateBack(this);
+			m_Device->updateBack(*this);
 		}
 		/**
 		 * Enables or disables the event
@@ -281,7 +281,7 @@ public:
 		 */
 		void setEnabled(bool enabled) {
 			m_Enabled = enabled;
-			m_Device->updateBack(this);
+			m_Device->updateBack(*this);
 		}
 	};
 	/**
@@ -313,7 +313,7 @@ public:
 		 * @param device Associated device
 		 * @param trigger Trigger that will be fired
 		 */
-		CLocalEvent(const char *name, ticks_t time, bool enabled, T *device,
+		CLocalEvent(const char *name, ticks_t time, bool enabled, T &device,
 		    local_trigger_t trigger)
 		    : CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
 		}
@@ -486,8 +486,8 @@ public:
 	 *
 	 * @param event Event
 	 */
-	void updateBack(CEvent *event) {
-		EventMap::iterator iter = m_EventData.find(event);
+	void updateBack(CEvent &event) {
+		EventMap::iterator iter = m_EventData.find(&event);
 		assert(iter != m_EventData.end());
 		SEventData &eventData = iter->second;
 		if (eventData.m_Enabled) {
@@ -517,9 +517,9 @@ public:
 	 *
 	 * @param event New event
 	 */
-	void registerDeviceEvent(CEvent *event) {
-		assert(m_EventData.find(event) == m_EventData.end());
-		auto newData = m_EventData.emplace(event, event);
+	void registerDeviceEvent(CEvent &event) {
+		assert(m_EventData.find(&event) == m_EventData.end());
+		auto newData = m_EventData.emplace(&event, &event);
 		SEventData &eventData = newData.first->second;
 		if (eventData.m_Enabled) {
 			m_EventQueue.insert(&eventData);
@@ -631,21 +631,21 @@ public:
 	 * @return Constructed event
 	 */
 	template <class T, typename... TArgs>
-	typename T::CEvent *registerEvent(T *device, const char *name, ticks_t time,
+	typename T::CEvent &registerEvent(T &device, const char *name, ticks_t time,
 	    bool enabled, TArgs &&... args) {
 		static_assert(std::is_base_of<CEventDevice, T>::value,
 		    "T is not event based device");
 		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
-		                  const char *, ticks_t, bool, T *,
+		                  const char *, ticks_t, bool, T &,
 		                  decltype(std::forward<TArgs>(args))...>::value,
 		    "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
 		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		events.emplace(device, event);
+		events.emplace(&device, event);
 		eventMap.emplace(name, event);
-		device->registerDeviceEvent(event);
-		return event;
+		device.registerDeviceEvent(*event);
+		return *event;
 	}
 	/**
 	 * Looks up for an event
@@ -653,10 +653,10 @@ public:
 	 * @param name Name of event
 	 * @return Found event
 	 */
-	CDeviceEvent *getEvent(const char *name) {
+	CDeviceEvent &getEvent(const char *name) {
 		EventMap::const_iterator iter = eventMap.find(name);
 		assert(iter != eventMap.end());
-		return iter->second;
+		return *iter->second;
 	}
 	/**
 	 * Unregisters all device's events and destroys them

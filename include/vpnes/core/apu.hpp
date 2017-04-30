@@ -57,37 +57,22 @@ public:
 		    BankConfig;
 
 		/**
-		 * Maps to read map
+		 * Maps IO
 		 *
-		 * @param iter Read map iterator
+		 * @param iterRead Read iterator
+		 * @param iterWrite Write iterator
+		 * @param iterMod Mod iterator
 		 * @param openBus Open bus
+		 * @param dummy Dummy write
+		 * @param writeBuf Write bus
 		 * @param device Device
 		 */
-		static void mapRead(
-		    MemoryMap::iterator iter, std::uint8_t *openBus, CAPU &device) {
-			BankConfig::mapRead(iter, openBus, &device.m_IOBuf);
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(
-		    MemoryMap::iterator iter, std::uint8_t *dummy, CAPU &device) {
-			BankConfig::mapWrite(iter, dummy, &device.m_IOBuf);
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(
-		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CAPU &device) {
-			BankConfig::mapMod(iter, writeBuf, &device.m_IOBuf);
+		static void mapIO(MemoryMap::iterator iterRead,
+		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
+		    CAPU &device) {
+			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+			    writeBuf, &device.m_IOBuf);
 		}
 		/**
 		 * Checks if device is enabled

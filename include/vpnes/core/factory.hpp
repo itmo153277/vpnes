@@ -47,7 +47,7 @@ namespace core {
  * @param config NES config
  * @return NES
  */
-typedef CNES *(*NESFactory)(SNESConfig *config, CFrontEnd *frontEnd);
+typedef CNES *(*NESFactory)(SNESConfig &config, CFrontEnd &frontEnd);
 
 namespace factory {
 
@@ -58,7 +58,7 @@ namespace factory {
  * @param frontEnd Front-end
  * @return NES
  */
-CNES *factoryNROM(SNESConfig *config, CFrontEnd *frontEnd);
+CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd);
 
 } /* factory */
 

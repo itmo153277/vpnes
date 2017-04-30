@@ -72,47 +72,22 @@ public:
 		    BankConfig;
 
 		/**
-		 * Maps to read map
+		 * Maps IO
 		 *
-		 * @param iter Read map iterator
+		 * @param iterRead Read iterator
+		 * @param iterWrite Write iterator
+		 * @param iterMod Mod iterator
 		 * @param openBus Open bus
+		 * @param dummy Dummy write
+		 * @param writeBuf Write bus
 		 * @param device Device
 		 */
-		static void mapRead(
-		    MemoryMap::iterator iter, std::uint8_t *openBus, CNROM &device) {
-			BankConfig::mapRead(iter, openBus, nullptr, device.m_RAM.data(),
-			    device.m_RAM.data() + (0x0800 & (device.m_RAM.size() - 1)),
-			    device.m_RAM.data() + (0x1000 & (device.m_RAM.size() - 1)),
-			    device.m_RAM.data() + (0x1800 & (device.m_RAM.size() - 1)),
-			    device.m_PRG.data(),
-			    device.m_PRG.data() + (0x4000 & (device.m_PRG.size() - 1)));
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(
-		    MemoryMap::iterator iter, std::uint8_t *dummy, CNROM &device) {
-			BankConfig::mapWrite(iter, dummy, nullptr, device.m_RAM.data(),
-			    device.m_RAM.data() + (0x0800 & (device.m_RAM.size() - 1)),
-			    device.m_RAM.data() + (0x1000 & (device.m_RAM.size() - 1)),
-			    device.m_RAM.data() + (0x1800 & (device.m_RAM.size() - 1)),
-			    device.m_PRG.data(),
-			    device.m_PRG.data() + (0x4000 & (device.m_PRG.size() - 1)));
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(
-		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CNROM &device) {
-			BankConfig::mapMod(iter, writeBuf, nullptr, device.m_RAM.data(),
+		static void mapIO(MemoryMap::iterator iterRead,
+		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
+		    CNROM &device) {
+			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+			    writeBuf, nullptr, device.m_RAM.data(),
 			    device.m_RAM.data() + (0x0800 & (device.m_RAM.size() - 1)),
 			    device.m_RAM.data() + (0x1000 & (device.m_RAM.size() - 1)),
 			    device.m_RAM.data() + (0x1800 & (device.m_RAM.size() - 1)),
@@ -157,6 +132,8 @@ public:
 		 */
 		typedef banks::BankConfig<banks::ReadOnlyWithConflict<0x0000, 0x2000,
 		                              0x2000>,  // CHR ROM 0x0000 - 0x1fff
+		    banks::ReadWrite<0x0000, 0x2000,
+		        0x2000>,  // CHR RAM 0x0000 - 0x1fff
 		    banks::ReadWrite<0x2000, 0x0400,
 		        0x0400>,  // NameTable 1 0x2000 - 0x23ff
 		    banks::ReadWrite<0x2000, 0x0400,
@@ -176,80 +153,32 @@ public:
 		    BankConfig;
 
 		/**
-		 * Maps to read map
+		 * Maps IO
 		 *
-		 * @param iter Read map iterator
+		 * @param iterRead Read iterator
+		 * @param iterWrite Write iterator
+		 * @param iterMod Mod iterator
 		 * @param openBus Open bus
+		 * @param dummy Dummy write
+		 * @param writeBuf Write bus
 		 * @param device Device
 		 */
-		static void mapRead(
-		    MemoryMap::iterator iter, std::uint8_t *openBus, CNROM &device) {
+		static void mapIO(MemoryMap::iterator iterRead,
+		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
+		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
+		    CNROM &device) {
 			switch (device.m_Mirroring) {
 			case MirroringHorizontal:
-				BankConfig::mapRead(iter, openBus, device.m_CHR.data(),
+				BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+				    writeBuf, device.m_CHR.data(), device.m_CHR.data(),
 				    device.m_NameTable, device.m_NameTable + 0x0400,
 				    device.m_NameTable, device.m_NameTable + 0x0400,
 				    device.m_NameTable, device.m_NameTable + 0x0400,
 				    device.m_NameTable, device.m_NameTable + 0x0400);
 				break;
 			case MirroringVertical:
-				BankConfig::mapRead(iter, openBus, device.m_CHR.data(),
-				    device.m_NameTable, device.m_NameTable,
-				    device.m_NameTable + 0x0400, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable,
-				    device.m_NameTable + 0x0400, device.m_NameTable + 0x0400);
-				break;
-			default:
-				assert(false);
-			}
-		}
-		/**
-		 * Maps to write map
-		 *
-		 * @param iter Write map iterator
-		 * @param dummy Dummy value
-		 * @param device Device
-		 */
-		static void mapWrite(
-		    MemoryMap::iterator iter, std::uint8_t *dummy, CNROM &device) {
-			switch (device.m_Mirroring) {
-			case MirroringHorizontal:
-				BankConfig::mapWrite(iter, dummy, device.m_CHR.data(),
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400);
-				break;
-			case MirroringVertical:
-				BankConfig::mapWrite(iter, dummy, device.m_CHR.data(),
-				    device.m_NameTable, device.m_NameTable,
-				    device.m_NameTable + 0x0400, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable,
-				    device.m_NameTable + 0x0400, device.m_NameTable + 0x0400);
-				break;
-			default:
-				assert(false);
-			}
-		}
-		/**
-		 * Maps to mod map
-		 *
-		 * @param iter Mod map iterator
-		 * @param writeBuf Write buffer
-		 * @param device Device
-		 */
-		static void mapMod(
-		    MemoryMap::iterator iter, std::uint8_t *writeBuf, CNROM &device) {
-			switch (device.m_Mirroring) {
-			case MirroringHorizontal:
-				BankConfig::mapMod(iter, writeBuf, device.m_CHR.data(),
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400,
-				    device.m_NameTable, device.m_NameTable + 0x0400);
-				break;
-			case MirroringVertical:
-				BankConfig::mapMod(iter, writeBuf, device.m_CHR.data(),
+				BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
+				    writeBuf, device.m_CHR.data(), device.m_CHR.data(),
 				    device.m_NameTable, device.m_NameTable,
 				    device.m_NameTable + 0x0400, device.m_NameTable + 0x0400,
 				    device.m_NameTable, device.m_NameTable,
@@ -278,21 +207,25 @@ public:
 		 * @return Active bank
 		 */
 		static std::size_t getBank(std::uint16_t addr, CNROM &device) {
-			return 0;
+			if (addr < 0x2000) {
+				return device.m_CHRBank;
+			} else {
+				return 1 + ((addr >> 10) & 7);
+			}
 		}
 	};
 
 private:
 	/**
-	 * PRG
+	 * PRG ROM
 	 */
 	std::vector<std::uint8_t> m_PRG;
 	/**
-	 * CHR
+	 * CHR ROM / CHR RAM
 	 */
 	std::vector<std::uint8_t> m_CHR;
 	/**
-	 * RAM
+	 * PRG RAM
 	 */
 	std::vector<std::uint8_t> m_RAM;
 	/**
@@ -303,6 +236,10 @@ private:
 	 * Nametable
 	 */
 	std::uint8_t m_NameTable[0x0800];
+	/**
+	 * CHR Bank
+	 */
+	std::size_t m_CHRBank;
 
 protected:
 	/**
