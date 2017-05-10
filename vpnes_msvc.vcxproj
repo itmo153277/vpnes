@@ -113,6 +113,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
+      <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -144,6 +145,7 @@
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
       <PreprocessorDefinitions>HAVE_CONFIG_H=1;NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>Full</Optimization>
     </ClCompile>
     <PreBuildEvent>
       <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
