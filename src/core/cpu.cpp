@@ -493,10 +493,12 @@ struct CCPU::opcodes {
 		static void execute(CCPU &cpu) {
 			cpu.m_PC &= 0xff00;
 			cpu.m_PC |= cpu.m_DB;
+			// TODO : Mask interrupts
 			cpu.m_AB = 0xfffd;
 		}
 	};
 	struct Reset07 : CPUCycle {
+		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_PC &= 0x00ff;
