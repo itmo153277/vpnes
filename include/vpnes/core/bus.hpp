@@ -951,19 +951,10 @@ struct BankOffsetValue;
 template <class FirstBank, class... OtherBanks>
 struct BankOffsetValue<0, FirstBank, OtherBanks...> {
 	enum {
-		ReadSize = FirstBank::ReadSize  //!< Requested read bytes
-	};
-	enum {
 		ReadOffset = 0  //!< Read offset
 	};
 	enum {
-		WriteSize = FirstBank::WriteSize  //!< Requested write bytes
-	};
-	enum {
 		WriteOffset = 0  //!< Write Offset
-	};
-	enum {
-		ModSize = FirstBank::ModSize  //!< Requested mod bytes
 	};
 	enum {
 		ModOffset = 0  //!< Mod offset
@@ -976,31 +967,19 @@ struct BankOffsetValue<0, FirstBank, OtherBanks...> {
 template <std::size_t Index, class FirstBank, class... OtherBanks>
 struct BankOffsetValue<Index, FirstBank, OtherBanks...> {
 	enum {
-		ReadSize = FirstBank::ReadSize +
-		           BankOffsetValue<Index - 1,
-		               OtherBanks...>::ReadSize  //!< Requested read bytes
+		ReadOffset = FirstBank::ReadSize +
+		             BankOffsetValue<Index - 1,
+		                 OtherBanks...>::ReadOffset  //!< Read offset
 	};
 	enum {
-		ReadOffset = BankOffsetValue<Index - 1,
-		    OtherBanks...>::ReadSize  //!< Read offset
-	};
-	enum {
-		WriteSize = FirstBank::WriteSize +
-		            BankOffsetValue<Index - 1,
-		                OtherBanks...>::WriteSize  //!< Requested write bytes
-	};
-	enum {
-		WriteOffset = BankOffsetValue<Index - 1,
-		    OtherBanks...>::WriteSize  //!< Write Offset
-	};
-	enum {
-		ModSize = FirstBank::ModSize +
-		          BankOffsetValue<Index - 1,
-		              OtherBanks...>::ModSize  //!< Requested mod bytes
+		WriteOffset = FirstBank::WriteSize +
+		              BankOffsetValue<Index - 1,
+		                  OtherBanks...>::WriteOffset  //!< Write Offset
 	};
 	enum {
 		ModOffset =
-		    BankOffsetValue<Index - 1, OtherBanks...>::ModSize  //!< Mod offset
+		    FirstBank::ModSize + BankOffsetValue<Index - 1,
+		                             OtherBanks...>::ModOffset  //!< Mod offset
 	};
 };
 

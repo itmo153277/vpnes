@@ -124,6 +124,10 @@ private:
 	 */
 	std::uint8_t m_RAM[0x0800];
 	/**
+	 * Pending IRQ
+	 */
+	bool m_PendingIRQ;
+	/**
 	 * Address bus
 	 */
 	std::uint16_t m_AB;
@@ -131,6 +135,14 @@ private:
 	 * Data bus
 	 */
 	std::uint8_t m_DB;
+	/**
+	 * PC
+	 */
+	std::uint16_t m_PC;
+	/**
+	 * Stack
+	 */
+	std::uint8_t m_S;
 
 	// TODO: Define all status registers
 

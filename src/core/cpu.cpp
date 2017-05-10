@@ -199,8 +199,24 @@ struct CPUInvokeExpand<Index, StartIndex, FirstOperation, OtherOperations...>
 /**
  * Calculates operation offset in compiled microcode
  */
+template <class Operation, class... Operations>
+struct CPUOperationOffset;
+
+/**
+ * Empty operation offset
+ */
+template <class Operation>
+struct CPUOperationOffset<Operation> {
+	enum {
+		Offset = 0  //!< Operation offset
+	};
+};
+
+/**
+ * Implementation for operation offset in compiled microcode
+ */
 template <class Operation, class FirstOperation, class... OtherOperations>
-struct CPUOperationOffset {
+struct CPUOperationOffset<Operation, FirstOperation, OtherOperations...> {
 	enum {
 		Offset =
 		    is_same<Operation, FirstOperation>::value
@@ -208,16 +224,6 @@ struct CPUOperationOffset {
 		        : FirstOperation::Size +
 		              CPUOperationOffset<Operation,
 		                  OtherOperations...>::Offset  //!< Operation offset
-	};
-};
-
-/**
- * Empty operation offset
- */
-template <class Operation>
-struct CPUOperationOffset<Operation, Operation> {
-	enum {
-		Offset = 0  //!< Operation offset
 	};
 };
 
@@ -343,7 +349,7 @@ struct CPUOpcodeParser<class_pack<Opcodes...>, OperationPack,
 		static const std::size_t codes[sizeof...(Codes)] = {
 		    CPUOperationOffsetExpand<
 		        typename CPUFindOpcode<Codes, Opcodes...>::operation,
-		        OperationPack>::type::offset...};
+		        OperationPack>::type::Offset...};
 		return codes[code];
 	}
 };
@@ -431,10 +437,79 @@ struct CPUControl {
 struct CCPU::opcodes {
 	// TODO: Define microcode
 
+	struct ParseNext : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			if (!cpu.m_PendingIRQ) {
+				cpu.m_PC++;
+			} else {
+				cpu.m_DB = 0;
+			}
+			cpu.m_AB = cpu.m_PC;
+			Control::setEndPoint(cpu, Control::parseOpcode(cpu.m_DB));
+		}
+	};
+
+	/* RESET */
+	struct Reset00 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct Reset01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct Reset02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + cpu.m_S;
+		}
+	};
+	struct Reset03 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + --cpu.m_S;
+		}
+	};
+	struct Reset04 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + --cpu.m_S;
+		}
+	};
+	struct Reset05 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			--cpu.m_S;
+			cpu.m_AB = 0xfffc;
+		}
+	};
+	struct Reset06 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_PC &= 0xff00;
+			cpu.m_PC |= cpu.m_DB;
+			cpu.m_AB = 0xfffd;
+		}
+	};
+	struct Reset07 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_PC &= 0x00ff;
+			cpu.m_PC |= cpu.m_DB << 8;
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+
 	/**
 	 * Reset operation
 	 */
-	using opReset = CPUOperation<CPUCycle>;
+	using opReset = CPUOperation<Reset00, Reset01, Reset02, Reset03, Reset04,
+	    Reset05, Reset06, Reset07, ParseNext>;
 	/**
 	 * Opcodes
 	 */
@@ -492,8 +567,11 @@ CCPU::CCPU(CMotherBoard &motherBoard)
     , m_InternalClock()
     , m_CurrentIndex(opcodes::control::ResetIndex)
     , m_RAM{}
+    , m_PendingIRQ()
     , m_AB()
-    , m_DB() {
+    , m_DB()
+    , m_PC()
+    , m_S() {
 }
 
 /**
