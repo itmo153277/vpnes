@@ -155,6 +155,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\core\mappers\nrom.cpp" />
     <ClCompile Include="src\core\config.cpp" />
+    <ClCompile Include="src\core\cpu.cpp" />
     <ClCompile Include="src\core\ines.cpp" />
     <ClCompile Include="src\gui\config.cpp" />
     <ClCompile Include="src\gui\gui.cpp" />

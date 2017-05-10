@@ -135,10 +135,10 @@ CNES *factoryNES(SNESConfig &config, CFrontEnd &frontEnd) {
 	return new CNESHelper<SConfigNTSC, T>(config, frontEnd);
 }
 
-} /* factory  */
+}  // namespace factory
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_MAPPERS_HELPER_HPP_ */

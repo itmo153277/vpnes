@@ -65,8 +65,8 @@ public:
 	virtual ~CNES() = default;
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_NES_HPP_ */

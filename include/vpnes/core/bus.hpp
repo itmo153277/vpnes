@@ -1007,23 +1007,14 @@ struct BankOffsetValue<Index, FirstBank, OtherBanks...> {
 /**
  * Expands bank offset values
  */
-template <bool Expanded, class BankPack, class IndexPack>
+template <class BankPack, class IndexPack>
 struct BankOffsetExpand;
-
-/**
- * Expands bank offset values by 1
- */
-template <std::size_t Index, std::size_t... Indices, class... Banks>
-struct BankOffsetExpand<false, class_pack<Banks...>,
-    index_pack<Index, Indices...>>
-    : public BankOffsetExpand<Index == 1, class_pack<Banks...>,
-          index_pack<Index - 1, Index, Indices...>> {};
 
 /**
  * Expanded bank offset values
  */
 template <std::size_t... Indices, class... Banks>
-struct BankOffsetExpand<true, class_pack<Banks...>, index_pack<Indices...>> {
+struct BankOffsetExpand<class_pack<Banks...>, index_pack<Indices...>> {
 	/**
 	 * Gets read offset
 	 *
@@ -1063,9 +1054,8 @@ struct BankOffsetExpand<true, class_pack<Banks...>, index_pack<Indices...>> {
  * Bank offsets
  */
 template <class... Banks>
-struct BankOffset
-    : public BankOffsetExpand<sizeof...(Banks) == 1, class_pack<Banks...>,
-          index_pack<sizeof...(Banks) - 1>> {};
+struct BankOffset : BankOffsetExpand<class_pack<Banks...>,
+                        typename make_index_pack<sizeof...(Banks)>::type> {};
 
 /**
  * Bank config
@@ -1244,7 +1234,7 @@ private:
 	BankConfig();
 };
 
-} /* banks */
+}  // namespace banks
 
 /**
  * Aggregate devices on bus
@@ -1479,11 +1469,11 @@ private:
 /**
  * Open bus device
  */
-struct COpenBusDevice : public CDevice {
+struct COpenBusDevice : CDevice {
 	/**
 	 * Bus parameters
 	 */
-	struct BusConfig : public BusConfigBase<COpenBusDevice> {
+	struct BusConfig : BusConfigBase<COpenBusDevice> {
 		/**
 		 * Banks config
 		 */
@@ -1680,8 +1670,8 @@ public:
 	}
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_BUS_HPP_ */

@@ -101,8 +101,8 @@ void CGUI::handleFrameRender(double frameTime) {
 		long waitTime = static_cast<long>(m_Jitter - m_TimeOverhead);
 		this_thread::sleep_for(milliseconds(waitTime));
 		m_Time = high_resolution_clock::now();
-		long actualWait =
-		    duration_cast<milliseconds>(m_Time - lastTime).count();
+		long actualWait = static_cast<long>(
+		    duration_cast<milliseconds>(m_Time - lastTime).count());
 		m_TimeOverhead += (actualWait - waitTime) / 2;
 		m_Jitter -= actualWait;
 	} else {

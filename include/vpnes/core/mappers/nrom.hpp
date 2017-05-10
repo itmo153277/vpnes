@@ -52,7 +52,7 @@ public:
 	/**
 	 * CPU bus config
 	 */
-	struct CPUConfig : public BusConfigBase<CNROM> {
+	struct CPUConfig : BusConfigBase<CNROM> {
 		/**
 		 * Banks config
 		 */
@@ -126,7 +126,7 @@ public:
 	/**
 	 * PPU bus config
 	 */
-	struct PPUConfig : public BusConfigBase<CNROM> {
+	struct PPUConfig : BusConfigBase<CNROM> {
 		/**
 		 * Banks config
 		 */
@@ -290,8 +290,8 @@ public:
 	}
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_MAPPERS_NROM_HPP_ */

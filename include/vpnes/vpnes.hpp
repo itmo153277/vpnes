@@ -32,6 +32,7 @@
 
 #include <cstddef>
 #include <utility>
+#include <type_traits>
 
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "vpnes core"
@@ -64,14 +65,107 @@ struct cond_and<Cond, Conds...>
  * Class pack helper
  */
 template <typename... T>
-struct class_pack {};
+struct class_pack {
+	/**
+	 * Actual type
+	 */
+	using type = class_pack;
+	enum {
+		size = sizeof...(T)  //!< Pack size
+	};
+};
+
+/**
+ * Merging class packs
+ */
+template <class ClassPack1, class ClassPack2>
+struct merge_class_pack;
+
+/**
+ * Implementation for merging of class packs
+ */
+template <typename... T1, typename... T2>
+struct merge_class_pack<class_pack<T1...>, class_pack<T2...>>
+    : class_pack<T1..., T2...> {};
+
+/**
+ * Removes class from class pack
+ */
+template <typename T, class ClassPack>
+struct remove_from_class_pack : ClassPack {};
+
+/**
+ * Implementation for removing class from class pack
+ */
+template <typename T, typename T1, typename... T2>
+struct remove_from_class_pack<T, class_pack<T1, T2...>>
+    : merge_class_pack<typename std::conditional<std::is_same<T, T1>::value,
+                           class_pack<>, class_pack<T1>>::type,
+          class_pack<T2...>>::type {};
+
+/**
+ * Creates distinct class pack from any class pack
+ */
+template <class ClassPack>
+struct distinct_class_pack : ClassPack {};
+
+/**
+ * Implementation for distinct class pack
+ */
+template <typename T1, typename... T2>
+struct distinct_class_pack<class_pack<T1, T2...>>
+    : merge_class_pack<class_pack<T1>,
+          typename remove_from_class_pack<T1,
+              typename distinct_class_pack<class_pack<T2...>>::type>::type>::
+          type {};
 
 /**
  * Indices pack helpers
  */
 template <std::size_t... I>
-struct index_pack {};
+struct index_pack {
+	/**
+	 * Actual type
+	 */
+	using type = index_pack;
+	enum {
+		size = sizeof...(I)  //!< Pack size
+	};
+};
 
-} /* vpnes */
+/**
+ * Merging index pack
+ */
+template <class IndexPack1, class IndexPack2>
+struct merge_index_pack;
+
+/**
+ * Implementation for merging index pack
+ */
+template <std::size_t... I1, std::size_t... I2>
+struct merge_index_pack<index_pack<I1...>, index_pack<I2...>>
+    : index_pack<I1..., (sizeof...(I1) + I2)...> {};
+
+/**
+ * Making index pack of given size
+ */
+template <std::size_t Size>
+struct make_index_pack
+    : merge_index_pack<typename make_index_pack<Size / 2>::type,
+          typename make_index_pack<Size - Size / 2>::type> {};
+
+/**
+ * Empty index pack
+ */
+template <>
+struct make_index_pack<0> : index_pack<> {};
+
+/**
+ * Index pack start
+ */
+template <>
+struct make_index_pack<1> : index_pack<0> {};
+
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_VPNES_H_ */
