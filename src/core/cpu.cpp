@@ -122,16 +122,17 @@ struct CPUOperation<FirstCycle, OtherCycles...> {
 	template <std::size_t Offset, std::size_t Index, class Control>
 	static void execute(CCPU &cpu) {
 		if (Offset == 0) {
-			if (!FirstCycle::skipCycle(cpu) &&
-			    !Control::accessBus(cpu,
-			        static_cast<CCPU::EBusMode>(FirstCycle::BusMode),
-			        static_cast<bool>(FirstCycle::AckIRQ))) {
-				Control::setEndPoint(cpu, Index);
-			} else {
-				FirstCycle::template execute<Control>(cpu);
-				CPUOperation<OtherCycles...>::template execute<0, Index + 1,
-				    Control>(cpu);
+			if (!FirstCycle::skipCycle(cpu)) {
+				if (Control::accessBus(cpu,
+				        static_cast<CCPU::EBusMode>(FirstCycle::BusMode),
+				        static_cast<bool>(FirstCycle::AckIRQ))) {
+					FirstCycle::template execute<Control>(cpu);
+				} else {
+					Control::setEndPoint(cpu, Index);
+				}
 			}
+			CPUOperation<OtherCycles...>::template execute<0, Index + 1,
+			    Control>(cpu);
 		} else {
 			CPUOperation<OtherCycles...>::template execute<Offset - 1, Index,
 			    Control>(cpu);
