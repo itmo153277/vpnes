@@ -498,7 +498,6 @@ struct CCPU::opcodes {
 		}
 	};
 	struct Reset07 : CPUCycle {
-		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_PC &= 0x00ff;
