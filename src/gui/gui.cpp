@@ -95,6 +95,20 @@ int CGUI::startGUI(int argc, char **argv) {
  * @param frameTime Frame time
  */
 void CGUI::handleFrameRender(double frameTime) {
+#ifdef VPNES_MEASURE_FPS
+	static int curFrame = 0;
+	curFrame++;
+	high_resolution_clock::time_point lastTime = m_Time;
+	high_resolution_clock::time_point newTime = high_resolution_clock::now();
+	if (duration_cast<milliseconds>(newTime - lastTime).count() > 1000) {
+		m_Time = newTime;
+		cerr << "FPS: "
+		     << curFrame * 1000.0 /
+		            duration_cast<milliseconds>(newTime - lastTime).count()
+		     << std::endl;
+		curFrame = 0;
+	}
+#else
 	high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {
@@ -109,4 +123,5 @@ void CGUI::handleFrameRender(double frameTime) {
 		m_Time = high_resolution_clock::now();
 		m_Jitter -= duration_cast<milliseconds>(m_Time - lastTime).count();
 	}
+#endif
 }
