@@ -480,6 +480,7 @@ struct CCPU::opcodes {
 };
 
 /* CCPU */
+
 /**
  * Constructs the object
  *
@@ -490,7 +491,7 @@ CCPU::CCPU(CMotherBoard &motherBoard)
     , m_MotherBoard(&motherBoard)
     , m_InternalClock()
     , m_CurrentIndex(opcodes::control::ResetIndex)
-    , m_RAM{0}
+    , m_RAM{}
     , m_AB()
     , m_DB() {
 }
