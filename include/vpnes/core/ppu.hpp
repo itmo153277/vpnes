@@ -49,7 +49,7 @@ public:
 	/**
 	 * CPU bus config
 	 */
-	struct CPUConfig : public BusConfigBase<CPPU> {
+	struct CPUConfig : BusConfigBase<CPPU> {
 		/**
 		 * Banks config
 		 */
@@ -179,8 +179,8 @@ public:
 	}
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_PPU_HPP_ */

@@ -51,7 +51,7 @@ SApplicationConfig::SApplicationConfig() : inputFile() {
  * @param argv Array of parameters
  */
 void SApplicationConfig::parseOptions(int argc, char **argv) {
-	// TODO: implement
+	// TODO: Implement parsing
 	if (argc >= 2) {
 		setInputFile(argv[1]);
 	}

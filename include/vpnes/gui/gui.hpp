@@ -92,8 +92,8 @@ public:
 	void handleFrameRender(double frameTime);
 };
 
-} /* gui */
+}  // namespace gui
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_GUI_GUI_HPP_ */

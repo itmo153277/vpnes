@@ -60,10 +60,10 @@ namespace factory {
  */
 CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd);
 
-} /* factory */
+}  // namespace factory
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_FACTORY_HPP_ */

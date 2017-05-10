@@ -95,8 +95,8 @@ public:
 	std::ifstream getInputFile();
 };
 
-} /* gui */
+}  // namespace gui
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_GUI_CONFIG_HPP_ */

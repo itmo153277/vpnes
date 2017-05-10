@@ -7,6 +7,9 @@
     <ClCompile Include="src\core\config.cpp">
       <Filter>Sources\core</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\cpu.cpp">
+      <Filter>Sources\core</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\ines.cpp">
       <Filter>Sources\core</Filter>
     </ClCompile>

@@ -158,8 +158,8 @@ struct SNESData {
 
 } /* ines */
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDES_CORE_INES_HPP_ */

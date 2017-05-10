@@ -64,8 +64,8 @@ public:
 	virtual void handleFrameRender(double frameTime) = 0;
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_FRONTEND_HPP_ */

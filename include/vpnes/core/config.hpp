@@ -145,8 +145,8 @@ struct SNESConfig {
 	~SNESConfig() = default;
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_CONFIG_HPP_ */

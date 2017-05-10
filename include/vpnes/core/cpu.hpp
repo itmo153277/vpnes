@@ -49,7 +49,7 @@ public:
 	/**
 	 * CPU bus config
 	 */
-	struct CPUConfig : public BusConfigBase<CCPU> {
+	struct CPUConfig : BusConfigBase<CCPU> {
 		/**
 		 * Banks config
 		 */
@@ -94,18 +94,68 @@ public:
 			return 0;
 		}
 	};
+	/**
+	 * Bus mode
+	 */
+	enum EBusMode {
+		BusModeRead,  //!< Read from bus
+		BusModeWrite  //!< Write to bus
+	};
 
 private:
+	/**
+	 * Internal opcodes implementation
+	 */
+	struct opcodes;
+	/**
+	 * Motherboard
+	 */
+	CMotherBoard *m_MotherBoard;
+	/**
+	 * Internal clock
+	 */
+	ticks_t m_InternalClock;
+	/**
+	 * Current index in compiled microcode
+	 */
+	std::size_t m_CurrentIndex;
 	/**
 	 * CPU RAM
 	 */
 	std::uint8_t m_RAM[0x0800];
+	/**
+	 * Address bus
+	 */
+	std::uint16_t m_AB;
+	/**
+	 * Data bus
+	 */
+	std::uint8_t m_DB;
+
+	// TODO: Define all status registers
+
+	/**
+	 * Checks if can execute
+	 *
+	 * @return
+	 */
+	bool isReady() {
+		return m_InternalClock < m_Clock;
+	}
 
 protected:
 	/**
 	 * Simulation routine
 	 */
-	void execute() {
+	void execute();
+	/**
+	 * Resets the clock by ticks amount
+	 *
+	 * @param ticks Amount of ticks
+	 */
+	void resetClock(ticks_t ticks) {
+		CEventDevice::resetClock(ticks);
+		m_InternalClock -= ticks;
 	}
 
 public:
@@ -118,8 +168,7 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CCPU(CMotherBoard &motherBoard) : CEventDevice() {
-	}
+	CCPU(CMotherBoard &motherBoard);
 	/**
 	 * Destroys the object
 	 */
@@ -139,12 +188,12 @@ public:
 	 * @return Pending time
 	 */
 	ticks_t getPending() {
-		return 0;
+		return m_InternalClock;
 	}
 };
 
-} /* core */
+}  // namespace core
 
-} /* vpnes */
+}  // namespace vpnes
 
 #endif /* VPNES_INCLUDE_CORE_CPU_HPP_ */
