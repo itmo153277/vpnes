@@ -176,6 +176,10 @@ private:
 	 */
 	std::uint16_t m_Abs;
 	/**
+	 * Zero-page address
+	 */
+	std::uint8_t m_ZP;
+	/**
 	 * Flag to check if we jump by branch
 	 */
 	bool m_BranchTaken;

@@ -619,7 +619,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			if (!cpu.m_PendingINT) {
-				cpu.m_PC++;
+				++cpu.m_PC;
 			} else {
 				cpu.m_DB = 0;
 			}
@@ -874,7 +874,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_PC;
+			cpu.m_AB = ++cpu.m_PC;
 		}
 	};
 	struct JMPAbs02 : cpu::Cycle {
@@ -1002,6 +1002,726 @@ struct CCPU::opcodes {
 	 */
 	template <class Command>
 	using opImm = cpu::Operation<Imm01<Command>, ParseNext>;
+
+	/* Absolute */
+	/* Read */
+	struct ReadAbs01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ReadAbs02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct ReadAbs03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Absolute
+	 */
+	template <class Command>
+	using opReadAbs =
+	    cpu::Operation<ReadAbs01, ReadAbs02, ReadAbs03<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyAbs01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ModifyAbs02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbs03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct ModifyAbs04 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbs05 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Absolute
+	 */
+	template <class Command>
+	using opModifyAbs = cpu::Operation<ModifyAbs01, ModifyAbs02, ModifyAbs03,
+	    ModifyAbs04<Command>, ModifyAbs05, ParseNext>;
+	/* Write */
+	struct WriteAbs01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	template <class Command>
+	struct WriteAbs02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct WriteAbs03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Absolute
+	 */
+	template <class Command>
+	using opWriteAbs =
+	    cpu::Operation<WriteAbs01, WriteAbs02<Command>, WriteAbs03, ParseNext>;
+
+	/* Zero-page */
+	/* Read */
+	struct ReadZP01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ReadZP02 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Zero-page
+	 */
+	template <class Command>
+	using opReadZP = cpu::Operation<ReadZP01, ReadZP02<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyZP01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZP02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ModifyZP03 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZP04 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Zero-Page
+	 */
+	template <class Command>
+	using opModifyZP = cpu::Operation<ModifyZP01, ModifyZP02,
+	    ModifyZP03<Command>, ModifyZP04, ParseNext>;
+	/* Write */
+	template <class Command>
+	struct WriteZP01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct WriteZP02 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Zero-Page
+	 */
+	template <class Command>
+	using opWriteZP = cpu::Operation<WriteZP01<Command>, WriteZP02, ParseNext>;
+
+	/* Zero-page X */
+	/* Read */
+	struct ReadZPX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ReadZPX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_X;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ReadZPX03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Zero-page X
+	 */
+	template <class Command>
+	using opReadZPX =
+	    cpu::Operation<ReadZPX01, ReadZPX02, ReadZPX03<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyZPX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_X;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPX03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ModifyZPX04 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPX05 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Zero-Page X
+	 */
+	template <class Command>
+	using opModifyZPX = cpu::Operation<ModifyZPX01, ModifyZPX02, ModifyZPX03,
+	    ModifyZPX04<Command>, ModifyZPX05, ParseNext>;
+	/* Write */
+	struct WriteZPX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct WriteZPX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_X;
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct WriteZPX03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Zero-Page X
+	 */
+	template <class Command>
+	using opWriteZPX =
+	    cpu::Operation<WriteZPX01, WriteZPX02<Command>, WriteZPX03, ParseNext>;
+
+	/* Zero-page Y */
+	/* Read */
+	struct ReadZPY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ReadZPY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_Y;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ReadZPY03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Zero-page Y
+	 */
+	template <class Command>
+	using opReadZPY =
+	    cpu::Operation<ReadZPY01, ReadZPY02, ReadZPY03<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyZPY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_Y;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPY03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ModifyZPY04 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyZPY05 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Zero-Page Y
+	 */
+	template <class Command>
+	using opModifyZPY = cpu::Operation<ModifyZPY01, ModifyZPY02, ModifyZPY03,
+	    ModifyZPY04<Command>, ModifyZPY05, ParseNext>;
+	/* Write */
+	struct WriteZPY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct WriteZPY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_ZP += cpu.m_Y;
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct WriteZPY03 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Zero-Page Y
+	 */
+	template <class Command>
+	using opWriteZPY =
+	    cpu::Operation<WriteZPY01, WriteZPY02<Command>, WriteZPY03, ParseNext>;
+
+	/* Absolute X */
+	/* Read */
+	struct ReadAbsX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ReadAbsX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_X;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ReadAbsX03 : cpu::Cycle {
+		static bool skipCycle(CCPU &cpu) {
+			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		}
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct ReadAbsX04 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Absolute X
+	 */
+	template <class Command>
+	using opReadAbsX = cpu::Operation<ReadAbsX01, ReadAbsX02, ReadAbsX03,
+	    ReadAbsX04<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyAbsX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ModifyAbsX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_X;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbsX03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbsX04 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ModifyAbsX05 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyAbsX06 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Absolute X
+	 */
+	template <class Command>
+	using opModifyAbsX =
+	    cpu::Operation<ModifyAbsX01, ModifyAbsX02, ModifyAbsX03, ModifyAbsX04,
+	        ModifyAbsX05<Command>, ModifyAbsX06, ParseNext>;
+	/* Write */
+	struct WriteAbsX01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct WriteAbsX02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_X;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct WriteAbsX03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+			Command::execute(cpu);
+		}
+	};
+	struct WriteAbsX04 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Absolute X
+	 */
+	template <class Command>
+	using opWriteAbsX = cpu::Operation<WriteAbsX01, WriteAbsX02,
+	    WriteAbsX03<Command>, WriteAbsX04, ParseNext>;
+
+	/* Absolute Y */
+	/* Read */
+	struct ReadAbsY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ReadAbsY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_Y;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ReadAbsY03 : cpu::Cycle {
+		static bool skipCycle(CCPU &cpu) {
+			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		}
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct ReadAbsY04 : cpu::Cycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Read Absolute Y
+	 */
+	template <class Command>
+	using opReadAbsY = cpu::Operation<ReadAbsY01, ReadAbsY02, ReadAbsY03,
+	    ReadAbsY04<Command>, ParseNext>;
+	/* Modify */
+	struct ModifyAbsY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct ModifyAbsY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_Y;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbsY03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct ModifyAbsY04 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	template <class Command>
+	struct ModifyAbsY05 : cpu::Cycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_ZP;
+		}
+	};
+	struct ModifyAbsY06 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Modify Absolute Y
+	 */
+	template <class Command>
+	using opModifyAbsY =
+	    cpu::Operation<ModifyAbsY01, ModifyAbsY02, ModifyAbsY03, ModifyAbsY04,
+	        ModifyAbsY05<Command>, ModifyAbsY06, ParseNext>;
+	/* Write */
+	struct WriteAbsY01 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct WriteAbsY02 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_OP16);
+			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
+			cpu.m_OP16 += cpu.m_Y;
+			cpu.setLow(cpu.m_OP16 >> 8, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			++cpu.m_PC;
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	template <class Command>
+	struct WriteAbsY03 : cpu::Cycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_Abs = cpu.m_OP16;
+			cpu.m_AB = cpu.m_Abs;
+			Command::execute(cpu);
+		}
+	};
+	struct WriteAbsY04 : cpu::Cycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Write Absolute Y
+	 */
+	template <class Command>
+	using opWriteAbsY = cpu::Operation<WriteAbsY01, WriteAbsY02,
+	    WriteAbsY03<Command>, WriteAbsY04, ParseNext>;
 
 	/* RESET */
 	struct Reset00 : cpu::Cycle {
@@ -1300,6 +2020,7 @@ CCPU::CCPU(CMotherBoard &motherBoard)
     , m_OP()
     , m_OP16()
     , m_Abs()
+    , m_ZP()
     , m_BranchTaken()
     , m_Negative()
     , m_Overflow()
