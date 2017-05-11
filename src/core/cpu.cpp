@@ -561,6 +561,46 @@ struct CCPU::opcodes {
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
+	struct cmdBCC : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Carry == 0;
+		}
+	};
+	struct cmdBCS : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Carry != 0;
+		}
+	};
+	struct cmdBNE : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Zero == 0;
+		}
+	};
+	struct cmdBEQ : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Zero != 0;
+		}
+	};
+	struct cmdBPL : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) == 0;
+		}
+	};
+	struct cmdBMI : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) != 0;
+		}
+	};
+	struct cmdBVC : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Overflow == 0;
+		}
+	};
+	struct cmdBVS : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_BranchTaken = cpu.m_Overflow != 0;
+		}
+	};
 
 	/* Cycles */
 
@@ -821,6 +861,108 @@ struct CCPU::opcodes {
 	 */
 	using opJSR = CPUOperation<JSR01, JSR02, JSR03, JSR04, JSR05, ParseNext>;
 
+	/* JMP Absolute */
+	struct JMPAbs01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct JMPAbs02 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_PC);
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * JMP Absolute
+	 */
+	using opJMPAbs = CPUOperation<JMPAbs01, JMPAbs02, ParseNext>;
+
+	/* JMP Absolute Indirect */
+	struct JMPAbsInd01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	struct JMPAbsInd02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			++cpu.m_PC;
+			cpu.setLow(cpu.m_OP, cpu.m_Abs);
+			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct JMPAbsInd03 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_DB, cpu.m_PC);
+			cpu.setLow(++cpu.m_OP, cpu.m_Abs);
+			cpu.m_AB = cpu.m_Abs;
+		}
+	};
+	struct JMPAbsInd04 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * JMP Absolute Indirect
+	 */
+	using opJMPAbsInd = CPUOperation<JMPAbsInd01, JMPAbsInd02, JMPAbsInd03,
+	    JMPAbsInd04, ParseNext>;
+
+	/* Branches */
+	template <class Command>
+	struct Branch01 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			cpu.m_AB = ++cpu.m_PC;
+			Command::execute(cpu);
+		}
+	};
+	struct Branch02 : CPUCycle {
+		static bool skipCycle(CCPU &cpu) {
+			return !cpu.m_BranchTaken;
+		}
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP16 = cpu.m_PC + static_cast<std::int8_t>(cpu.m_OP);
+			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct Branch03 : CPUCycle {
+		enum { AckIRQ = true };
+		static bool skipCycle(CCPU &cpu) {
+			return !cpu.m_BranchTaken ||
+			       ((cpu.m_OP16 & 0xff00) == (cpu.m_PC & 0xff00));
+		}
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_PC = cpu.m_OP16;
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Branch
+	 */
+	template <class Command>
+	using opBranch =
+	    CPUOperation<Branch01<Command>, Branch02, Branch03, ParseNext>;
+
 	/* Implied */
 	template <class Command>
 	struct Imp01 : CPUCycle {
@@ -1001,13 +1143,21 @@ struct CCPU::opcodes {
 	    // Branches
 
 	    // BCC
+	    CPUOpcode<0x90, opBranch<cmdBCC>>,
 	    // BCS
+	    CPUOpcode<0xb0, opBranch<cmdBCS>>,
 	    // BNE
+	    CPUOpcode<0xd0, opBranch<cmdBNE>>,
 	    // BEQ
+	    CPUOpcode<0xf0, opBranch<cmdBEQ>>,
 	    // BPL
+	    CPUOpcode<0x10, opBranch<cmdBPL>>,
 	    // BMI
+	    CPUOpcode<0x30, opBranch<cmdBMI>>,
 	    // BVC
+	    CPUOpcode<0x50, opBranch<cmdBVC>>,
 	    // BVS
+	    CPUOpcode<0x70, opBranch<cmdBVS>>,
 
 	    // Stack
 
@@ -1029,6 +1179,7 @@ struct CCPU::opcodes {
 	    // JSR
 	    CPUOpcode<0x20, opJSR>,
 	    // JMP
+	    CPUOpcode<0x4c, opJMPAbs>, CPUOpcode<0x6c, opJMPAbsInd>,
 
 	    // Other
 
@@ -1133,6 +1284,9 @@ CCPU::CCPU(CMotherBoard &motherBoard)
     , m_X()
     , m_Y()
     , m_OP()
+    , m_OP16()
+    , m_Abs()
+    , m_BranchTaken()
     , m_Negative()
     , m_Overflow()
     , m_Decimal()

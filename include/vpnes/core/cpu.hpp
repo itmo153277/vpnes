@@ -168,6 +168,18 @@ private:
 	 */
 	std::uint8_t m_OP;
 	/**
+	 * 16-bit operand
+	 */
+	std::uint16_t m_OP16;
+	/**
+	 * Absolute address
+	 */
+	std::uint16_t m_Abs;
+	/**
+	 * Flag to check if we jump by branch
+	 */
+	bool m_BranchTaken;
+	/**
 	 * Negative flag
 	 */
 	int m_Negative;
