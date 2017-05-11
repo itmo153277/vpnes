@@ -128,6 +128,14 @@ private:
 	 */
 	bool m_PendingIRQ;
 	/**
+	 * Pending NMI
+	 */
+	bool m_PendingNMI;
+	/**
+	 * Pending INT (IRQ && I || NMI)
+	 */
+	bool m_PendingINT;
+	/**
 	 * Address bus
 	 */
 	std::uint16_t m_AB;
@@ -143,6 +151,58 @@ private:
 	 * Stack
 	 */
 	std::uint8_t m_S;
+	/**
+	 * A
+	 */
+	std::uint8_t m_A;
+	/**
+	 * X
+	 */
+	std::uint8_t m_X;
+	/**
+	 * Y
+	 */
+	std::uint8_t m_Y;
+	/**
+	 * Operand
+	 */
+	std::uint8_t m_OP;
+	/**
+	 * Negative flag
+	 */
+	int m_Negative;
+	/**
+	 * Overflow flag
+	 */
+	int m_Overflow;
+	/**
+	 * Decimal flag
+	 */
+	int m_Decimal;
+	/**
+	 * Interrupt flag
+	 */
+	int m_Interrupt;
+	/**
+	 * Zero flag
+	 */
+	int m_Zero;
+	/**
+	 * Carry flag
+	 */
+	int m_Carry;
+	/**
+	 * Default flag values
+	 */
+	enum {
+		CPUFlagNegative = 0x80,   //!< Negative
+		CPUFlagOverflow = 0x40,   //!< Overflow
+		CPUFlagBreak = 0x10,      //!< Break
+		CPUFlagDecimal = 0x08,    //!< Decimal
+		CPUFlagInterrupt = 0x04,  //!< Interrupt
+		CPUFlagZero = 0x02,       //!< Zero
+		CPUFlagCarry = 0x01       //!< Carry
+	};
 
 	// TODO: Define all status registers
 
@@ -153,6 +213,91 @@ private:
 	 */
 	bool isReady() {
 		return m_InternalClock < m_Clock;
+	}
+	/**
+	 * Packs flags
+	 *
+	 * @return Packed state
+	 */
+	std::uint8_t packState() {
+		std::uint8_t state = 0x20;
+		state |= m_Negative & CPUFlagNegative;
+		state |= m_Overflow;
+		state |= m_Decimal;
+		state |= m_Zero;
+		state |= m_Carry;
+		return state;
+	}
+	/**
+	 * Unpacks flags from state
+	 *
+	 * @param state Packed state
+	 */
+	void unpackState(std::uint8_t state) {
+		m_Negative = state;
+		m_Overflow = state & CPUFlagOverflow;
+		m_Decimal = state & CPUFlagDecimal;
+		m_Interrupt = state & CPUFlagInterrupt;
+		m_Zero = state & CPUFlagZero;
+		m_Carry = state & CPUFlagCarry;
+	}
+	/**
+	 * Sets negative
+	 *
+	 * @param s Value
+	 */
+	void setNegativeFlag(std::uint16_t s) {
+		m_Negative = s;
+	}
+	/**
+	 * Sets overflow
+	 *
+	 * @param flag Flag value
+	 */
+	void setOverflowFlag(bool flag) {
+		m_Overflow = flag ? CPUFlagOverflow : 0;
+	}
+	/**
+	 * Sets zero
+	 *
+	 * @param s Value
+	 */
+	void setZeroFlag(std::uint8_t s) {
+		m_Zero = static_cast<bool>(s) ? 0 : CPUFlagZero;
+	}
+	/**
+	 * Set carry
+	 *
+	 * @param flag Flag value
+	 */
+	void setCarryFlag(bool flag) {
+		m_Carry = flag ? CPUFlagCarry : 0;
+	}
+	/**
+	 * Sets low byte
+	 *
+	 * @param s Source
+	 * @param d Destination
+	 */
+	void setLow(std::uint8_t s, std::uint16_t &d) {
+		d &= 0xff00;
+		d |= s;
+	}
+	/**
+	 * Sets high byte
+	 *
+	 * @param s Source
+	 * @param d Destination
+	 */
+	void setHigh(std::uint8_t s, std::uint16_t &d) {
+		d &= 0x00ff;
+		d |= s << 8;
+	}
+	/**
+	 * Processes interrupts
+	 */
+	void processInterrupts() {
+		// TODO : Update interrupt flags
 	}
 
 protected:

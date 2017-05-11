@@ -437,10 +437,37 @@ struct CPUControl {
 struct CCPU::opcodes {
 	// TODO: Define microcode
 
+	/* Commands */
+	struct cmdPHA : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_DB = cpu.m_A;
+		}
+	};
+	struct cmdPHP : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_DB = cpu.packState();
+		}
+	};
+	struct cmdPLA : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_A = cpu.m_DB;
+		}
+	};
+	struct cmdPLP : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.unpackState(cpu.m_DB);
+		}
+	};
+
+	/* Cycles */
+
+	/**
+	 * Parsing next opcode
+	 */
 	struct ParseNext : CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
-			if (!cpu.m_PendingIRQ) {
+			if (!cpu.m_PendingINT) {
 				cpu.m_PC++;
 			} else {
 				cpu.m_DB = 0;
@@ -449,6 +476,247 @@ struct CCPU::opcodes {
 			Control::setEndPoint(cpu, Control::parseOpcode(cpu.m_DB));
 		}
 	};
+
+	/* BRK */
+	struct BRK01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			if (!cpu.m_PendingINT) {
+				cpu.m_PC++;
+			}
+			cpu.m_AB = 0x0100 + cpu.m_S;
+			cpu.m_DB = cpu.m_PC >> 8;
+		}
+	};
+	struct BRK02 : CPUCycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + --cpu.m_S;
+			cpu.m_DB = cpu.m_PC & 0x00ff;
+		}
+	};
+	struct BRK03 : CPUCycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + --cpu.m_S;
+			cpu.m_DB = cpu.packState();
+			if (!cpu.m_PendingINT) {
+				cpu.m_DB |= CPUFlagBreak;
+			}
+		}
+	};
+	struct BRK04 : CPUCycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			--cpu.m_S;
+			cpu.processInterrupts();
+			if (cpu.m_PendingNMI) {
+				cpu.m_PendingNMI = false;
+				cpu.m_AB = 0xfffa;
+			} else {
+				cpu.m_AB = 0xfffe;
+			}
+		}
+	};
+	struct BRK05 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_DB, cpu.m_PC);
+			cpu.m_Interrupt = CPUFlagInterrupt;
+			cpu.m_PendingINT = false;
+			++cpu.m_AB;
+		}
+	};
+	struct BRK06 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * BRK
+	 */
+	using opBRK =
+	    CPUOperation<BRK01, BRK02, BRK03, BRK04, BRK05, BRK06, ParseNext>;
+
+	/* RTI */
+	struct RTI01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + cpu.m_S;
+		}
+	};
+	struct RTI02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	struct RTI03 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.unpackState(cpu.m_DB);
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	struct RTI04 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	struct RTI05 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * RTI
+	 */
+	using opRTI = CPUOperation<RTI01, RTI02, RTI03, RTI04, RTI05, ParseNext>;
+
+	/* RTS */
+	struct RTS01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + cpu.m_S;
+		}
+	};
+	struct RTS02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	struct RTS03 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	struct RTS04 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct RTS05 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	/**
+	 * RTS
+	 */
+	using opRTS = CPUOperation<RTS01, RTS02, RTS03, RTS04, RTS05, ParseNext>;
+
+	/* PHA/PHP */
+	template <class Command>
+	struct PHR01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + cpu.m_S;
+			Command::execute(cpu);
+		}
+	};
+	struct PHR02 : CPUCycle {
+		enum { AckIRQ = true };
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			--cpu.m_S;
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * PHA/PHP
+	 */
+	template <class Command>
+	using opPHR = CPUOperation<PHR01<Command>, PHR02, ParseNext>;
+
+	/* PLA/PLP */
+	struct PLR01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + cpu.m_S;
+		}
+	};
+	struct PLR02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		}
+	};
+	template <class Command>
+	struct PLR03 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * PLA/PLP
+	 */
+	template <class Command>
+	using opPLR = CPUOperation<PLR01, PLR02, PLR03<Command>, ParseNext>;
+
+	/* JSR */
+	struct JSR01 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_OP = cpu.m_DB;
+			++cpu.m_PC;
+			cpu.m_AB = 0x0100 + cpu.m_S;
+		}
+	};
+	struct JSR02 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_DB = cpu.m_PC >> 8;
+		}
+	};
+	struct JSR03 : CPUCycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = 0x0100 + --cpu.m_S;
+			cpu.m_DB = cpu.m_PC & 0xff;
+		}
+	};
+	struct JSR04 : CPUCycle {
+		enum { BusMode = BusModeWrite };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	struct JSR05 : CPUCycle {
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			cpu.setLow(cpu.m_OP, cpu.m_PC);
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * JSR
+	 */
+	using opJSR = CPUOperation<JSR01, JSR02, JSR03, JSR04, JSR05, ParseNext>;
 
 	/* RESET */
 	struct Reset00 : CPUCycle {
@@ -486,22 +754,22 @@ struct CCPU::opcodes {
 		static void execute(CCPU &cpu) {
 			--cpu.m_S;
 			cpu.m_AB = 0xfffc;
+			cpu.m_PendingNMI = false;
 		}
 	};
 	struct Reset06 : CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
-			cpu.m_PC &= 0xff00;
-			cpu.m_PC |= cpu.m_DB;
-			// TODO : Mask interrupts
+			cpu.setLow(cpu.m_DB, cpu.m_PC);
+			cpu.m_Interrupt = CPUFlagInterrupt;
+			cpu.m_PendingINT = false;
 			cpu.m_AB = 0xfffd;
 		}
 	};
 	struct Reset07 : CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
-			cpu.m_PC &= 0x00ff;
-			cpu.m_PC |= cpu.m_DB << 8;
+			cpu.setHigh(cpu.m_DB, cpu.m_PC);
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
@@ -514,7 +782,19 @@ struct CCPU::opcodes {
 	/**
 	 * Opcodes
 	 */
-	using opcode_pack = class_pack<>;
+	using opcode_pack = class_pack<
+	    // BRK
+	    CPUOpcode<0x00, opBRK>,
+	    // RTI
+	    CPUOpcode<0x40, opRTI>,
+	    // RTS
+	    CPUOpcode<0x60, opRTS>,
+	    // PHA/PHP
+	    CPUOpcode<0x48, opPHR<cmdPHA>>, CPUOpcode<0x08, opPHR<cmdPHP>>,
+	    // PLA/PLP
+	    CPUOpcode<0x68, opPLR<cmdPLA>>, CPUOpcode<0x28, opPLR<cmdPLP>>,
+	    // JSR
+	    CPUOpcode<0x20, opJSR>>;
 	/**
 	 * Control
 	 */
@@ -540,7 +820,9 @@ struct CCPU::opcodes {
 		if (!cpu.isReady()) {
 			return false;
 		}
-		// TODO : Acknowledge IRQ
+		if (ackIRQ) {
+			cpu.processInterrupts();
+		}
 		switch (busMode) {
 		case BusModeRead:
 			cpu.m_DB = cpu.m_MotherBoard->getBusCPU().readMemory(cpu.m_AB);
@@ -569,10 +851,22 @@ CCPU::CCPU(CMotherBoard &motherBoard)
     , m_CurrentIndex(opcodes::control::ResetIndex)
     , m_RAM{}
     , m_PendingIRQ()
+    , m_PendingNMI()
+    , m_PendingINT()
     , m_AB()
     , m_DB()
     , m_PC()
-    , m_S() {
+    , m_S()
+    , m_A()
+    , m_X()
+    , m_Y()
+    , m_OP()
+    , m_Negative()
+    , m_Overflow()
+    , m_Decimal()
+    , m_Interrupt()
+    , m_Zero()
+    , m_Carry() {
 }
 
 /**
