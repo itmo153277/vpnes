@@ -37,10 +37,9 @@
 #include <vpnes/core/ines.hpp>
 #include <vpnes/core/factory.hpp>
 
-using namespace ::std;
-using namespace ::vpnes;
-using namespace ::vpnes::gui;
-using namespace ::vpnes::core;
+namespace vpnes {
+
+namespace core {
 
 /**
  * Factory list
@@ -74,7 +73,7 @@ SNESConfig::SNESConfig()
  * @param inputFile Input file stream
  */
 void SNESConfig::configure(
-    const SApplicationConfig &appConfig, ifstream &inputFile) {
+    const gui::SApplicationConfig &appConfig, std::ifstream &inputFile) {
 	ines::SNESData nesData(inputFile);
 	PRGSize = nesData.PRGSize;
 	CHRSize = nesData.CHRSize;
@@ -93,7 +92,11 @@ void SNESConfig::configure(
  * @param frontEnd Front-end
  * @return Instance of NES
  */
-CNES *SNESConfig::createInstance(CFrontEnd &frontEnd) {
+CNES *vpnes::core::SNESConfig::createInstance(CFrontEnd &frontEnd) {
 	assert(MMCType < MMCAmount);
 	return factoryList[MMCType](*this, frontEnd);
 }
+
+}  // namespace core
+
+}  // namespace vpnes

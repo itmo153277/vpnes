@@ -35,9 +35,11 @@
 #include <vpnes/core/mappers/helper.hpp>
 #include <vpnes/core/mappers/nrom.hpp>
 
-using namespace ::vpnes;
-using namespace ::vpnes::core;
-using namespace ::vpnes::core::factory;
+namespace vpnes {
+
+namespace core {
+
+namespace factory {
 
 /**
  * NROM NES factory
@@ -46,9 +48,11 @@ using namespace ::vpnes::core::factory;
  * @param frontEnd Front-end
  * @return NES
  */
-CNES *factory::factoryNROM(SNESConfig &config, CFrontEnd &frontEnd) {
+CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd) {
 	return factoryNES<CNROM>(config, frontEnd);
 }
+
+}  // namespace factory
 
 /* CNROM */
 
@@ -77,3 +81,7 @@ CNROM::CNROM(CMotherBoard &motherBoard, const SNESConfig &config)
 		throw std::invalid_argument("Invalid ROM parameters");
 	}
 }
+
+}  // namespace core
+
+}  // namespace vpnes

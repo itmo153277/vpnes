@@ -42,18 +42,16 @@
 #include <vpnes/core/config.hpp>
 #include <vpnes/core/nes.hpp>
 
-using namespace ::std;
-using namespace ::std::chrono;
-using namespace ::vpnes;
-using namespace ::vpnes::gui;
-using namespace ::vpnes::core;
+namespace vpnes {
+
+namespace gui {
 
 /* CGUI */
 
 /**
  * Constructor
  */
-CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
+vpnes::gui::CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
 }
 
 /**
@@ -63,28 +61,28 @@ CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
  * @param argv Array of parameters
  * @return Exit code
  */
-int CGUI::startGUI(int argc, char **argv) {
+int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 	m_Config.parseOptions(argc, argv);
 	if (!m_Config.hasInputFile()) {
-		cerr << "Usage:" << endl;
-		cerr << argv[0] << " path_to_rom.nes" << endl;
+		std::cerr << "Usage:" << std::endl;
+		std::cerr << argv[0] << " path_to_rom.nes" << std::endl;
 		return 0;
 	}
 	try {
-		ifstream inputFile = m_Config.getInputFile();
-		SNESConfig nesConfig;
+		std::ifstream inputFile = m_Config.getInputFile();
+		core::SNESConfig nesConfig;
 		nesConfig.configure(m_Config, inputFile);
 		inputFile.close();
-		unique_ptr<CNES> nes(nesConfig.createInstance(*this));
+		std::unique_ptr<core::CNES> nes(nesConfig.createInstance(*this));
 		m_Jitter = 0;
 		m_TimeOverhead = 0;
-		m_Time = high_resolution_clock::now();
+		m_Time = std::chrono::high_resolution_clock::now();
 		nes->powerUp();
-	} catch (const invalid_argument &e) {
-		cerr << e.what() << endl;
-	} catch (const exception &e) {
-		cerr << "Unknown error: " << e.what() << endl;
-		cerr << strerror(errno) << endl;
+	} catch (const std::invalid_argument &e) {
+		std::cerr << e.what() << std::endl;
+	} catch (const std::exception &e) {
+		std::cerr << "Unknown error: " << e.what() << std::endl;
+		std::cerr << std::strerror(errno) << std::endl;
 	}
 	return 0;
 }
@@ -94,34 +92,47 @@ int CGUI::startGUI(int argc, char **argv) {
  *
  * @param frameTime Frame time
  */
-void CGUI::handleFrameRender(double frameTime) {
+void vpnes::gui::CGUI::handleFrameRender(double frameTime) {
 #ifdef VPNES_MEASURE_FPS
 	static int curFrame = 0;
 	curFrame++;
-	high_resolution_clock::time_point lastTime = m_Time;
-	high_resolution_clock::time_point newTime = high_resolution_clock::now();
-	if (duration_cast<milliseconds>(newTime - lastTime).count() > 1000) {
+	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
+	std::chrono::high_resolution_clock::time_point newTime =
+	    std::chrono::high_resolution_clock::now();
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(
+	        newTime - lastTime)
+	        .count() > 1000) {
 		m_Time = newTime;
 		cerr << "FPS: "
 		     << curFrame * 1000.0 /
-		            duration_cast<milliseconds>(newTime - lastTime).count()
+		            std::chrono::duration_cast<std::chrono::milliseconds>(
+		                newTime - lastTime)
+		                .count()
 		     << std::endl;
 		curFrame = 0;
 	}
 #else
-	high_resolution_clock::time_point lastTime = m_Time;
+	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {
 		long waitTime = static_cast<long>(m_Jitter - m_TimeOverhead);
-		this_thread::sleep_for(milliseconds(waitTime));
-		m_Time = high_resolution_clock::now();
+		std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+		m_Time = std::chrono::high_resolution_clock::now();
 		long actualWait = static_cast<long>(
-		    duration_cast<milliseconds>(m_Time - lastTime).count());
+		    std::chrono::duration_cast<std::chrono::milliseconds>(
+		        m_Time - lastTime)
+		        .count());
 		m_TimeOverhead += (actualWait - waitTime) / 2;
 		m_Jitter -= actualWait;
 	} else {
-		m_Time = high_resolution_clock::now();
-		m_Jitter -= duration_cast<milliseconds>(m_Time - lastTime).count();
+		m_Time = std::chrono::high_resolution_clock::now();
+		m_Jitter -= std::chrono::duration_cast<std::chrono::milliseconds>(
+		    m_Time - lastTime)
+		                .count();
 	}
 #endif
 }
+
+}  // namespace gui
+
+}  // namespace vpnes

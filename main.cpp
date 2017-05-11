@@ -27,10 +27,6 @@
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/gui.hpp>
 
-using namespace ::std;
-using namespace ::vpnes;
-using namespace ::vpnes::gui;
-
 /**
  * Entry point
  *
@@ -42,12 +38,12 @@ int main(int argc, char **argv) {
 	/*
 	 * Setting up output
 	 */
-	setlocale(LC_ALL, "");
-	clog << internal << hex << showbase;
-	clog << PACKAGE_BUILD << endl << endl;
+	std::setlocale(LC_ALL, "");
+	std::clog << std::internal << std::hex << std::showbase;
+	std::clog << PACKAGE_BUILD << std::endl << std::endl;
 	/*
 	 * Startup
 	 */
-	CGUI gui;
+	vpnes::gui::CGUI gui;
 	return gui.startGUI(argc, argv);
 }

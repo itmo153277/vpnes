@@ -35,28 +35,30 @@
 #include <vpnes/core/config.hpp>
 #include <vpnes/core/ines.hpp>
 
-using namespace ::std;
-using namespace ::vpnes;
-using namespace ::vpnes::core;
-using namespace ::vpnes::core::ines;
+namespace vpnes {
+
+namespace core {
+
+namespace ines {
 
 /* SNESData */
 
 /**
  * Constructs the structure from the data
+ *
  * @param ROM
  */
-SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
+SNESData::SNESData(std::ifstream &ROM) : PRG(), CHR(), Trainer() {
 	const char *iNESSignature = "NES\32";
 	uint8_t mapper;
 	iNES_Header header;
 
 	ROM.read((char *) &header, sizeof(header));
 	if (strncmp(header.Signature, iNESSignature, 4)) {
-		throw invalid_argument("Unknown file format");
+		throw std::invalid_argument("Unknown file format");
 	}
 	if ((header.Flags_ex & 0x0c) == 0x08) {
-		throw invalid_argument("Wrong version");
+		throw std::invalid_argument("Wrong version");
 	}
 	PRGSize = header.PRGSize * 0x4000;
 	CHRSize = header.CHRSize * 0x2000;
@@ -107,6 +109,12 @@ SNESData::SNESData(ifstream &ROM) : PRG(), CHR(), Trainer() {
 		}
 		break;
 	default:
-		throw invalid_argument("Unsupported mapper");
+		throw std::invalid_argument("Unsupported mapper");
 	}
 }
+
+}  // namespace ines
+
+}  // namespace core
+
+}  // namespace vpnes

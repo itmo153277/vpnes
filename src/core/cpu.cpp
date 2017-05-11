@@ -34,11 +34,13 @@
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/cpu.hpp>
 
-using namespace ::std;
-using namespace ::vpnes;
-using namespace ::vpnes::core;
-
 /* Microcode compilation helpers */
+
+namespace vpnes {
+
+namespace core {
+
+namespace cpu {
 
 /**
  * Defines CPU cycle
@@ -191,7 +193,7 @@ struct CPUInvokeExpand<Index, StartIndex> {
 template <std::size_t Index, std::size_t StartIndex, class FirstOperation,
     class... OtherOperations>
 struct CPUInvokeExpand<Index, StartIndex, FirstOperation, OtherOperations...>
-    : conditional<(Index < FirstOperation::Size),
+    : std::conditional<(Index < FirstOperation::Size),
           CPUInvoker<Index, StartIndex, FirstOperation>,
           typename CPUInvokeExpand<Index - FirstOperation::Size, StartIndex,
               OtherOperations...>::type>::type {};
@@ -219,7 +221,7 @@ template <class Operation, class FirstOperation, class... OtherOperations>
 struct CPUOperationOffset<Operation, FirstOperation, OtherOperations...> {
 	enum {
 		Offset =
-		    is_same<Operation, FirstOperation>::value
+		    std::is_same<Operation, FirstOperation>::value
 		        ? 0
 		        : FirstOperation::Size +
 		              CPUOperationOffset<Operation,
@@ -269,6 +271,9 @@ struct CPUOperationSize<class_pack<FirstOperation, OtherOperations...>> {
 template <class OperationPack, class IndexPack>
 struct CPUInvoke;
 
+/**
+ * Implementation of invokation
+ */
 template <std::size_t... Indices, class... Operations>
 struct CPUInvoke<class_pack<Operations...>, index_pack<Indices...>> {
 	/**
@@ -401,6 +406,7 @@ struct CPUControl {
 	 *
 	 * @param cpu CPU
 	 * @param busMode Access mode
+	 * @param ackIRQ Acknoledge IRQ
 	 * @return If could or not
 	 */
 	static bool accessBus(CCPU &cpu, CCPU::EBusMode busMode, bool ackIRQ) {
@@ -429,6 +435,8 @@ struct CPUControl {
 	}
 };
 
+}  // namespace cpu
+
 /* CPU Microcode */
 
 /**
@@ -438,165 +446,165 @@ struct CCPU::opcodes {
 	// TODO: Define microcode
 
 	/* Commands */
-	struct cmdPHA : CPUCommand {
+	struct cmdPHA : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_DB = cpu.m_A;
 		}
 	};
-	struct cmdPHP : CPUCommand {
+	struct cmdPHP : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_DB = cpu.packState();
 		}
 	};
-	struct cmdPLA : CPUCommand {
+	struct cmdPLA : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_A = cpu.m_DB;
 		}
 	};
-	struct cmdPLP : CPUCommand {
+	struct cmdPLP : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.unpackState(cpu.m_DB);
 		}
 	};
-	struct cmdCLC : CPUCommand {
+	struct cmdCLC : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Carry = 0;
 		}
 	};
-	struct cmdSEC : CPUCommand {
+	struct cmdSEC : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Carry = CPUFlagCarry;
 		}
 	};
-	struct cmdCLD : CPUCommand {
+	struct cmdCLD : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Decimal = 0;
 		}
 	};
-	struct cmdSED : CPUCommand {
+	struct cmdSED : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Decimal = CPUFlagDecimal;
 		}
 	};
-	struct cmdCLI : CPUCommand {
+	struct cmdCLI : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Interrupt = 0;
 		}
 	};
-	struct cmdSEI : CPUCommand {
+	struct cmdSEI : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Interrupt = CPUFlagInterrupt;
 		}
 	};
-	struct cmdCLV : CPUCommand {
+	struct cmdCLV : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Overflow = 0;
 		}
 	};
-	struct cmdTAX : CPUCommand {
+	struct cmdTAX : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_X = cpu.m_A;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdTAY : CPUCommand {
+	struct cmdTAY : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_Y = cpu.m_A;
 			cpu.setNegativeFlag(cpu.m_Y);
 			cpu.setZeroFlag(cpu.m_Y);
 		}
 	};
-	struct cmdTXA : CPUCommand {
+	struct cmdTXA : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_A = cpu.m_X;
 			cpu.setNegativeFlag(cpu.m_A);
 			cpu.setZeroFlag(cpu.m_A);
 		}
 	};
-	struct cmdTYA : CPUCommand {
+	struct cmdTYA : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_A = cpu.m_Y;
 			cpu.setNegativeFlag(cpu.m_A);
 			cpu.setZeroFlag(cpu.m_A);
 		}
 	};
-	struct cmdTXS : CPUCommand {
+	struct cmdTXS : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_S = cpu.m_X;
 		}
 	};
-	struct cmdTSX : CPUCommand {
+	struct cmdTSX : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_X = cpu.m_S;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdINX : CPUCommand {
+	struct cmdINX : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			++cpu.m_X;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdDEX : CPUCommand {
+	struct cmdDEX : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			--cpu.m_X;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdINY : CPUCommand {
+	struct cmdINY : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			++cpu.m_X;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdDEY : CPUCommand {
+	struct cmdDEY : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			--cpu.m_X;
 			cpu.setNegativeFlag(cpu.m_X);
 			cpu.setZeroFlag(cpu.m_X);
 		}
 	};
-	struct cmdBCC : CPUCommand {
+	struct cmdBCC : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Carry == 0;
 		}
 	};
-	struct cmdBCS : CPUCommand {
+	struct cmdBCS : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Carry != 0;
 		}
 	};
-	struct cmdBNE : CPUCommand {
+	struct cmdBNE : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Zero == 0;
 		}
 	};
-	struct cmdBEQ : CPUCommand {
+	struct cmdBEQ : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Zero != 0;
 		}
 	};
-	struct cmdBPL : CPUCommand {
+	struct cmdBPL : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) == 0;
 		}
 	};
-	struct cmdBMI : CPUCommand {
+	struct cmdBMI : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) != 0;
 		}
 	};
-	struct cmdBVC : CPUCommand {
+	struct cmdBVC : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Overflow == 0;
 		}
 	};
-	struct cmdBVS : CPUCommand {
+	struct cmdBVS : cpu::CPUCommand {
 		static void execute(CCPU &cpu) {
 			cpu.m_BranchTaken = cpu.m_Overflow != 0;
 		}
@@ -607,7 +615,7 @@ struct CCPU::opcodes {
 	/**
 	 * Parsing next opcode
 	 */
-	struct ParseNext : CPUCycle {
+	struct ParseNext : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			if (!cpu.m_PendingINT) {
@@ -621,7 +629,7 @@ struct CCPU::opcodes {
 	};
 
 	/* BRK */
-	struct BRK01 : CPUCycle {
+	struct BRK01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			if (!cpu.m_PendingINT) {
@@ -631,7 +639,7 @@ struct CCPU::opcodes {
 			cpu.m_DB = cpu.m_PC >> 8;
 		}
 	};
-	struct BRK02 : CPUCycle {
+	struct BRK02 : cpu::CPUCycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -639,7 +647,7 @@ struct CCPU::opcodes {
 			cpu.m_DB = cpu.m_PC & 0x00ff;
 		}
 	};
-	struct BRK03 : CPUCycle {
+	struct BRK03 : cpu::CPUCycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -650,7 +658,7 @@ struct CCPU::opcodes {
 			}
 		}
 	};
-	struct BRK04 : CPUCycle {
+	struct BRK04 : cpu::CPUCycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -664,7 +672,7 @@ struct CCPU::opcodes {
 			}
 		}
 	};
-	struct BRK05 : CPUCycle {
+	struct BRK05 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_DB, cpu.m_PC);
@@ -673,7 +681,7 @@ struct CCPU::opcodes {
 			++cpu.m_AB;
 		}
 	};
-	struct BRK06 : CPUCycle {
+	struct BRK06 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setHigh(cpu.m_DB, cpu.m_PC);
@@ -684,36 +692,36 @@ struct CCPU::opcodes {
 	 * BRK
 	 */
 	using opBRK =
-	    CPUOperation<BRK01, BRK02, BRK03, BRK04, BRK05, BRK06, ParseNext>;
+	    cpu::CPUOperation<BRK01, BRK02, BRK03, BRK04, BRK05, BRK06, ParseNext>;
 
 	/* RTI */
-	struct RTI01 : CPUCycle {
+	struct RTI01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 		}
 	};
-	struct RTI02 : CPUCycle {
+	struct RTI02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
-	struct RTI03 : CPUCycle {
+	struct RTI03 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.unpackState(cpu.m_DB);
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
-	struct RTI04 : CPUCycle {
+	struct RTI04 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_DB, cpu.m_PC);
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
-	struct RTI05 : CPUCycle {
+	struct RTI05 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -724,36 +732,37 @@ struct CCPU::opcodes {
 	/**
 	 * RTI
 	 */
-	using opRTI = CPUOperation<RTI01, RTI02, RTI03, RTI04, RTI05, ParseNext>;
+	using opRTI =
+	    cpu::CPUOperation<RTI01, RTI02, RTI03, RTI04, RTI05, ParseNext>;
 
 	/* RTS */
-	struct RTS01 : CPUCycle {
+	struct RTS01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 		}
 	};
-	struct RTS02 : CPUCycle {
+	struct RTS02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
-	struct RTS03 : CPUCycle {
+	struct RTS03 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_DB, cpu.m_PC);
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
-	struct RTS04 : CPUCycle {
+	struct RTS04 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setHigh(cpu.m_DB, cpu.m_PC);
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct RTS05 : CPUCycle {
+	struct RTS05 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -763,18 +772,19 @@ struct CCPU::opcodes {
 	/**
 	 * RTS
 	 */
-	using opRTS = CPUOperation<RTS01, RTS02, RTS03, RTS04, RTS05, ParseNext>;
+	using opRTS =
+	    cpu::CPUOperation<RTS01, RTS02, RTS03, RTS04, RTS05, ParseNext>;
 
 	/* PHA/PHP */
 	template <class Command>
-	struct PHR01 : CPUCycle {
+	struct PHR01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 			Command::execute(cpu);
 		}
 	};
-	struct PHR02 : CPUCycle {
+	struct PHR02 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
@@ -787,23 +797,23 @@ struct CCPU::opcodes {
 	 * PHA/PHP
 	 */
 	template <class Command>
-	using opPHR = CPUOperation<PHR01<Command>, PHR02, ParseNext>;
+	using opPHR = cpu::CPUOperation<PHR01<Command>, PHR02, ParseNext>;
 
 	/* PLA/PLP */
-	struct PLR01 : CPUCycle {
+	struct PLR01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 		}
 	};
-	struct PLR02 : CPUCycle {
+	struct PLR02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + ++cpu.m_S;
 		}
 	};
 	template <class Command>
-	struct PLR03 : CPUCycle {
+	struct PLR03 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -815,10 +825,10 @@ struct CCPU::opcodes {
 	 * PLA/PLP
 	 */
 	template <class Command>
-	using opPLR = CPUOperation<PLR01, PLR02, PLR03<Command>, ParseNext>;
+	using opPLR = cpu::CPUOperation<PLR01, PLR02, PLR03<Command>, ParseNext>;
 
 	/* JSR */
-	struct JSR01 : CPUCycle {
+	struct JSR01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_OP = cpu.m_DB;
@@ -826,13 +836,13 @@ struct CCPU::opcodes {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 		}
 	};
-	struct JSR02 : CPUCycle {
+	struct JSR02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_DB = cpu.m_PC >> 8;
 		}
 	};
-	struct JSR03 : CPUCycle {
+	struct JSR03 : cpu::CPUCycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -840,14 +850,14 @@ struct CCPU::opcodes {
 			cpu.m_DB = cpu.m_PC & 0xff;
 		}
 	};
-	struct JSR04 : CPUCycle {
+	struct JSR04 : cpu::CPUCycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct JSR05 : CPUCycle {
+	struct JSR05 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -859,17 +869,18 @@ struct CCPU::opcodes {
 	/**
 	 * JSR
 	 */
-	using opJSR = CPUOperation<JSR01, JSR02, JSR03, JSR04, JSR05, ParseNext>;
+	using opJSR =
+	    cpu::CPUOperation<JSR01, JSR02, JSR03, JSR04, JSR05, ParseNext>;
 
 	/* JMP Absolute */
-	struct JMPAbs01 : CPUCycle {
+	struct JMPAbs01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_OP = cpu.m_DB;
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct JMPAbs02 : CPUCycle {
+	struct JMPAbs02 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -881,17 +892,17 @@ struct CCPU::opcodes {
 	/**
 	 * JMP Absolute
 	 */
-	using opJMPAbs = CPUOperation<JMPAbs01, JMPAbs02, ParseNext>;
+	using opJMPAbs = cpu::CPUOperation<JMPAbs01, JMPAbs02, ParseNext>;
 
 	/* JMP Absolute Indirect */
-	struct JMPAbsInd01 : CPUCycle {
+	struct JMPAbsInd01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_OP = cpu.m_DB;
 			cpu.m_AB = ++cpu.m_PC;
 		}
 	};
-	struct JMPAbsInd02 : CPUCycle {
+	struct JMPAbsInd02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			++cpu.m_PC;
@@ -900,7 +911,7 @@ struct CCPU::opcodes {
 			cpu.m_AB = cpu.m_Abs;
 		}
 	};
-	struct JMPAbsInd03 : CPUCycle {
+	struct JMPAbsInd03 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_DB, cpu.m_PC);
@@ -908,7 +919,7 @@ struct CCPU::opcodes {
 			cpu.m_AB = cpu.m_Abs;
 		}
 	};
-	struct JMPAbsInd04 : CPUCycle {
+	struct JMPAbsInd04 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -919,12 +930,12 @@ struct CCPU::opcodes {
 	/**
 	 * JMP Absolute Indirect
 	 */
-	using opJMPAbsInd = CPUOperation<JMPAbsInd01, JMPAbsInd02, JMPAbsInd03,
+	using opJMPAbsInd = cpu::CPUOperation<JMPAbsInd01, JMPAbsInd02, JMPAbsInd03,
 	    JMPAbsInd04, ParseNext>;
 
 	/* Branches */
 	template <class Command>
-	struct Branch01 : CPUCycle {
+	struct Branch01 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -933,7 +944,7 @@ struct CCPU::opcodes {
 			Command::execute(cpu);
 		}
 	};
-	struct Branch02 : CPUCycle {
+	struct Branch02 : cpu::CPUCycle {
 		static bool skipCycle(CCPU &cpu) {
 			return !cpu.m_BranchTaken;
 		}
@@ -944,7 +955,7 @@ struct CCPU::opcodes {
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct Branch03 : CPUCycle {
+	struct Branch03 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		static bool skipCycle(CCPU &cpu) {
 			return !cpu.m_BranchTaken ||
@@ -961,11 +972,11 @@ struct CCPU::opcodes {
 	 */
 	template <class Command>
 	using opBranch =
-	    CPUOperation<Branch01<Command>, Branch02, Branch03, ParseNext>;
+	    cpu::CPUOperation<Branch01<Command>, Branch02, Branch03, ParseNext>;
 
 	/* Implied */
 	template <class Command>
-	struct Imp01 : CPUCycle {
+	struct Imp01 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -977,11 +988,11 @@ struct CCPU::opcodes {
 	 * Implied
 	 */
 	template <class Command>
-	using opImp = CPUOperation<Imp01<Command>, ParseNext>;
+	using opImp = cpu::CPUOperation<Imp01<Command>, ParseNext>;
 
 	/* Immediate */
 	template <class Command>
-	struct Imm01 : CPUCycle {
+	struct Imm01 : cpu::CPUCycle {
 		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
@@ -993,40 +1004,40 @@ struct CCPU::opcodes {
 	 * Immediate
 	 */
 	template <class Command>
-	using opImm = CPUOperation<Imm01<Command>, ParseNext>;
+	using opImm = cpu::CPUOperation<Imm01<Command>, ParseNext>;
 
 	/* RESET */
-	struct Reset00 : CPUCycle {
+	struct Reset00 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct Reset01 : CPUCycle {
+	struct Reset01 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-	struct Reset02 : CPUCycle {
+	struct Reset02 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + cpu.m_S;
 		}
 	};
-	struct Reset03 : CPUCycle {
+	struct Reset03 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + --cpu.m_S;
 		}
 	};
-	struct Reset04 : CPUCycle {
+	struct Reset04 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_AB = 0x0100 + --cpu.m_S;
 		}
 	};
-	struct Reset05 : CPUCycle {
+	struct Reset05 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			--cpu.m_S;
@@ -1034,7 +1045,7 @@ struct CCPU::opcodes {
 			cpu.m_PendingNMI = false;
 		}
 	};
-	struct Reset06 : CPUCycle {
+	struct Reset06 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_DB, cpu.m_PC);
@@ -1043,7 +1054,7 @@ struct CCPU::opcodes {
 			cpu.m_AB = 0xfffd;
 		}
 	};
-	struct Reset07 : CPUCycle {
+	struct Reset07 : cpu::CPUCycle {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setHigh(cpu.m_DB, cpu.m_PC);
@@ -1054,8 +1065,8 @@ struct CCPU::opcodes {
 	/**
 	 * Reset operation
 	 */
-	using opReset = CPUOperation<Reset00, Reset01, Reset02, Reset03, Reset04,
-	    Reset05, Reset06, Reset07, ParseNext>;
+	using opReset = cpu::CPUOperation<Reset00, Reset01, Reset02, Reset03,
+	    Reset04, Reset05, Reset06, Reset07, ParseNext>;
 	/**
 	 * Opcodes
 	 */
@@ -1064,34 +1075,34 @@ struct CCPU::opcodes {
 	    // Flag manipulation
 
 	    // CLC
-	    CPUOpcode<0x18, opImp<cmdCLC>>,
+	    cpu::CPUOpcode<0x18, opImp<cmdCLC>>,
 	    // SEC
-	    CPUOpcode<0x38, opImp<cmdSEC>>,
+	    cpu::CPUOpcode<0x38, opImp<cmdSEC>>,
 	    // CLI
-	    CPUOpcode<0x58, opImp<cmdCLI>>,
+	    cpu::CPUOpcode<0x58, opImp<cmdCLI>>,
 	    // SEI
-	    CPUOpcode<0x78, opImp<cmdSEI>>,
+	    cpu::CPUOpcode<0x78, opImp<cmdSEI>>,
 	    // CLV
-	    CPUOpcode<0xb8, opImp<cmdCLV>>,
+	    cpu::CPUOpcode<0xb8, opImp<cmdCLV>>,
 	    // CLD
-	    CPUOpcode<0xd8, opImp<cmdCLD>>,
+	    cpu::CPUOpcode<0xd8, opImp<cmdCLD>>,
 	    // SED
-	    CPUOpcode<0xf8, opImp<cmdSED>>,
+	    cpu::CPUOpcode<0xf8, opImp<cmdSED>>,
 
 	    // Transfer between registers
 
 	    // TAX
-	    CPUOpcode<0xaa, opImp<cmdTAX>>,
+	    cpu::CPUOpcode<0xaa, opImp<cmdTAX>>,
 	    // TAY
-	    CPUOpcode<0xa8, opImp<cmdTAY>>,
+	    cpu::CPUOpcode<0xa8, opImp<cmdTAY>>,
 	    // TXA
-	    CPUOpcode<0x8a, opImp<cmdTXA>>,
+	    cpu::CPUOpcode<0x8a, opImp<cmdTXA>>,
 	    // TYA
-	    CPUOpcode<0x98, opImp<cmdTYA>>,
+	    cpu::CPUOpcode<0x98, opImp<cmdTYA>>,
 	    // TXS
-	    CPUOpcode<0x9a, opImp<cmdTXS>>,
+	    cpu::CPUOpcode<0x9a, opImp<cmdTXS>>,
 	    // TSX
-	    CPUOpcode<0xba, opImp<cmdTSX>>,
+	    cpu::CPUOpcode<0xba, opImp<cmdTSX>>,
 
 	    // Load / Save
 
@@ -1110,13 +1121,13 @@ struct CCPU::opcodes {
 	    // Increment / Decrement
 
 	    // INX
-	    CPUOpcode<0xe8, opImp<cmdINX>>,
+	    cpu::CPUOpcode<0xe8, opImp<cmdINX>>,
 	    // DEX
-	    CPUOpcode<0xca, opImp<cmdDEX>>,
+	    cpu::CPUOpcode<0xca, opImp<cmdDEX>>,
 	    // INY
-	    CPUOpcode<0xc8, opImp<cmdINY>>,
+	    cpu::CPUOpcode<0xc8, opImp<cmdINY>>,
 	    // DEY
-	    CPUOpcode<0x88, opImp<cmdDEY>>,
+	    cpu::CPUOpcode<0x88, opImp<cmdDEY>>,
 	    // INC
 	    // DEC
 
@@ -1143,55 +1154,61 @@ struct CCPU::opcodes {
 	    // Branches
 
 	    // BCC
-	    CPUOpcode<0x90, opBranch<cmdBCC>>,
+	    cpu::CPUOpcode<0x90, opBranch<cmdBCC>>,
 	    // BCS
-	    CPUOpcode<0xb0, opBranch<cmdBCS>>,
+	    cpu::CPUOpcode<0xb0, opBranch<cmdBCS>>,
 	    // BNE
-	    CPUOpcode<0xd0, opBranch<cmdBNE>>,
+	    cpu::CPUOpcode<0xd0, opBranch<cmdBNE>>,
 	    // BEQ
-	    CPUOpcode<0xf0, opBranch<cmdBEQ>>,
+	    cpu::CPUOpcode<0xf0, opBranch<cmdBEQ>>,
 	    // BPL
-	    CPUOpcode<0x10, opBranch<cmdBPL>>,
+	    cpu::CPUOpcode<0x10, opBranch<cmdBPL>>,
 	    // BMI
-	    CPUOpcode<0x30, opBranch<cmdBMI>>,
+	    cpu::CPUOpcode<0x30, opBranch<cmdBMI>>,
 	    // BVC
-	    CPUOpcode<0x50, opBranch<cmdBVC>>,
+	    cpu::CPUOpcode<0x50, opBranch<cmdBVC>>,
 	    // BVS
-	    CPUOpcode<0x70, opBranch<cmdBVS>>,
+	    cpu::CPUOpcode<0x70, opBranch<cmdBVS>>,
 
 	    // Stack
 
 	    // PHA
-	    CPUOpcode<0x48, opPHR<cmdPHA>>,
+	    cpu::CPUOpcode<0x48, opPHR<cmdPHA>>,
 	    // PLA
-	    CPUOpcode<0x68, opPLR<cmdPLA>>,
+	    cpu::CPUOpcode<0x68, opPLR<cmdPLA>>,
 	    // PHP
-	    CPUOpcode<0x08, opPHR<cmdPHP>>,
+	    cpu::CPUOpcode<0x08, opPHR<cmdPHP>>,
 	    // PLP
-	    CPUOpcode<0x28, opPLR<cmdPLP>>,
+	    cpu::CPUOpcode<0x28, opPLR<cmdPLP>>,
 
 	    // Jumps
 
 	    // RTI
-	    CPUOpcode<0x40, opRTI>,
+	    cpu::CPUOpcode<0x40, opRTI>,
 	    // RTS
-	    CPUOpcode<0x60, opRTS>,
+	    cpu::CPUOpcode<0x60, opRTS>,
 	    // JSR
-	    CPUOpcode<0x20, opJSR>,
+	    cpu::CPUOpcode<0x20, opJSR>,
 	    // JMP
-	    CPUOpcode<0x4c, opJMPAbs>, CPUOpcode<0x6c, opJMPAbsInd>,
+	    cpu::CPUOpcode<0x4c, opJMPAbs>, cpu::CPUOpcode<0x6c, opJMPAbsInd>,
 
 	    // Other
 
 	    // BRK
-	    CPUOpcode<0x00, opBRK>,
+	    cpu::CPUOpcode<0x00, opBRK>,
 	    // NOP
-	    CPUOpcode<0xea, opImp<CPUCommand>>, CPUOpcode<0x1a, opImp<CPUCommand>>,
-	    CPUOpcode<0x3a, opImp<CPUCommand>>, CPUOpcode<0x5a, opImp<CPUCommand>>,
-	    CPUOpcode<0x7a, opImp<CPUCommand>>, CPUOpcode<0xda, opImp<CPUCommand>>,
-	    CPUOpcode<0xfa, opImp<CPUCommand>>, CPUOpcode<0x80, opImm<CPUCommand>>,
-	    CPUOpcode<0x82, opImm<CPUCommand>>, CPUOpcode<0x89, opImm<CPUCommand>>,
-	    CPUOpcode<0xc2, opImm<CPUCommand>>, CPUOpcode<0xe2, opImm<CPUCommand>>
+	    cpu::CPUOpcode<0xea, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x1a, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x3a, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x5a, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x7a, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0xda, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0xfa, opImp<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x80, opImm<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x82, opImm<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0x89, opImm<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0xc2, opImm<cpu::CPUCommand>>,
+	    cpu::CPUOpcode<0xe2, opImm<cpu::CPUCommand>>
 	    //...
 
 	    // Undocumented
@@ -1220,7 +1237,7 @@ struct CCPU::opcodes {
 	/**
 	 * Control
 	 */
-	using control = CPUControl<opcodes>;
+	using control = cpu::CPUControl<opcodes>;
 
 	/**
 	 * Sets a point since where to start next operation
@@ -1303,3 +1320,7 @@ void CCPU::execute() {
 		opcodes::control::execute(*this, m_CurrentIndex);
 	}
 }
+
+}  // namespace core
+
+}  // namespace vpnes

@@ -32,9 +32,9 @@
 #include <iostream>
 #include <vpnes/gui/config.hpp>
 
-using namespace ::std;
-using namespace ::vpnes;
-using namespace ::vpnes::gui;
+namespace vpnes {
+
+namespace gui {
 
 /* SApplicationConfig */
 
@@ -62,10 +62,14 @@ void SApplicationConfig::parseOptions(int argc, char **argv) {
  *
  * @return std::ifstream for reading file
  */
-ifstream SApplicationConfig::getInputFile() {
+std::ifstream SApplicationConfig::getInputFile() {
 	assert(inputFile.size() > 0);
-	ifstream file;
-	file.exceptions(file.exceptions() | fstream::failbit);
-	file.open(inputFile, fstream::binary);
+	std::ifstream file;
+	file.exceptions(file.exceptions() | std::fstream::failbit);
+	file.open(inputFile, std::fstream::binary);
 	return file;
 }
+
+}  // namespace gui
+
+}  // namespace vpnes
