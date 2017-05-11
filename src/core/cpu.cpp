@@ -458,6 +458,109 @@ struct CCPU::opcodes {
 			cpu.unpackState(cpu.m_DB);
 		}
 	};
+	struct cmdCLC : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Carry = 0;
+		}
+	};
+	struct cmdSEC : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Carry = CPUFlagCarry;
+		}
+	};
+	struct cmdCLD : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Decimal = 0;
+		}
+	};
+	struct cmdSED : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Decimal = CPUFlagDecimal;
+		}
+	};
+	struct cmdCLI : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Interrupt = 0;
+		}
+	};
+	struct cmdSEI : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Interrupt = CPUFlagInterrupt;
+		}
+	};
+	struct cmdCLV : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Overflow = 0;
+		}
+	};
+	struct cmdTAX : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_X = cpu.m_A;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
+	struct cmdTAY : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_Y = cpu.m_A;
+			cpu.setNegativeFlag(cpu.m_Y);
+			cpu.setZeroFlag(cpu.m_Y);
+		}
+	};
+	struct cmdTXA : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_A = cpu.m_X;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdTYA : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_A = cpu.m_Y;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdTXS : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_S = cpu.m_X;
+		}
+	};
+	struct cmdTSX : CPUCommand {
+		static void execute(CCPU &cpu) {
+			cpu.m_X = cpu.m_S;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
+	struct cmdINX : CPUCommand {
+		static void execute(CCPU &cpu) {
+			++cpu.m_X;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
+	struct cmdDEX : CPUCommand {
+		static void execute(CCPU &cpu) {
+			--cpu.m_X;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
+	struct cmdINY : CPUCommand {
+		static void execute(CCPU &cpu) {
+			++cpu.m_X;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
+	struct cmdDEY : CPUCommand {
+		static void execute(CCPU &cpu) {
+			--cpu.m_X;
+			cpu.setNegativeFlag(cpu.m_X);
+			cpu.setZeroFlag(cpu.m_X);
+		}
+	};
 
 	/* Cycles */
 
@@ -607,7 +710,6 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
@@ -706,6 +808,7 @@ struct CCPU::opcodes {
 		}
 	};
 	struct JSR05 : CPUCycle {
+		enum { AckIRQ = true };
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.setLow(cpu.m_OP, cpu.m_PC);
@@ -717,6 +820,38 @@ struct CCPU::opcodes {
 	 * JSR
 	 */
 	using opJSR = CPUOperation<JSR01, JSR02, JSR03, JSR04, JSR05, ParseNext>;
+
+	/* Implied */
+	template <class Command>
+	struct Imp01 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = cpu.m_PC;
+		}
+	};
+	/**
+	 * Implied
+	 */
+	template <class Command>
+	using opImp = CPUOperation<Imp01<Command>, ParseNext>;
+
+	/* Immediate */
+	template <class Command>
+	struct Imm01 : CPUCycle {
+		enum { AckIRQ = true };
+		template <class Control>
+		static void execute(CCPU &cpu) {
+			Command::execute(cpu);
+			cpu.m_AB = ++cpu.m_PC;
+		}
+	};
+	/**
+	 * Immediate
+	 */
+	template <class Command>
+	using opImm = CPUOperation<Imm01<Command>, ParseNext>;
 
 	/* RESET */
 	struct Reset00 : CPUCycle {
@@ -783,18 +918,154 @@ struct CCPU::opcodes {
 	 * Opcodes
 	 */
 	using opcode_pack = class_pack<
-	    // BRK
-	    CPUOpcode<0x00, opBRK>,
+
+	    // Flag manipulation
+
+	    // CLC
+	    CPUOpcode<0x18, opImp<cmdCLC>>,
+	    // SEC
+	    CPUOpcode<0x38, opImp<cmdSEC>>,
+	    // CLI
+	    CPUOpcode<0x58, opImp<cmdCLI>>,
+	    // SEI
+	    CPUOpcode<0x78, opImp<cmdSEI>>,
+	    // CLV
+	    CPUOpcode<0xb8, opImp<cmdCLV>>,
+	    // CLD
+	    CPUOpcode<0xd8, opImp<cmdCLD>>,
+	    // SED
+	    CPUOpcode<0xf8, opImp<cmdSED>>,
+
+	    // Transfer between registers
+
+	    // TAX
+	    CPUOpcode<0xaa, opImp<cmdTAX>>,
+	    // TAY
+	    CPUOpcode<0xa8, opImp<cmdTAY>>,
+	    // TXA
+	    CPUOpcode<0x8a, opImp<cmdTXA>>,
+	    // TYA
+	    CPUOpcode<0x98, opImp<cmdTYA>>,
+	    // TXS
+	    CPUOpcode<0x9a, opImp<cmdTXS>>,
+	    // TSX
+	    CPUOpcode<0xba, opImp<cmdTSX>>,
+
+	    // Load / Save
+
+	    // LDA
+	    // STA
+	    // LDX
+	    // STX
+	    // LDY
+	    // STY
+
+	    // Arithmetic
+
+	    // ADC
+	    // SBC
+
+	    // Increment / Decrement
+
+	    // INX
+	    CPUOpcode<0xe8, opImp<cmdINX>>,
+	    // DEX
+	    CPUOpcode<0xca, opImp<cmdDEX>>,
+	    // INY
+	    CPUOpcode<0xc8, opImp<cmdINY>>,
+	    // DEY
+	    CPUOpcode<0x88, opImp<cmdDEY>>,
+	    // INC
+	    // DEC
+
+	    // Shifts
+
+	    // ASL
+	    // LSR
+	    // ROL
+	    // ROR
+
+	    // Logic
+
+	    // AND
+	    // ORA
+	    // EOR
+
+	    // Comparison
+
+	    // CMP
+	    // CPX
+	    // CPY
+	    // BIT
+
+	    // Branches
+
+	    // BCC
+	    // BCS
+	    // BNE
+	    // BEQ
+	    // BPL
+	    // BMI
+	    // BVC
+	    // BVS
+
+	    // Stack
+
+	    // PHA
+	    CPUOpcode<0x48, opPHR<cmdPHA>>,
+	    // PLA
+	    CPUOpcode<0x68, opPLR<cmdPLA>>,
+	    // PHP
+	    CPUOpcode<0x08, opPHR<cmdPHP>>,
+	    // PLP
+	    CPUOpcode<0x28, opPLR<cmdPLP>>,
+
+	    // Jumps
+
 	    // RTI
 	    CPUOpcode<0x40, opRTI>,
 	    // RTS
 	    CPUOpcode<0x60, opRTS>,
-	    // PHA/PHP
-	    CPUOpcode<0x48, opPHR<cmdPHA>>, CPUOpcode<0x08, opPHR<cmdPHP>>,
-	    // PLA/PLP
-	    CPUOpcode<0x68, opPLR<cmdPLA>>, CPUOpcode<0x28, opPLR<cmdPLP>>,
 	    // JSR
-	    CPUOpcode<0x20, opJSR>>;
+	    CPUOpcode<0x20, opJSR>,
+	    // JMP
+
+	    // Other
+
+	    // BRK
+	    CPUOpcode<0x00, opBRK>,
+	    // NOP
+	    CPUOpcode<0xea, opImp<CPUCommand>>, CPUOpcode<0x1a, opImp<CPUCommand>>,
+	    CPUOpcode<0x3a, opImp<CPUCommand>>, CPUOpcode<0x5a, opImp<CPUCommand>>,
+	    CPUOpcode<0x7a, opImp<CPUCommand>>, CPUOpcode<0xda, opImp<CPUCommand>>,
+	    CPUOpcode<0xfa, opImp<CPUCommand>>, CPUOpcode<0x80, opImm<CPUCommand>>,
+	    CPUOpcode<0x82, opImm<CPUCommand>>, CPUOpcode<0x89, opImm<CPUCommand>>,
+	    CPUOpcode<0xc2, opImm<CPUCommand>>, CPUOpcode<0xe2, opImm<CPUCommand>>
+	    //...
+
+	    // Undocumented
+
+	    // SLO
+	    // RLA
+	    // SRE
+	    // RRA
+	    // SAX
+	    // LAX
+	    // DCP
+	    // ISC
+	    // ANC
+	    // ALR
+	    // ARR
+	    // XAA
+	    // LAX
+	    // SBC
+	    // AHX
+	    // SHY
+	    // SHX
+	    // TAS
+	    // LAS
+
+	    >;
 	/**
 	 * Control
 	 */
@@ -814,6 +1085,7 @@ struct CCPU::opcodes {
 	 *
 	 * @param cpu CPU
 	 * @param busMode Access mode
+	 * @param ackIRQ Acknowledge IRQ
 	 * @return If could or not
 	 */
 	static bool accessBus(CCPU &cpu, CCPU::EBusMode busMode, bool ackIRQ) {
