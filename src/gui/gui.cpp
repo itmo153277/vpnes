@@ -103,7 +103,7 @@ void vpnes::gui::CGUI::handleFrameRender(double frameTime) {
 	        newTime - lastTime)
 	        .count() > 1000) {
 		m_Time = newTime;
-		cerr << "FPS: "
+		std::cerr << "FPS: "
 		     << curFrame * 1000.0 /
 		            std::chrono::duration_cast<std::chrono::milliseconds>(
 		                newTime - lastTime)
