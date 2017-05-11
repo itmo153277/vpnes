@@ -263,7 +263,7 @@ private:
 	 * @param s Value
 	 */
 	void setZeroFlag(std::uint8_t s) {
-		m_Zero = static_cast<bool>(s) ? 0 : CPUFlagZero;
+		m_Zero = (s == 0) ? CPUFlagZero : 0;
 	}
 	/**
 	 * Set carry
