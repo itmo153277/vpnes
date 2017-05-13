@@ -99,9 +99,10 @@ struct remove_from_class_pack : ClassPack {};
  */
 template <typename T, typename T1, typename... T2>
 struct remove_from_class_pack<T, class_pack<T1, T2...>>
-    : merge_class_pack<typename std::conditional<std::is_same<T, T1>::value,
-                           class_pack<>, class_pack<T1>>::type,
-          typename remove_from_class_pack<T, class_pack<T2...>>::type>::type {};
+    : std::conditional<std::is_same<T, T1>::value, class_pack<T2...>,
+          typename merge_class_pack<class_pack<T1>,
+              typename remove_from_class_pack<T,
+                  class_pack<T2...>>::type>::type>::type {};
 
 /**
  * Creates distinct class pack from any class pack
