@@ -22,6 +22,10 @@
 #include "config.h"
 #endif
 
+#ifdef USE_SDL
+#include <SDL.h>
+#endif
+
 #include <clocale>
 #include <iostream>
 #include <vpnes/vpnes.hpp>
