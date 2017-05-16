@@ -100,11 +100,11 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 
-INPUT                  = src \
-                         include \
-                         main.cpp \
-						 config.msvc.h \
-                         README.md
+INPUT                  = $(SRCDIR)/src \
+                         $(SRCDIR)/include \
+                         $(SRCDIR)/main.cpp \
+						 $(SRCDIR)/config.msvc.h \
+                         $(SRCDIR)/README.md
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.cpp *.hpp
 RECURSIVE              = YES
@@ -120,7 +120,7 @@ INPUT_FILTER           =
 FILTER_PATTERNS        =
 FILTER_SOURCE_FILES    = NO
 FILTER_SOURCE_PATTERNS =
-USE_MDFILE_AS_MAINPAGE = README.md
+USE_MDFILE_AS_MAINPAGE = $(SRCDIR)/README.md
 
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
@@ -157,7 +157,7 @@ HTML_HEADER            =
 HTML_FOOTER            =
 HTML_STYLESHEET        =
 HTML_EXTRA_STYLESHEET  =
-HTML_EXTRA_FILES       = INSTALL
+HTML_EXTRA_FILES       = $(SRCDIR)/INSTALL
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 100
 HTML_COLORSTYLE_GAMMA  = 80

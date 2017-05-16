@@ -3,7 +3,6 @@
 /.settings
 /.autotools
 /autom4te.cache
-/doc
 /auxdir
 Makefile.in
 /aclocal.m4
