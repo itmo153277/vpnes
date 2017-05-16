@@ -20,6 +20,7 @@ noinst_HEADERS = \
 	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
 	include/vpnes/core/cpu.hpp \
+	include/vpnes/core/cpu_compile.hpp \
 	include/vpnes/core/device.hpp \
 	include/vpnes/core/factory.hpp \
 	include/vpnes/core/frontend.hpp \

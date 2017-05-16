@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
     </ClCompile>
@@ -114,7 +114,7 @@
       <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
+      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(IntDir)config.h"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -123,7 +123,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
       <Optimization>Full</Optimization>
@@ -137,19 +137,19 @@
       <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
+      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(IntDir)config.h"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
       <PreprocessorDefinitions>HAVE_CONFIG_H=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <PreBuildEvent>
-      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
+      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(IntDir)config.h"</Command>
     </PreBuildEvent>
     <Link>
       <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
@@ -158,7 +158,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <XMLDocumentationFileName>$(IntDir)\%(RelativeDir)</XMLDocumentationFileName>
       <PreprocessorDefinitions>HAVE_CONFIG_H=1;NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -166,7 +166,7 @@
       <Optimization>Full</Optimization>
     </ClCompile>
     <PreBuildEvent>
-      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
+      <Command>copy /y "$(ProjectDir)config.msvc.h" "$(IntDir)config.h"</Command>
     </PreBuildEvent>
     <Link>
       <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
@@ -190,6 +190,7 @@
     <ClInclude Include="include\vpnes\core\bus.hpp" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
     <ClInclude Include="include\vpnes\core\cpu.hpp" />
+    <ClInclude Include="include\vpnes\core\cpu_compile.hpp" />
     <ClInclude Include="include\vpnes\core\device.hpp" />
     <ClInclude Include="include\vpnes\core\factory.hpp" />
     <ClInclude Include="include\vpnes\core\frontend.hpp" />

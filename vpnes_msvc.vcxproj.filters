@@ -42,6 +42,9 @@
     <ClInclude Include="include\vpnes\core\cpu.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
+    <ClInclude Include="include\vpnes\core\cpu_compile.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
     <ClInclude Include="include\vpnes\core\device.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
