@@ -109,7 +109,7 @@ private:
 	template <class FirstDevice, class... OtherDevices>
 	void addHooksCPU(FirstDevice &device, OtherDevices &... otherDevices) {
 		device.addHooksCPU(*m_BusCPU);
-		addHooksPPU(otherDevices...);
+		addHooksCPU(otherDevices...);
 	}
 
 	/**

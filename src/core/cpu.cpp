@@ -282,6 +282,132 @@ struct CCPU::opcodes {
 			cpu.m_DB = cpu.m_OP;
 		}
 	};
+	struct cmdCMP : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint16_t dummy = cpu.m_A - cpu.m_OP;
+			cpu.setCarryFlag(dummy < 0x0100);
+			cpu.setNegativeFlag(dummy);
+			cpu.setZeroFlag(dummy);
+		}
+	};
+	struct cmdCPX : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint16_t dummy = cpu.m_X - cpu.m_OP;
+			cpu.setCarryFlag(dummy < 0x0100);
+			cpu.setNegativeFlag(dummy);
+			cpu.setZeroFlag(dummy);
+		}
+	};
+	struct cmdCPY : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint16_t dummy = cpu.m_Y - cpu.m_OP;
+			cpu.setCarryFlag(dummy < 0x0100);
+			cpu.setNegativeFlag(dummy);
+			cpu.setZeroFlag(dummy);
+		}
+	};
+	struct cmdBIT : cpu::Command {
+		static void execute(CCPU &cpu) {
+			cpu.setOverflowFlag((cpu.m_OP & 0x40) != 0);
+			cpu.setNegativeFlag(cpu.m_OP);
+			cpu.setZeroFlag(cpu.m_A & cpu.m_OP);
+		}
+	};
+	struct cmdADC : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint16_t dummy = cpu.m_OP + cpu.m_A + cpu.m_Carry;
+			cpu.setOverflowFlag(
+			    ((dummy ^ cpu.m_A) & ~(cpu.m_A ^ cpu.m_OP) & 0x80) != 0);
+			cpu.setCarryFlag(dummy >= 0x0100);
+			cpu.m_A = dummy & 0xff;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdSBC : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint16_t dummy =
+			    cpu.m_A - cpu.m_OP - (cpu.m_Carry ^ CPUFlagCarry);
+			cpu.setOverflowFlag(
+			    ((dummy ^ cpu.m_A) & ~(cpu.m_A ^ cpu.m_OP) & 0x80) != 0);
+			cpu.setCarryFlag(dummy < 0x0100);
+			cpu.m_A = dummy & 0xff;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdROL : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint8_t dummy = cpu.m_OP & 0x80;
+			cpu.m_OP <<= 1;
+			cpu.m_OP |= cpu.m_Carry;
+			cpu.setCarryFlag(dummy != 0);
+			cpu.setNegativeFlag(cpu.m_OP);
+			cpu.setZeroFlag(cpu.m_OP);
+		}
+	};
+	struct cmdROR : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint8_t dummy = cpu.m_OP & 0x01;
+			cpu.m_OP >>= 1;
+			cpu.m_OP |= (cpu.m_Carry << 7);
+			cpu.setCarryFlag(dummy != 0);
+			cpu.setNegativeFlag(cpu.m_OP);
+			cpu.setZeroFlag(cpu.m_OP);
+		}
+	};
+	struct cmdASL : cpu::Command {
+		static void execute(CCPU &cpu) {
+			cpu.setCarryFlag((cpu.m_OP & 0x80) != 0);
+			cpu.m_OP <<= 1;
+			cpu.setNegativeFlag(cpu.m_OP);
+			cpu.setZeroFlag(cpu.m_OP);
+		}
+	};
+	struct cmdLSR : cpu::Command {
+		static void execute(CCPU &cpu) {
+			cpu.setCarryFlag((cpu.m_OP & 0x01) != 0);
+			cpu.m_OP >>= 1;
+			cpu.setNegativeFlag(cpu.m_OP);
+			cpu.setZeroFlag(cpu.m_OP);
+		}
+	};
+	struct cmdROLA : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint8_t dummy = cpu.m_A & 0x80;
+			cpu.m_A <<= 1;
+			cpu.m_A |= cpu.m_Carry;
+			cpu.setCarryFlag(dummy != 0);
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdRORA : cpu::Command {
+		static void execute(CCPU &cpu) {
+			std::uint8_t dummy = cpu.m_A & 0x01;
+			cpu.m_A >>= 1;
+			cpu.m_A |= (cpu.m_Carry << 7);
+			cpu.setCarryFlag(dummy != 0);
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdASLA : cpu::Command {
+		static void execute(CCPU &cpu) {
+			cpu.setCarryFlag((cpu.m_A & 0x80) != 0);
+			cpu.m_A <<= 1;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
+	struct cmdLSRA : cpu::Command {
+		static void execute(CCPU &cpu) {
+			cpu.setCarryFlag((cpu.m_A & 0x01) != 0);
+			cpu.m_A >>= 1;
+			cpu.setNegativeFlag(cpu.m_A);
+			cpu.setZeroFlag(cpu.m_A);
+		}
+	};
 
 	/* Cycles */
 
@@ -2190,7 +2316,6 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x99, opWriteAbsY<cmdSTA>>,
 	    cpu::Opcode<0x81, opWriteZPXInd<cmdSTA>>,
 	    cpu::Opcode<0x91, opWriteZPIndY<cmdSTA>>,
-	    // ...
 	    // LDX
 	    cpu::Opcode<0xa2, opImm<cmdLDX>>, cpu::Opcode<0xa6, opReadZP<cmdLDX>>,
 	    cpu::Opcode<0xb6, opReadZPY<cmdLDX>>,
@@ -2239,9 +2364,29 @@ struct CCPU::opcodes {
 	    // Shifts
 
 	    // ASL
+	    cpu::Opcode<0x0a, opImm<cmdASLA>>,
+	    cpu::Opcode<0x06, opModifyZP<cmdASL>>,
+	    cpu::Opcode<0x16, opModifyZPX<cmdASL>>,
+	    cpu::Opcode<0x0e, opModifyAbs<cmdASL>>,
+	    cpu::Opcode<0x1e, opModifyAbsX<cmdASL>>,
 	    // LSR
+	    cpu::Opcode<0x4a, opImm<cmdLSRA>>,
+	    cpu::Opcode<0x46, opModifyZP<cmdLSR>>,
+	    cpu::Opcode<0x56, opModifyZPX<cmdLSR>>,
+	    cpu::Opcode<0x4e, opModifyAbs<cmdLSR>>,
+	    cpu::Opcode<0x5e, opModifyAbsX<cmdLSR>>,
 	    // ROL
+	    cpu::Opcode<0x2a, opImm<cmdROLA>>,
+	    cpu::Opcode<0x26, opModifyZP<cmdROL>>,
+	    cpu::Opcode<0x36, opModifyZPX<cmdROL>>,
+	    cpu::Opcode<0x2e, opModifyAbs<cmdROL>>,
+	    cpu::Opcode<0x3e, opModifyAbsX<cmdROL>>,
 	    // ROR
+	    cpu::Opcode<0x6a, opImm<cmdRORA>>,
+	    cpu::Opcode<0x66, opModifyZP<cmdROR>>,
+	    cpu::Opcode<0x76, opModifyZPX<cmdROR>>,
+	    cpu::Opcode<0x6e, opModifyAbs<cmdROR>>,
+	    cpu::Opcode<0x7e, opModifyAbsX<cmdROR>>,
 
 	    // Logic
 
@@ -2273,9 +2418,22 @@ struct CCPU::opcodes {
 	    // Comparison
 
 	    // CMP
+	    cpu::Opcode<0xc9, opImm<cmdCMP>>, cpu::Opcode<0xc5, opReadZP<cmdCMP>>,
+	    cpu::Opcode<0xd5, opReadZPX<cmdCMP>>,
+	    cpu::Opcode<0xcd, opReadAbs<cmdCMP>>,
+	    cpu::Opcode<0xdd, opReadAbsX<cmdCMP>>,
+	    cpu::Opcode<0xd9, opReadAbsY<cmdCMP>>,
+	    cpu::Opcode<0xc1, opReadZPXInd<cmdCMP>>,
+	    cpu::Opcode<0xd1, opReadZPIndY<cmdCMP>>,
 	    // CPX
+	    cpu::Opcode<0xe0, opImm<cmdCPX>>, cpu::Opcode<0xe4, opReadZP<cmdCPX>>,
+	    cpu::Opcode<0xec, opReadAbs<cmdCPX>>,
 	    // CPY
+	    cpu::Opcode<0xc0, opImm<cmdCPY>>, cpu::Opcode<0xc4, opReadZP<cmdCPY>>,
+	    cpu::Opcode<0xcc, opReadAbs<cmdCPY>>,
 	    // BIT
+	    cpu::Opcode<0x24, opReadZP<cmdBIT>>,
+	    cpu::Opcode<0xcc, opReadAbs<cmdBIT>>,
 
 	    // Branches
 

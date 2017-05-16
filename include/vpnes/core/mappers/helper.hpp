@@ -65,7 +65,7 @@ private:
 	/**
 	 * APU
 	 */
-	CPPU m_APU;
+	CAPU m_APU;
 	/**
 	 * MMC
 	 */

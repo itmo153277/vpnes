@@ -90,7 +90,7 @@ public:
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static std::size_t getBank(std::uint16_t addr, CCPU &device) {
+		static std::size_t getBank(std::uint16_t addr, CAPU &device) {
 			return 0;
 		}
 	};
@@ -147,7 +147,7 @@ public:
 	 * @param bus CPU bus
 	 */
 	void addHooksCPU(CBus &bus) {
-		for (std::uint16_t addr = 0x2000; addr < 0x4000; addr++) {
+		for (std::uint16_t addr = 0x4000; addr < 0x4020; addr++) {
 			bus.addPreReadHook(addr, *this, &CAPU::readReg);
 			bus.addWriteHook(addr, *this, &CAPU::writeReg);
 		}
