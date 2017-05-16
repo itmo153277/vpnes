@@ -9,7 +9,9 @@ Copyright &copy; 2012-2017 Ivanov Viktor
 
 ### Cross-platform
 
-#### From Git
+Before compiling make sure that you have SDL2 and SDL2_gfx installed.
+
+#### Compiling From Git
 
 Clone repository
 
@@ -29,7 +31,7 @@ Configure
 $ ./configure
 ```
 
- Compile
+Compile
 
  ```
 $ make
@@ -41,9 +43,9 @@ Install as root
 # make install
 ```
 
-For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`
+For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`.
 
-#### From source tarball
+#### Compiling From Source Tarball
 
 Extract sources
 
@@ -69,9 +71,17 @@ Install as root
 # make install
 ```
 
-For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`
+For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`.
 
 ### Microsoft Visual Studio 14.0 (Visual Studio 2015)
+
+Before compiling make sure that you have installed SDL2 and SDL2_gfx. SDL2 directories should be added to your user macros as follows:
+
+* `SDLIncludes` &mdash; path to SDL includes for SDL2 and SDL2_gfx
+
+* `SDLLib` &mdash; path to SDL *.lib and *.dll
+
+* `SDLDeps` &mdash; SDL lib files SDL2.lib, SDL2main.lib and SDL2_gfx.lib
 
 Open vpnes_msvc.sln and build the solution in Release configuration. The output file will be in ./Release.
 
