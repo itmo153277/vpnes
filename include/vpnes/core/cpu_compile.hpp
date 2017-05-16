@@ -139,48 +139,32 @@ struct Operation<FirstCycle, OtherCycles...> {
 };
 
 /**
- * Calculates operation offset in compiled microcode
- */
-template <class Operation, class... Operations>
-struct OperationOffset;
-
-/**
- * Empty operation offset
- */
-template <class Operation>
-struct OperationOffset<Operation> {
-	enum {
-		Offset = 0  //!< Operation offset
-	};
-};
-
-/**
- * Implementation for operation offset in compiled microcode
- */
-template <class Operation, class FirstOperation, class... OtherOperations>
-struct OperationOffset<Operation, FirstOperation, OtherOperations...> {
-	enum {
-		Offset =
-		    std::is_same<Operation, FirstOperation>::value
-		        ? 0
-		        : FirstOperation::Size +
-		              OperationOffset<Operation,
-		                  OtherOperations...>::Offset  //!< Operation offset
-	};
-};
-
-/**
  * Expands pack to operation offset
  */
-template <class Operation, class OperationPack>
-struct OperationOffsetExpand;
+template <class OperationPack>
+struct OperationOffsetExpand {
+	template <class Operation>
+	struct type {
+		enum { offset = 0 };
+	};
+};
 
 /**
  * Implementation of expansion to operation offset
  */
-template <class Operation, class... Operations>
-struct OperationOffsetExpand<Operation, class_pack<Operations...>> {
-	using type = OperationOffset<Operation, Operations...>;
+template <class FirstOperation, class... OtherOperations>
+struct OperationOffsetExpand<class_pack<FirstOperation, OtherOperations...>> {
+	template <class Operation>
+	struct type {
+		enum {
+			offset = std::is_same<Operation, FirstOperation>::value
+			             ? 0
+			             : FirstOperation::Size +
+			                   OperationOffsetExpand<
+			                       class_pack<OtherOperations...>>::
+			                       template type<Operation>::offset
+		};
+	};
 };
 
 /**
@@ -284,17 +268,17 @@ struct OpcodeOffset {
 /**
  * Expands operations into opcode data
  */
-template <class OperationPack, class OpcodePack>
+template <class OperationOffsets, class OpcodePack>
 struct OpcodeData;
 
 /**
  * Implements expansion for opcodes
  */
-template <class... Operations, class... Opcodes>
-struct OpcodeData<class_pack<Operations...>, class_pack<Opcodes...>>
+template <class OperationOffsets, class... Opcodes>
+struct OpcodeData<OperationOffsets, class_pack<Opcodes...>>
     : class_pack<OpcodeOffset<Opcodes::code,
-          OperationOffset<typename Opcodes::operation,
-              Operations...>::Offset>...> {};
+          OperationOffsets::template type<
+              typename Opcodes::operation>::offset>...> {};
 
 /**
  * Declares opcode finder
@@ -380,18 +364,24 @@ struct Control {
 	using operation_pack = typename ExpandOperations<opcode_pack,
 	    typename OpcodeControl::opReset, operation_jam>::type;
 	/**
+	 * Ioeratuib iffsets
+	 */
+	struct operation_offset : OperationOffsetExpand<operation_pack> {};
+	/**
 	 * Opcode data
 	 */
-	using opcode_data = typename OpcodeData<operation_pack, opcode_pack>::type;
+	using opcode_data =
+	    typename OpcodeData<operation_offset, opcode_pack>::type;
 	/**
 	 * Opcode finder
 	 */
-	using opcode_finder = FindOpcode<
-	    OperationOffsetExpand<operation_jam, operation_pack>::type::Offset,
-	    opcode_data>;
+	using opcode_finder =
+	    FindOpcode<operation_offset::template type<operation_jam>::offset,
+	        opcode_data>;
 	enum {
-		ResetIndex = OperationOffsetExpand<typename OpcodeControl::opReset,
-		    operation_pack>::type::Offset  //!< Reset in compiled microcode
+		ResetIndex =
+		    operation_offset::template type<typename OpcodeControl::opReset>::
+		        offset  //!< Reset in compiled microcode
 	};
 
 	/**
