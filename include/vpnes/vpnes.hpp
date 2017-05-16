@@ -108,17 +108,28 @@ struct remove_from_class_pack<T, class_pack<T1, T2...>>
  * Creates distinct class pack from any class pack
  */
 template <class ClassPack>
-struct distinct_class_pack : ClassPack {};
+struct distinct_class_pack;
 
 /**
- * Implementation for distinct class pack
+ * Removing non-unique class from distinct class pack
+ */
+template <typename T1, typename... T2>
+struct distinct_class_pack<class_pack<T1, T1, T2...>>
+    : distinct_class_pack<class_pack<T1, T2...>>::type {};
+
+/**
+ * Removing unique class from distinct class pack
  */
 template <typename T1, typename... T2>
 struct distinct_class_pack<class_pack<T1, T2...>>
     : merge_class_pack<class_pack<T1>,
-          typename remove_from_class_pack<T1,
-              typename distinct_class_pack<class_pack<T2...>>::type>::type>::
-          type {};
+          typename distinct_class_pack<class_pack<T2...>>::type>::type {};
+
+/**
+ * Empty distinct class pack
+ */
+template <>
+struct distinct_class_pack<class_pack<>> : class_pack<> {};
 
 /**
  * Indices pack helpers
