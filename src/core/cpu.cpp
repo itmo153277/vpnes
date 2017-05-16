@@ -287,7 +287,7 @@ struct CCPU::opcodes {
 			std::uint16_t dummy = cpu.m_A - cpu.m_OP;
 			cpu.setCarryFlag(dummy < 0x0100);
 			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy);
+			cpu.setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdCPX : cpu::Command {
@@ -295,7 +295,7 @@ struct CCPU::opcodes {
 			std::uint16_t dummy = cpu.m_X - cpu.m_OP;
 			cpu.setCarryFlag(dummy < 0x0100);
 			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy);
+			cpu.setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdCPY : cpu::Command {
@@ -303,7 +303,7 @@ struct CCPU::opcodes {
 			std::uint16_t dummy = cpu.m_Y - cpu.m_OP;
 			cpu.setCarryFlag(dummy < 0x0100);
 			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy);
+			cpu.setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdBIT : cpu::Command {
