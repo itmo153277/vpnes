@@ -33,6 +33,9 @@
 /* Version number of package */
 #define VERSION "0.5"
 
+/* Define to 1 to enable SDL */
+#define USE_SDL 1
+
 /* Disable warnings */
 #define  _CRT_SECURE_NO_WARNINGS 1
 #pragma warning(disable:4503)

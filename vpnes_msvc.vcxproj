@@ -67,22 +67,34 @@
     <TargetName>vpnes</TargetName>
     <OutDir>$(SolutionDir)Debug\</OutDir>
     <IntDir>$(SolutionDir)Debug\</IntDir>
+    <LibraryPath>$(SDLLib);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SDLIncludes);$(IncludePath)</IncludePath>
+    <ExecutablePath>$(SDLLib);$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <TargetName>vpnes</TargetName>
     <OutDir>$(SolutionDir)Release\</OutDir>
     <IntDir>$(SolutionDir)Release\</IntDir>
+    <LibraryPath>$(SDLLib);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SDLIncludes);$(IncludePath)</IncludePath>
+    <ExecutablePath>$(SDLLib);$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>vpnes</TargetName>
     <OutDir>$(SolutionDir)Debug\</OutDir>
     <IntDir>$(SolutionDir)Debug\</IntDir>
+    <IncludePath>$(SDLIncludes);$(IncludePath)</IncludePath>
+    <LibraryPath>$(SDLLib);$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(SDLLib);$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>vpnes</TargetName>
     <OutDir>$(SolutionDir)Release\</OutDir>
     <IntDir>$(SolutionDir)Release\</IntDir>
+    <IncludePath>$(SDLIncludes);$(IncludePath)</IncludePath>
+    <LibraryPath>$(SDLLib);$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(SDLLib);$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,7 +110,8 @@
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
@@ -118,9 +131,10 @@
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
@@ -137,6 +151,10 @@
     <PreBuildEvent>
       <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
     </PreBuildEvent>
+    <Link>
+      <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -150,6 +168,10 @@
     <PreBuildEvent>
       <Command>copy /y "$(ProjectDir)config.msvc.h" "$(ProjectDir)config.h"</Command>
     </PreBuildEvent>
+    <Link>
+      <AdditionalDependencies>$(SDLDeps);%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
