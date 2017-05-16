@@ -2338,7 +2338,21 @@ struct CCPU::opcodes {
 	    // Arithmetic
 
 	    // ADC
+	    cpu::Opcode<0x69, opImm<cmdADC>>, cpu::Opcode<0x65, opReadZP<cmdADC>>,
+	    cpu::Opcode<0x75, opReadZPX<cmdADC>>,
+	    cpu::Opcode<0x6d, opReadAbs<cmdADC>>,
+	    cpu::Opcode<0x7d, opReadAbsX<cmdADC>>,
+	    cpu::Opcode<0x79, opReadAbsY<cmdADC>>,
+	    cpu::Opcode<0x61, opReadZPXInd<cmdADC>>,
+	    cpu::Opcode<0x71, opReadZPIndY<cmdADC>>,
 	    // SBC
+	    cpu::Opcode<0x69, opImm<cmdSBC>>, cpu::Opcode<0x65, opReadZP<cmdSBC>>,
+	    cpu::Opcode<0x75, opReadZPX<cmdSBC>>,
+	    cpu::Opcode<0x6d, opReadAbs<cmdSBC>>,
+	    cpu::Opcode<0x7d, opReadAbsX<cmdSBC>>,
+	    cpu::Opcode<0x79, opReadAbsY<cmdSBC>>,
+	    cpu::Opcode<0x61, opReadZPXInd<cmdSBC>>,
+	    cpu::Opcode<0x71, opReadZPIndY<cmdSBC>>,
 
 	    // Increment / Decrement
 

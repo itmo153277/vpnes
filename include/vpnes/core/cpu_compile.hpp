@@ -184,30 +184,6 @@ struct OperationOffsetExpand<Operation, class_pack<Operations...>> {
 };
 
 /**
- * Aggregates sizes from operation pack
- */
-template <class OperationPack>
-struct OperationSize {
-	enum {
-		Size = 0  //!< Operation sizes
-	};
-};
-
-/**
- * Implements aggregation of operation sizes
- */
-template <class FirstOperation, class... OtherOperations>
-struct OperationSize<class_pack<FirstOperation, OtherOperations...>> {
-	enum {
-		Size =
-		    FirstOperation::Size +
-		    OperationSize<class_pack<OtherOperations...>>::Size  //!<
-		                                                         //! Operation
-		                                                         //! sizes
-	};
-};
-
-/**
  * Invokes operation
  */
 template <std::size_t Offset, std::size_t Index, class Operation>
@@ -235,27 +211,24 @@ struct InvokeExpandHelper<Index, Operation, index_pack<Indices...>>
 /**
  * Expands invoke
  */
-template <class OperationPack, class CurrentPack>
+template <std::size_t Offset, class CurrentPack>
 struct InvokeExpand;
 
 /**
  * Empty invoke
  */
-template <class OperationPack>
-struct InvokeExpand<OperationPack, class_pack<>> : class_pack<> {};
+template <std::size_t Offset>
+struct InvokeExpand<Offset, class_pack<>> : class_pack<> {};
 
 /**
  * Implementation of invoke expansion
  */
-template <class OperationPack, class FirstOperation, class... OtherOperations>
-struct InvokeExpand<OperationPack,
-    class_pack<FirstOperation, OtherOperations...>>
+template <std::size_t Offset, class FirstOperation, class... OtherOperations>
+struct InvokeExpand<Offset, class_pack<FirstOperation, OtherOperations...>>
     : merge_class_pack<
-          typename InvokeExpandHelper<OperationOffsetExpand<FirstOperation,
-                                          OperationPack>::type::Offset,
-              FirstOperation,
+          typename InvokeExpandHelper<Offset, FirstOperation,
               typename make_index_pack<FirstOperation::Size>::type>::type,
-          typename InvokeExpand<OperationPack,
+          typename InvokeExpand<Offset + FirstOperation::Size,
               class_pack<OtherOperations...>>::type> {};
 
 /**
@@ -448,7 +421,7 @@ struct Control {
 	 * @param index Index
 	 */
 	static void execute(CCPU &cpu, std::size_t index) {
-		Invoke<typename InvokeExpand<operation_pack,
+		Invoke<typename InvokeExpand<0,
 		    operation_pack>::type>::template execute<Control>(cpu, index);
 	}
 	/**
