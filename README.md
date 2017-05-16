@@ -73,7 +73,7 @@ Install as root
 
 For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`.
 
-### Microsoft Visual Studio 14.0 (Visual Studio 2015)
+### Microsoft Visual Studio
 
 Before compiling make sure that you have installed SDL2 and SDL2_gfx. SDL2 directories should be added to your user macros as follows:
 
@@ -84,6 +84,8 @@ Before compiling make sure that you have installed SDL2 and SDL2_gfx. SDL2 direc
 * `SDLDeps` &mdash; SDL lib files SDL2.lib, SDL2main.lib and SDL2_gfx.lib
 
 Open vpnes_msvc.sln and build the solution in Release configuration. The output file will be in ./Release.
+
+> Note: it is known that MSVC sometimes throws "out of heap" exception. If it does so, consider using another compiler or rewriting `cpu.cpp` and `cpu_compiler.hpp` to comfort MSVC.
 
 ## Documentation
 
