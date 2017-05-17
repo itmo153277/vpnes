@@ -344,6 +344,7 @@ struct CCPU::opcodes {
 			cpu.setCarryFlag(dummy != 0);
 			cpu.setNegativeFlag(cpu.m_OP);
 			cpu.setZeroFlag(cpu.m_OP);
+			cpu.m_DB = cpu.m_OP;
 		}
 	};
 	struct cmdROR : cpu::Command {
@@ -354,6 +355,7 @@ struct CCPU::opcodes {
 			cpu.setCarryFlag(dummy != 0);
 			cpu.setNegativeFlag(cpu.m_OP);
 			cpu.setZeroFlag(cpu.m_OP);
+			cpu.m_DB = cpu.m_OP;
 		}
 	};
 	struct cmdASL : cpu::Command {
@@ -362,6 +364,7 @@ struct CCPU::opcodes {
 			cpu.m_OP <<= 1;
 			cpu.setNegativeFlag(cpu.m_OP);
 			cpu.setZeroFlag(cpu.m_OP);
+			cpu.m_DB = cpu.m_OP;
 		}
 	};
 	struct cmdLSR : cpu::Command {
@@ -370,6 +373,7 @@ struct CCPU::opcodes {
 			cpu.m_OP >>= 1;
 			cpu.setNegativeFlag(cpu.m_OP);
 			cpu.setZeroFlag(cpu.m_OP);
+			cpu.m_DB = cpu.m_OP;
 		}
 	};
 	struct cmdROLA : cpu::Command {
@@ -740,8 +744,8 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU &cpu) {
 			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
 			Command::execute(cpu);
+			cpu.m_AB = ++cpu.m_PC;
 		}
 	};
 	struct Branch02 : cpu::Cycle {
@@ -1850,7 +1854,7 @@ struct CCPU::opcodes {
 	    : cpu::Operation<WriteZPYInd01, WriteZPYInd02, WriteZPYInd03,
 	          WriteZPYInd04<Command>, WriteZPYInd05, ParseNext> {};
 
-	/* ZP Ind X */
+	/* ZP Indirect X */
 	/* Read */
 	struct ReadZPIndX01 : cpu::Cycle {
 		template <class Control>
@@ -1898,7 +1902,7 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Read ZP Ind X
+	 * Read ZP Indirect X
 	 */
 	template <class Command>
 	struct opReadZPIndX
@@ -1963,7 +1967,7 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Modify ZP Ind X
+	 * Modify ZP Indirect X
 	 */
 	template <class Command>
 	struct opModifyZPIndX
@@ -2018,14 +2022,14 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Write ZP Ind X
+	 * Write ZP Indirect X
 	 */
 	template <class Command>
 	struct opWriteZPIndX
 	    : cpu::Operation<WriteZPIndX01, WriteZPIndX02, WriteZPIndX03,
 	          WriteZPIndX04<Command>, WriteZPIndX05, ParseNext> {};
 
-	/* ZP Ind Y */
+	/* ZP Indirect Y */
 	/* Read */
 	struct ReadZPIndY01 : cpu::Cycle {
 		template <class Control>
@@ -2073,7 +2077,7 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Read ZP Ind Y
+	 * Read ZP Indirect Y
 	 */
 	template <class Command>
 	struct opReadZPIndY
@@ -2138,7 +2142,7 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Modify ZP Ind Y
+	 * Modify ZP Indirect Y
 	 */
 	template <class Command>
 	struct opModifyZPIndY
@@ -2193,7 +2197,7 @@ struct CCPU::opcodes {
 		}
 	};
 	/**
-	 * Write ZP Ind Y
+	 * Write ZP Indirect Y
 	 */
 	template <class Command>
 	struct opWriteZPIndY
@@ -2255,7 +2259,6 @@ struct CCPU::opcodes {
 			cpu.m_AB = cpu.m_PC;
 		}
 	};
-
 	/**
 	 * Reset operation
 	 */
