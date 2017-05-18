@@ -38,6 +38,7 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
 #include <vpnes/gui/gui.hpp>
@@ -161,6 +162,27 @@ void CGUI::handleFrameRender(double frameTime) {
 			break;
 		}
 	}
+#ifdef VPNES_MEASURE_FPS
+	static int curFrame = 0;
+	curFrame++;
+	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
+	std::chrono::high_resolution_clock::time_point newTime =
+	    std::chrono::high_resolution_clock::now();
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(
+	        newTime - lastTime)
+	        .count() > 1000) {
+		m_Time = newTime;
+		std::stringstream ss;
+		ss << "FPS: "
+		   << curFrame * 1000.0 /
+		          std::chrono::duration_cast<std::chrono::milliseconds>(
+		              newTime - lastTime)
+		              .count()
+		   << std::endl;
+		::SDL_SetWindowTitle(m_Window, ss.str().c_str());
+		curFrame = 0;
+	}
+#else
 	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {
@@ -179,6 +201,7 @@ void CGUI::handleFrameRender(double frameTime) {
 		    m_Time - lastTime)
 		                .count();
 	}
+#endif
 }
 
 }  // namespace gui
