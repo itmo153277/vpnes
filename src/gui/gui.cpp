@@ -27,7 +27,9 @@
 #include "config.h"
 #endif
 
+#include <SDL.h>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <stdexcept>
@@ -51,7 +53,59 @@ namespace gui {
 /**
  * Constructor
  */
-vpnes::gui::CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
+CGUI::CGUI()
+    : m_Jitter()
+    , m_TimeOverhead()
+    , m_Time()
+    , m_Config()
+    , m_Window()
+    , m_Renderer()
+    , m_ScreenBuffer() {
+	std::atexit(::SDL_Quit);
+}
+
+/**
+ * Destroyer
+ */
+CGUI::~CGUI() {
+	::SDL_DestroyWindow(m_Window);
+}
+
+/**
+ * (Re-)init main window
+ *
+ * @param width Width
+ * @param height Height
+ */
+void CGUI::initMainWindow(std::size_t width, std::size_t height) {
+	if (!m_Window) {
+		m_Window = ::SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_UNDEFINED,
+		    SDL_WINDOWPOS_UNDEFINED, width, height,
+		    SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SHOWN);
+		if (!m_Window) {
+			throw std::invalid_argument(SDL_GetError());
+		}
+		m_Renderer = ::SDL_CreateRenderer(m_Window, -1,
+		    SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+		if (!m_Renderer) {
+			throw std::invalid_argument(SDL_GetError());
+		}
+	} else {
+		::SDL_DestroyTexture(m_ScreenBuffer);
+		::SDL_SetWindowSize(m_Window, width, height);
+	}
+	int realWidth, realHeight;
+	Uint32 pixelFormat;
+	::SDL_GetRendererOutputSize(m_Renderer, &realWidth, &realHeight);
+	pixelFormat = ::SDL_GetWindowPixelFormat(m_Window);
+	if (pixelFormat == SDL_PIXELFORMAT_UNKNOWN) {
+		pixelFormat = SDL_PIXELFORMAT_RGBA32;
+	}
+	m_ScreenBuffer = ::SDL_CreateTexture(m_Renderer, pixelFormat,
+	    SDL_RENDERER_TARGETTEXTURE, realWidth, realHeight);
+	if (!m_ScreenBuffer) {
+		throw std::invalid_argument(SDL_GetError());
+	}
 }
 
 /**
@@ -61,7 +115,7 @@ vpnes::gui::CGUI::CGUI() : m_Jitter(), m_TimeOverhead(), m_Time(), m_Config() {
  * @param argv Array of parameters
  * @return Exit code
  */
-int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
+int CGUI::startGUI(int argc, char **argv) {
 	m_Config.parseOptions(argc, argv);
 	if (!m_Config.hasInputFile()) {
 		std::cerr << "Usage:" << std::endl;
@@ -69,22 +123,26 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
 		return 0;
 	}
 	try {
+		if (::SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+			throw std::invalid_argument(SDL_GetError());
+		}
 		std::ifstream inputFile = m_Config.getInputFile();
 		core::SNESConfig nesConfig;
 		nesConfig.configure(m_Config, inputFile);
 		inputFile.close();
-		std::unique_ptr<core::CNES> nes(nesConfig.createInstance(*this));
+		initMainWindow(512, 448);
+		m_NES.reset(nesConfig.createInstance(*this));
 		m_Jitter = 0;
 		m_TimeOverhead = 0;
 		m_Time = std::chrono::high_resolution_clock::now();
-		nes->powerUp();
+		m_NES->powerUp();
 	} catch (const std::invalid_argument &e) {
 		std::cerr << e.what() << std::endl;
 	} catch (const std::exception &e) {
 		std::cerr << "Unknown error: " << e.what() << std::endl;
 		std::cerr << std::strerror(errno) << std::endl;
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -92,7 +150,17 @@ int vpnes::gui::CGUI::startGUI(int argc, char **argv) {
  *
  * @param frameTime Frame time
  */
-void vpnes::gui::CGUI::handleFrameRender(double frameTime) {
+void CGUI::handleFrameRender(double frameTime) {
+	::SDL_Event event;
+	::SDL_RenderCopy(m_Renderer, m_ScreenBuffer, NULL, NULL);
+	::SDL_RenderPresent(m_Renderer);
+	while (::SDL_PollEvent(&event)) {
+		switch (event.type) {
+		case SDL_QUIT:
+			m_NES->turnOff();
+			break;
+		}
+	}
 	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {

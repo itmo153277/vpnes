@@ -30,10 +30,14 @@
 #include "config.h"
 #endif
 
+#include <SDL.h>
+#include <cstddef>
+#include <memory>
 #include <chrono>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
 #include <vpnes/core/frontend.hpp>
+#include <vpnes/core/nes.hpp>
 
 namespace vpnes {
 
@@ -60,6 +64,30 @@ protected:
 	 * Application configuration
 	 */
 	SApplicationConfig m_Config;
+	/**
+	 * NES
+	 */
+	std::unique_ptr<core::CNES> m_NES;
+	/**
+	 * Window
+	 */
+	::SDL_Window *m_Window;
+	/**
+	 * Main renderer
+	 */
+	::SDL_Renderer *m_Renderer;
+	/**
+	 * Main screen buffer
+	 */
+	::SDL_Texture *m_ScreenBuffer;
+
+	/**
+	 * (Re-)init main window
+	 *
+	 * @param width Width
+	 * @param height Height
+	 */
+	void initMainWindow(std::size_t width, std::size_t height);
 
 public:
 	/**
@@ -75,7 +103,7 @@ public:
 	/**
 	 * Destroyer
 	 */
-	~CGUI() = default;
+	~CGUI();
 	/**
 	 * Starts GUI
 	 *

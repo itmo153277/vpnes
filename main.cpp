@@ -39,15 +39,11 @@
  * @return Exit code
  */
 int main(int argc, char **argv) {
-	/*
-	 * Setting up output
-	 */
+	/* Setting up output */
 	std::setlocale(LC_ALL, "");
 	std::clog << std::internal << std::hex << std::showbase;
 	std::clog << PACKAGE_BUILD << std::endl << std::endl;
-	/*
-	 * Startup
-	 */
+	/* Startup */
 	vpnes::gui::CGUI gui;
 	return gui.startGUI(argc, argv);
 }
