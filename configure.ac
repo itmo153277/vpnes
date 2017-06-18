@@ -22,7 +22,7 @@ AC_CANONICAL_HOST
 
 AM_CONDITIONAL([MAKE_MAN], [test "x$DX_FLAG_man" = "x1"])
 
-AC_PROG_CXX
+AC_LANG([C++])
 
 AX_CXX_COMPILE_STDCXX_11([], [mandatory])
 
@@ -30,17 +30,13 @@ can_use_sdl2="yes"
 AM_PATH_SDL2([2.0.0], [], [can_use_sdl2="no"])
 SDL_LIBS="$SDL_LIBS -lSDL2_gfx"
 if test "x$can_use_sdl2" = "xyes" ; then
-	AC_LANG_PUSH([C])
 	LIBS_SAVE=$LIBS
-	CFLAGS_SAVE=$CFLAGS
 	CPPFLAGS_SAVE=$CPPFLAGS
 	LIBS="$SDL_LIBS $LIBS"
 	CPPFLAGS="$SDL_CFLAGS $CPPFLAGS"
 	AC_CHECK_HEADERS([SDL2_gfxPrimitives.h SDL2_framerate.h], [], [can_use_sdl2="no"], [])
 	LIBS=$LIBS_SAVE
-	CFLAGS=$CFLAGS_SAVE
 	CPPFLAGS=$CPPFLAGS_SAVE
-	AC_LANG_POP
 fi
 if test "x$can_use_sdl2" = "xno" ; then
 	AC_MSG_ERROR([could not find compatible SDL2])
