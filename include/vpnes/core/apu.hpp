@@ -158,7 +158,7 @@ public:
 	 *
 	 * @return Pending time
 	 */
-	ticks_t getPending() {
+	ticks_t getPending() const {
 		return 0;
 	}
 };

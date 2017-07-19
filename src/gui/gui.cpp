@@ -153,7 +153,7 @@ int CGUI::startGUI(int argc, char **argv) {
  */
 void CGUI::handleFrameRender(double frameTime) {
 	::SDL_Event event;
-	::SDL_RenderCopy(m_Renderer, m_ScreenBuffer, NULL, NULL);
+	::SDL_RenderCopy(m_Renderer, m_ScreenBuffer, nullptr, nullptr);
 	::SDL_RenderPresent(m_Renderer);
 	while (::SDL_PollEvent(&event)) {
 		switch (event.type) {

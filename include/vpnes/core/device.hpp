@@ -139,8 +139,8 @@ public:
 	void setClock(ticks_t ticks) {
 		if (ticks < m_Clock) {
 			sync(ticks);
+			m_Clock = ticks;
 		}
-		m_Clock = ticks;
 	}
 	/**
 	 * Resets the clock by ticks amount
@@ -155,7 +155,7 @@ public:
 	 *
 	 * @return Pending time
 	 */
-	virtual ticks_t getPending() = 0;
+	virtual ticks_t getPending() const = 0;
 };
 
 /**

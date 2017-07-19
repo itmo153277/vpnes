@@ -1,6 +1,6 @@
 /**
  * @file
- * Defines microcode compilation helpers
+ * Defines microcode compilation helpers for cpu
  */
 /*
  NES Emulator
@@ -364,7 +364,7 @@ struct Control {
 	using operation_pack = typename ExpandOperations<opcode_pack,
 	    typename OpcodeControl::opReset, operation_jam>::type;
 	/**
-	 * Ioeratuib iffsets
+	 * Operation offsets
 	 */
 	struct operation_offset : OperationOffsetExpand<operation_pack> {};
 	/**
@@ -398,7 +398,7 @@ struct Control {
 	 *
 	 * @param cpu CPU
 	 * @param busMode Access mode
-	 * @param ackIRQ Acknoledge IRQ
+	 * @param ackIRQ Acknowledge IRQ
 	 * @return If could or not
 	 */
 	static bool accessBus(CCPU &cpu, CCPU::EBusMode busMode, bool ackIRQ) {

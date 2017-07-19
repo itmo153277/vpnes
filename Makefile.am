@@ -27,6 +27,7 @@ noinst_HEADERS = \
 	include/vpnes/core/ines.hpp \
 	include/vpnes/core/mboard.hpp \
 	include/vpnes/core/nes.hpp \
+	include/vpnes/core/ppu_compile.hpp \
 	include/vpnes/core/ppu.hpp
 
 @DX_RULES@
