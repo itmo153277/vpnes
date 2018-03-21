@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_APU_HPP_
-#define VPNES_INCLUDE_CORE_APU_HPP_
+#ifndef INCLUDE_VPNES_CORE_APU_HPP_
+#define INCLUDE_VPNES_CORE_APU_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -70,9 +70,9 @@ public:
 		static void mapIO(MemoryMap::iterator iterRead,
 		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
-		    CAPU &device) {
+		    CAPU *device) {
 			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
-			    writeBuf, &device.m_IOBuf);
+			    writeBuf, &device->m_IOBuf);
 		}
 		/**
 		 * Checks if device is enabled
@@ -90,7 +90,7 @@ public:
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static std::size_t getBank(std::uint16_t addr, CAPU &device) {
+		static std::size_t getBank(std::uint16_t addr, const CAPU &device) {
 			return 0;
 		}
 	};
@@ -134,7 +134,7 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CAPU(CMotherBoard &motherBoard) : CEventDevice(), m_IOBuf() {
+	explicit CAPU(CMotherBoard *motherBoard) : CEventDevice(), m_IOBuf() {
 	}
 	/**
 	 * Destroys the object
@@ -146,10 +146,10 @@ public:
 	 *
 	 * @param bus CPU bus
 	 */
-	void addHooksCPU(CBus &bus) {
+	void addHooksCPU(CBus *bus) {
 		for (std::uint16_t addr = 0x4000; addr < 0x4020; addr++) {
-			bus.addPreReadHook(addr, *this, &CAPU::readReg);
-			bus.addWriteHook(addr, *this, &CAPU::writeReg);
+			bus->addPreReadHook(addr, this, &CAPU::readReg);
+			bus->addWriteHook(addr, this, &CAPU::writeReg);
 		}
 	}
 
@@ -167,4 +167,4 @@ public:
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_APU_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_APU_HPP_

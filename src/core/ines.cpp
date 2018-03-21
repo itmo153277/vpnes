@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -48,12 +48,12 @@ namespace ines {
  *
  * @param ROM
  */
-SNESData::SNESData(std::ifstream &ROM) : PRG(), CHR(), Trainer() {
+SNESData::SNESData(std::ifstream *ROM) : PRG(), CHR(), Trainer() {
 	const char *iNESSignature = "NES\32";
 	uint8_t mapper;
 	iNES_Header header;
 
-	ROM.read((char *) &header, sizeof(header));
+	ROM->read(reinterpret_cast<char *>(&header), sizeof(header));
 	if (strncmp(header.Signature, iNESSignature, 4)) {
 		throw std::invalid_argument("Unknown file format");
 	}
@@ -92,13 +92,15 @@ SNESData::SNESData(std::ifstream &ROM) : PRG(), CHR(), Trainer() {
 	}
 	if (header.Flags & 0x04) {
 		Trainer.resize(0x0200);
-		ROM.read((char *) Trainer.data(), 0x0200 * sizeof(uint8_t));
+		ROM->read(
+		    reinterpret_cast<char *>(Trainer.data()), 0x0200 * sizeof(uint8_t));
 	}
 	PRG.resize(PRGSize);
-	ROM.read((char *) PRG.data(), PRGSize * sizeof(uint8_t));
+	ROM->read(reinterpret_cast<char *>(PRG.data()), PRGSize * sizeof(uint8_t));
 	if (CHRSize) {
 		CHR.resize(CHRSize);
-		ROM.read((char *) CHR.data(), CHRSize * sizeof(uint8_t));
+		ROM->read(
+		    reinterpret_cast<char *>(CHR.data()), CHRSize * sizeof(uint8_t));
 	}
 	switch (mapper) {
 	case 0:

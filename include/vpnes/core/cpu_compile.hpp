@@ -4,7 +4,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_CPU_COMPILE_HPP_
-#define VPNES_INCLUDE_CORE_CPU_COMPILE_HPP_
+#ifndef INCLUDE_VPNES_CORE_CPU_COMPILE_HPP_
+#define INCLUDE_VPNES_CORE_CPU_COMPILE_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -54,7 +54,7 @@ struct Cycle {
 	 * @param cpu CPU
 	 * @return True to skip
 	 */
-	static bool skipCycle(CCPU &cpu) {
+	static bool skipCycle(CCPU *cpu) {
 		return false;
 	}
 	/**
@@ -63,7 +63,7 @@ struct Cycle {
 	 * @param cpu CPU
 	 */
 	template <class Control>
-	static void execute(CCPU &cpu) {
+	static void execute(CCPU *cpu) {
 	}
 };
 
@@ -76,7 +76,7 @@ struct Command {
 	 *
 	 * @param cpu CPU
 	 */
-	static void execute(CCPU &cpu) {
+	static void execute(CCPU *cpu) {
 	}
 };
 
@@ -100,7 +100,7 @@ struct Operation<> {
 	 * @param cpu CPU
 	 */
 	template <std::size_t Offset, std::size_t Index, class Control>
-	static void execute(CCPU &cpu) {
+	static void execute(CCPU *cpu) {
 	}
 };
 
@@ -118,7 +118,7 @@ struct Operation<FirstCycle, OtherCycles...> {
 	 * @param cpu CPU
 	 */
 	template <std::size_t Offset, std::size_t Index, class Control>
-	static void execute(CCPU &cpu) {
+	static void execute(CCPU *cpu) {
 		if (Offset == 0) {
 			if (!FirstCycle::skipCycle(cpu)) {
 				if (Control::accessBus(cpu,
@@ -173,7 +173,7 @@ struct OperationOffsetExpand<class_pack<FirstOperation, OtherOperations...>> {
 template <std::size_t Offset, std::size_t Index, class Operation>
 struct Invoker {
 	template <class Control>
-	static void execute(CCPU &cpu) {
+	static void execute(CCPU *cpu) {
 		Operation::template execute<Offset, Index, Control>(cpu);
 	}
 };
@@ -233,8 +233,8 @@ struct Invoke<class_pack<Operations...>> {
 	 * @param index Index
 	 */
 	template <class Control>
-	static void execute(CCPU &cpu, std::size_t index) {
-		typedef void (*handler)(CCPU &);
+	static void execute(CCPU *cpu, std::size_t index) {
+		typedef void (*handler)(CCPU *);
 		static const handler handlers[sizeof...(Operations)] = {
 		    (&Operations::template execute<Control>) ...};
 		(*handlers[index])(cpu);
@@ -390,7 +390,7 @@ struct Control {
 	 * @param cpu CPU
 	 * @param index Index
 	 */
-	static void setEndPoint(CCPU &cpu, std::size_t index) {
+	static void setEndPoint(CCPU *cpu, std::size_t index) {
 		OpcodeControl::setEndPoint(cpu, index);
 	}
 	/**
@@ -401,7 +401,7 @@ struct Control {
 	 * @param ackIRQ Acknowledge IRQ
 	 * @return If could or not
 	 */
-	static bool accessBus(CCPU &cpu, CCPU::EBusMode busMode, bool ackIRQ) {
+	static bool accessBus(CCPU *cpu, CCPU::EBusMode busMode, bool ackIRQ) {
 		return OpcodeControl::accessBus(cpu, busMode, ackIRQ);
 	}
 	/**
@@ -410,7 +410,7 @@ struct Control {
 	 * @param cpu CPU
 	 * @param index Index
 	 */
-	static void execute(CCPU &cpu, std::size_t index) {
+	static void execute(CCPU *cpu, std::size_t index) {
 		Invoke<typename InvokeExpand<0,
 		    operation_pack>::type>::template execute<Control>(cpu, index);
 	}
@@ -432,4 +432,4 @@ struct Control {
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_CPU_COMPILE_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_CPU_COMPILE_HPP_

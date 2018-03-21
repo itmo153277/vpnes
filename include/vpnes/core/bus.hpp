@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_BUS_HPP_
-#define VPNES_INCLUDE_CORE_BUS_HPP_
+#ifndef INCLUDE_VPNES_CORE_BUS_HPP_
+#define INCLUDE_VPNES_CORE_BUS_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -129,8 +129,8 @@ public:
 	 * @param device Device
 	 * @param hook Hook
 	 */
-	CAddrHookMapped(T &device, addrHook_t hook)
-	    : m_Device(&device), m_Hook(hook) {
+	CAddrHookMapped(T *device, addrHook_t hook)
+	    : m_Device(device), m_Hook(hook) {
 	}
 };
 
@@ -219,8 +219,8 @@ public:
 	 * @param device Device
 	 * @param hook Hook
 	 */
-	CAddrValHookMapped(T &device, addrHook_t hook)
-	    : m_Device(&device), m_Hook(hook) {
+	CAddrValHookMapped(T *device, addrHook_t hook)
+	    : m_Device(device), m_Hook(hook) {
 	}
 };
 
@@ -316,7 +316,7 @@ protected:
 	 *
 	 * @param openBus Open bus value
 	 */
-	CBus(std::uint8_t openBus)
+	explicit CBus(std::uint8_t openBus)
 	    : m_ReadHooksPre()
 	    , m_ReadHooksPost()
 	    , m_WriteHooks()
@@ -360,7 +360,7 @@ public:
 	 * @param hook Hook in device
 	 */
 	template <class T>
-	void addPreReadHook(std::uint16_t addr, T &device,
+	void addPreReadHook(std::uint16_t addr, T *device,
 	    typename CAddrHookMapped<T>::addrHook_t hook) {
 		m_ReadHooksPre.emplace(addr, new CAddrHookMapped<T>(device, hook));
 	}
@@ -372,7 +372,7 @@ public:
 	 * @param hook Hook in device
 	 */
 	template <class T>
-	void addPostReadHook(std::uint16_t addr, T &device,
+	void addPostReadHook(std::uint16_t addr, T *device,
 	    typename CAddrValHookMapped<T>::addrHook_t hook) {
 		m_ReadHooksPost.emplace(addr, new CAddrValHookMapped<T>(device, hook));
 	}
@@ -384,7 +384,7 @@ public:
 	 * @param hook Hook in device
 	 */
 	template <class T>
-	void addWriteHook(std::uint16_t addr, T &device,
+	void addWriteHook(std::uint16_t addr, T *device,
 	    typename CAddrValHookMapped<T>::addrHook_t hook) {
 		m_WriteHooks.emplace(addr, new CAddrValHookMapped<T>(device, hook));
 	}
@@ -1372,8 +1372,7 @@ struct BusAggregate<FirstDeviceConfig, OtherDevicesConfig...> {
 	    MemoryMap::iterator iterMod, std::uint8_t *openBus, std::uint8_t *dummy,
 	    std::uint8_t *writeBuf) {
 		FirstDeviceConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
-		    writeBuf,
-		    static_cast<typename FirstDeviceConfig::Device &>(**iter));
+		    writeBuf, static_cast<typename FirstDeviceConfig::Device *>(*iter));
 		BusAggregate<OtherDevicesConfig...>::mapIO(iter + 1,
 		    iterRead + FirstDeviceConfig::BankConfig::ReadSize,
 		    iterWrite + FirstDeviceConfig::BankConfig::WriteSize,
@@ -1416,7 +1415,7 @@ struct BusConfigBase {
 	static void mapIO(MemoryMap::iterator iterRead,
 	    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 	    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
-	    T &device) {
+	    T *device) {
 	}
 	/**
 	 * Checks if device is enabled
@@ -1434,7 +1433,7 @@ struct BusConfigBase {
 	 * @param device Device
 	 * @return Active bank
 	 */
-	static std::size_t getBank(std::uint16_t addr, T &device) {
+	static std::size_t getBank(std::uint16_t addr, const T &device) {
 		return 0;
 	}
 
@@ -1472,7 +1471,7 @@ struct COpenBusDevice : CDevice {
 		static void mapIO(MemoryMap::iterator iterRead,
 		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
-		    COpenBusDevice &device) {
+		    COpenBusDevice *device) {
 			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
 			    writeBuf, nullptr);
 		}
@@ -1492,7 +1491,8 @@ struct COpenBusDevice : CDevice {
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static std::size_t getBank(std::uint16_t addr, COpenBusDevice &device) {
+		static std::size_t getBank(
+		    std::uint16_t addr, const COpenBusDevice &device) {
 			return 0;
 		}
 	};
@@ -1515,7 +1515,7 @@ public:
 	 *
 	 * @param openBus Open bus value
 	 */
-	CBusConfig(std::uint8_t openBus) : CBus(openBus) {
+	explicit CBusConfig(std::uint8_t openBus) : CBus(openBus) {
 	}
 	/**
 	 * Destructor
@@ -1584,7 +1584,7 @@ public:
 	 * @param devices Devices
 	 */
 	CBusConfig(
-	    std::uint8_t openBus, typename DeviceConfigs::Device &... devices)
+	    std::uint8_t openBus, typename DeviceConfigs::Device *... devices)
 	    : CBus(openBus)
 	    , m_OpenBusDevice()
 	    , m_ReadArr(BusAggregate<DeviceConfigs...,
@@ -1596,7 +1596,7 @@ public:
 	    , m_ModArr(BusAggregate<DeviceConfigs...,
 	                   COpenBusDevice::BusConfig>::ModSize,
 	          &m_WriteBuf)
-	    , m_DeviceArr({&devices..., &m_OpenBusDevice}) {
+	    , m_DeviceArr({devices..., &m_OpenBusDevice}) {
 		BusAggregate<DeviceConfigs..., COpenBusDevice::BusConfig>::mapIO(
 		    m_DeviceArr.begin(), m_ReadArr.begin(), m_WriteArr.begin(),
 		    m_ModArr.begin(), &m_OpenBus, &m_DummyWrite, &m_WriteBuf);
@@ -1653,4 +1653,4 @@ public:
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_BUS_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_BUS_HPP_

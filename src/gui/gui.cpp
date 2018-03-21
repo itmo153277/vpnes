@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 
 #include <SDL.h>
 #include <cerrno>
+#include <<cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -129,10 +130,10 @@ int CGUI::startGUI(int argc, char **argv) {
 		}
 		std::ifstream inputFile = m_Config.getInputFile();
 		core::SNESConfig nesConfig;
-		nesConfig.configure(m_Config, inputFile);
+		nesConfig.configure(m_Config, &inputFile);
 		inputFile.close();
 		initMainWindow(512, 448);
-		m_NES.reset(nesConfig.createInstance(*this));
+		m_NES.reset(nesConfig.createInstance(this));
 		m_Jitter = 0;
 		m_TimeOverhead = 0;
 		m_Time = std::chrono::high_resolution_clock::now();
@@ -186,10 +187,10 @@ void CGUI::handleFrameRender(double frameTime) {
 	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {
-		long waitTime = static_cast<long>(m_Jitter - m_TimeOverhead);
+		int64_t waitTime = static_cast<int64_t>(m_Jitter - m_TimeOverhead);
 		std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 		m_Time = std::chrono::high_resolution_clock::now();
-		long actualWait = static_cast<long>(
+		int64_t actualWait = static_cast<int64_t>(
 		    std::chrono::duration_cast<std::chrono::milliseconds>(
 		        m_Time - lastTime)
 		        .count());

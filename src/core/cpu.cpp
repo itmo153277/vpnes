@@ -4,7 +4,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -43,373 +43,371 @@ namespace core {
  * Microcode
  */
 struct CCPU::opcodes {
-	// TODO: Define microcode
-
 	/* Commands */
 	struct cmdPHA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.m_A;
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_A;
 		}
 	};
 	struct cmdPHP : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.packState();
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->packState();
 		}
 	};
 	struct cmdPLA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A = cpu.m_DB;
+		static void execute(CCPU *cpu) {
+			cpu->m_A = cpu->m_DB;
 		}
 	};
 	struct cmdPLP : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.unpackState(cpu.m_DB);
+		static void execute(CCPU *cpu) {
+			cpu->unpackState(cpu->m_DB);
 		}
 	};
 	struct cmdCLC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Carry = 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_Carry = 0;
 		}
 	};
 	struct cmdSEC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Carry = CPUFlagCarry;
+		static void execute(CCPU *cpu) {
+			cpu->m_Carry = CPUFlagCarry;
 		}
 	};
 	struct cmdCLD : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Decimal = 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_Decimal = 0;
 		}
 	};
 	struct cmdSED : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Decimal = CPUFlagDecimal;
+		static void execute(CCPU *cpu) {
+			cpu->m_Decimal = CPUFlagDecimal;
 		}
 	};
 	struct cmdCLI : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Interrupt = 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_Interrupt = 0;
 		}
 	};
 	struct cmdSEI : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Interrupt = CPUFlagInterrupt;
+		static void execute(CCPU *cpu) {
+			cpu->m_Interrupt = CPUFlagInterrupt;
 		}
 	};
 	struct cmdCLV : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Overflow = 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_Overflow = 0;
 		}
 	};
 	struct cmdTAX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_X = cpu.m_A;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			cpu->m_X = cpu->m_A;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdTAY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Y = cpu.m_A;
-			cpu.setNegativeFlag(cpu.m_Y);
-			cpu.setZeroFlag(cpu.m_Y);
+		static void execute(CCPU *cpu) {
+			cpu->m_Y = cpu->m_A;
+			cpu->setNegativeFlag(cpu->m_Y);
+			cpu->setZeroFlag(cpu->m_Y);
 		}
 	};
 	struct cmdTXA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A = cpu.m_X;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A = cpu->m_X;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdTYA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A = cpu.m_Y;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A = cpu->m_Y;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdTXS : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_S = cpu.m_X;
+		static void execute(CCPU *cpu) {
+			cpu->m_S = cpu->m_X;
 		}
 	};
 	struct cmdTSX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_X = cpu.m_S;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			cpu->m_X = cpu->m_S;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdINX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			++cpu.m_X;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			++cpu->m_X;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdDEX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			--cpu.m_X;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			--cpu->m_X;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdINY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			++cpu.m_X;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			++cpu->m_X;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdDEY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			--cpu.m_X;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			--cpu->m_X;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdBCC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Carry == 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Carry == 0;
 		}
 	};
 	struct cmdBCS : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Carry != 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Carry != 0;
 		}
 	};
 	struct cmdBNE : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Zero == 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Zero == 0;
 		}
 	};
 	struct cmdBEQ : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Zero != 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Zero != 0;
 		}
 	};
 	struct cmdBPL : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) == 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = (cpu->m_Negative & CPUFlagNegative) == 0;
 		}
 	};
 	struct cmdBMI : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = (cpu.m_Negative & CPUFlagNegative) != 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = (cpu->m_Negative & CPUFlagNegative) != 0;
 		}
 	};
 	struct cmdBVC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Overflow == 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Overflow == 0;
 		}
 	};
 	struct cmdBVS : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_BranchTaken = cpu.m_Overflow != 0;
+		static void execute(CCPU *cpu) {
+			cpu->m_BranchTaken = cpu->m_Overflow != 0;
 		}
 	};
 	struct cmdLDA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A = cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A = cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdSTA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.m_A;
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_A;
 		}
 	};
 	struct cmdLDX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_X = cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_X);
-			cpu.setZeroFlag(cpu.m_X);
+		static void execute(CCPU *cpu) {
+			cpu->m_X = cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdSTX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.m_X;
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_X;
 		}
 	};
 	struct cmdLDY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_Y = cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_Y);
-			cpu.setZeroFlag(cpu.m_Y);
+		static void execute(CCPU *cpu) {
+			cpu->m_Y = cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_Y);
+			cpu->setZeroFlag(cpu->m_Y);
 		}
 	};
 	struct cmdSTY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.m_Y;
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_Y;
 		}
 	};
 	struct cmdAND : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A &= cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A &= cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdORA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A |= cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A |= cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdEOR : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.m_A ^= cpu.m_DB;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->m_A ^= cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdINC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			++cpu.m_OP;
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			++cpu->m_OP;
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdDEC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			--cpu.m_OP;
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			--cpu->m_OP;
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdCMP : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint16_t dummy = cpu.m_A - cpu.m_OP;
-			cpu.setCarryFlag(dummy < 0x0100);
-			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy & 0xff);
+		static void execute(CCPU *cpu) {
+			std::uint16_t dummy = cpu->m_A - cpu->m_OP;
+			cpu->setCarryFlag(dummy < 0x0100);
+			cpu->setNegativeFlag(dummy);
+			cpu->setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdCPX : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint16_t dummy = cpu.m_X - cpu.m_OP;
-			cpu.setCarryFlag(dummy < 0x0100);
-			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy & 0xff);
+		static void execute(CCPU *cpu) {
+			std::uint16_t dummy = cpu->m_X - cpu->m_OP;
+			cpu->setCarryFlag(dummy < 0x0100);
+			cpu->setNegativeFlag(dummy);
+			cpu->setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdCPY : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint16_t dummy = cpu.m_Y - cpu.m_OP;
-			cpu.setCarryFlag(dummy < 0x0100);
-			cpu.setNegativeFlag(dummy);
-			cpu.setZeroFlag(dummy & 0xff);
+		static void execute(CCPU *cpu) {
+			std::uint16_t dummy = cpu->m_Y - cpu->m_OP;
+			cpu->setCarryFlag(dummy < 0x0100);
+			cpu->setNegativeFlag(dummy);
+			cpu->setZeroFlag(dummy & 0xff);
 		}
 	};
 	struct cmdBIT : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.setOverflowFlag((cpu.m_OP & 0x40) != 0);
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_A & cpu.m_OP);
+		static void execute(CCPU *cpu) {
+			cpu->setOverflowFlag((cpu->m_OP & 0x40) != 0);
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_A & cpu->m_OP);
 		}
 	};
 	struct cmdADC : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint16_t dummy = cpu.m_OP + cpu.m_A + cpu.m_Carry;
-			cpu.setOverflowFlag(
-			    ((dummy ^ cpu.m_A) & ~(cpu.m_A ^ cpu.m_OP) & 0x80) != 0);
-			cpu.setCarryFlag(dummy >= 0x0100);
-			cpu.m_A = dummy & 0xff;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			std::uint16_t dummy = cpu->m_OP + cpu->m_A + cpu->m_Carry;
+			cpu->setOverflowFlag(
+			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
+			cpu->setCarryFlag(dummy >= 0x0100);
+			cpu->m_A = dummy & 0xff;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdSBC : cpu::Command {
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			std::uint16_t dummy =
-			    cpu.m_A - cpu.m_OP - (cpu.m_Carry ^ CPUFlagCarry);
-			cpu.setOverflowFlag(
-			    ((dummy ^ cpu.m_A) & ~(cpu.m_A ^ cpu.m_OP) & 0x80) != 0);
-			cpu.setCarryFlag(dummy < 0x0100);
-			cpu.m_A = dummy & 0xff;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+			    cpu->m_A - cpu->m_OP - (cpu->m_Carry ^ CPUFlagCarry);
+			cpu->setOverflowFlag(
+			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
+			cpu->setCarryFlag(dummy < 0x0100);
+			cpu->m_A = dummy & 0xff;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdROL : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint8_t dummy = cpu.m_OP & 0x80;
-			cpu.m_OP <<= 1;
-			cpu.m_OP |= cpu.m_Carry;
-			cpu.setCarryFlag(dummy != 0);
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_OP & 0x80;
+			cpu->m_OP <<= 1;
+			cpu->m_OP |= cpu->m_Carry;
+			cpu->setCarryFlag(dummy != 0);
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdROR : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint8_t dummy = cpu.m_OP & 0x01;
-			cpu.m_OP >>= 1;
-			cpu.m_OP |= (cpu.m_Carry << 7);
-			cpu.setCarryFlag(dummy != 0);
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_OP & 0x01;
+			cpu->m_OP >>= 1;
+			cpu->m_OP |= (cpu->m_Carry << 7);
+			cpu->setCarryFlag(dummy != 0);
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdASL : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.setCarryFlag((cpu.m_OP & 0x80) != 0);
-			cpu.m_OP <<= 1;
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_OP & 0x80) != 0);
+			cpu->m_OP <<= 1;
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdLSR : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.setCarryFlag((cpu.m_OP & 0x01) != 0);
-			cpu.m_OP >>= 1;
-			cpu.setNegativeFlag(cpu.m_OP);
-			cpu.setZeroFlag(cpu.m_OP);
-			cpu.m_DB = cpu.m_OP;
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_OP & 0x01) != 0);
+			cpu->m_OP >>= 1;
+			cpu->setNegativeFlag(cpu->m_OP);
+			cpu->setZeroFlag(cpu->m_OP);
+			cpu->m_DB = cpu->m_OP;
 		}
 	};
 	struct cmdROLA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint8_t dummy = cpu.m_A & 0x80;
-			cpu.m_A <<= 1;
-			cpu.m_A |= cpu.m_Carry;
-			cpu.setCarryFlag(dummy != 0);
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_A & 0x80;
+			cpu->m_A <<= 1;
+			cpu->m_A |= cpu->m_Carry;
+			cpu->setCarryFlag(dummy != 0);
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdRORA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			std::uint8_t dummy = cpu.m_A & 0x01;
-			cpu.m_A >>= 1;
-			cpu.m_A |= (cpu.m_Carry << 7);
-			cpu.setCarryFlag(dummy != 0);
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_A & 0x01;
+			cpu->m_A >>= 1;
+			cpu->m_A |= (cpu->m_Carry << 7);
+			cpu->setCarryFlag(dummy != 0);
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdASLA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.setCarryFlag((cpu.m_A & 0x80) != 0);
-			cpu.m_A <<= 1;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_A & 0x80) != 0);
+			cpu->m_A <<= 1;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdLSRA : cpu::Command {
-		static void execute(CCPU &cpu) {
-			cpu.setCarryFlag((cpu.m_A & 0x01) != 0);
-			cpu.m_A >>= 1;
-			cpu.setNegativeFlag(cpu.m_A);
-			cpu.setZeroFlag(cpu.m_A);
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_A & 0x01) != 0);
+			cpu->m_A >>= 1;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 
@@ -420,75 +418,75 @@ struct CCPU::opcodes {
 	 */
 	struct ParseNext : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			if (!cpu.m_PendingINT) {
-				++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			if (!cpu->m_PendingINT) {
+				++cpu->m_PC;
 			} else {
-				cpu.m_DB = 0;
+				cpu->m_DB = 0;
 			}
-			cpu.m_AB = cpu.m_PC;
-			Control::setEndPoint(cpu, Control::parseOpcode(cpu.m_DB));
+			cpu->m_AB = cpu->m_PC;
+			Control::setEndPoint(cpu, Control::parseOpcode(cpu->m_DB));
 		}
 	};
 
 	/* BRK */
 	struct BRK01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			if (!cpu.m_PendingINT) {
-				cpu.m_PC++;
+		static void execute(CCPU *cpu) {
+			if (!cpu->m_PendingINT) {
+				cpu->m_PC++;
 			}
-			cpu.m_AB = 0x0100 + cpu.m_S;
-			cpu.m_DB = cpu.m_PC >> 8;
+			cpu->m_AB = 0x0100 + cpu->m_S;
+			cpu->m_DB = cpu->m_PC >> 8;
 		}
 	};
 	struct BRK02 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + --cpu.m_S;
-			cpu.m_DB = cpu.m_PC & 0x00ff;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + --cpu->m_S;
+			cpu->m_DB = cpu->m_PC & 0x00ff;
 		}
 	};
 	struct BRK03 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + --cpu.m_S;
-			cpu.m_DB = cpu.packState();
-			if (!cpu.m_PendingINT) {
-				cpu.m_DB |= CPUFlagBreak;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + --cpu->m_S;
+			cpu->m_DB = cpu->packState();
+			if (!cpu->m_PendingINT) {
+				cpu->m_DB |= CPUFlagBreak;
 			}
 		}
 	};
 	struct BRK04 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			--cpu.m_S;
-			cpu.processInterrupts();
-			if (cpu.m_PendingNMI) {
-				cpu.m_PendingNMI = false;
-				cpu.m_AB = 0xfffa;
+		static void execute(CCPU *cpu) {
+			--cpu->m_S;
+			cpu->processInterrupts();
+			if (cpu->m_PendingNMI) {
+				cpu->m_PendingNMI = false;
+				cpu->m_AB = 0xfffa;
 			} else {
-				cpu.m_AB = 0xfffe;
+				cpu->m_AB = 0xfffe;
 			}
 		}
 	};
 	struct BRK05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_DB, cpu.m_PC);
-			cpu.m_Interrupt = CPUFlagInterrupt;
-			cpu.m_PendingINT = false;
-			++cpu.m_AB;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_DB, &cpu->m_PC);
+			cpu->m_Interrupt = CPUFlagInterrupt;
+			cpu->m_PendingINT = false;
+			++cpu->m_AB;
 		}
 	};
 	struct BRK06 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -501,36 +499,36 @@ struct CCPU::opcodes {
 	/* RTI */
 	struct RTI01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + cpu->m_S;
 		}
 	};
 	struct RTI02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	struct RTI03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.unpackState(cpu.m_DB);
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->unpackState(cpu->m_DB);
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	struct RTI04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	struct RTI05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -542,35 +540,35 @@ struct CCPU::opcodes {
 	/* RTS */
 	struct RTS01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + cpu->m_S;
 		}
 	};
 	struct RTS02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	struct RTS03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	struct RTS04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	struct RTS05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	/**
@@ -583,8 +581,8 @@ struct CCPU::opcodes {
 	template <class Command>
 	struct PHR01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + cpu->m_S;
 			Command::execute(cpu);
 		}
 	};
@@ -592,9 +590,9 @@ struct CCPU::opcodes {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			--cpu.m_S;
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			--cpu->m_S;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -606,23 +604,23 @@ struct CCPU::opcodes {
 	/* PLA/PLP */
 	struct PLR01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + cpu->m_S;
 		}
 	};
 	struct PLR02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + ++cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + ++cpu->m_S;
 		}
 	};
 	template <class Command>
 	struct PLR03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -634,40 +632,40 @@ struct CCPU::opcodes {
 	/* JSR */
 	struct JSR01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = 0x0100 + cpu->m_S;
 		}
 	};
 	struct JSR02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_DB = cpu.m_PC >> 8;
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_PC >> 8;
 		}
 	};
 	struct JSR03 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + --cpu.m_S;
-			cpu.m_DB = cpu.m_PC & 0xff;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + --cpu->m_S;
+			cpu->m_DB = cpu->m_PC & 0xff;
 		}
 	};
 	struct JSR04 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	struct JSR05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_PC);
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_PC);
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -679,18 +677,18 @@ struct CCPU::opcodes {
 	/* JMP Absolute */
 	struct JMPAbs01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct JMPAbs02 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_PC);
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_PC);
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -701,34 +699,34 @@ struct CCPU::opcodes {
 	/* JMP Absolute Indirect */
 	struct JMPAbsInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct JMPAbsInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			++cpu.m_PC;
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			++cpu->m_PC;
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct JMPAbsInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_DB, cpu.m_PC);
-			cpu.setLow(++cpu.m_OP, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_DB, &cpu->m_PC);
+			cpu->setLow(++cpu->m_OP, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct JMPAbsInd04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -742,33 +740,33 @@ struct CCPU::opcodes {
 	struct Branch01 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
 			Command::execute(cpu);
-			cpu.m_AB = ++cpu.m_PC;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct Branch02 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return !cpu.m_BranchTaken;
+		static bool skipCycle(CCPU *cpu) {
+			return !cpu->m_BranchTaken;
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP16 = cpu.m_PC + static_cast<std::int8_t>(cpu.m_OP);
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP16 = cpu->m_PC + static_cast<std::int8_t>(cpu->m_OP);
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	struct Branch03 : cpu::Cycle {
 		enum { AckIRQ = true };
-		static bool skipCycle(CCPU &cpu) {
-			return !cpu.m_BranchTaken ||
-			       ((cpu.m_OP16 & 0xff00) == (cpu.m_PC & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return !cpu->m_BranchTaken ||
+			       ((cpu->m_OP16 & 0xff00) == (cpu->m_PC & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_PC = cpu.m_OP16;
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_PC = cpu->m_OP16;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -783,9 +781,9 @@ struct CCPU::opcodes {
 	struct Imp01 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -799,9 +797,9 @@ struct CCPU::opcodes {
 	struct Imm01 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = ++cpu.m_PC;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	/**
@@ -814,27 +812,27 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadAbs01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ReadAbs02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadAbs03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -847,42 +845,42 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyAbs01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ModifyAbs02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbs03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ModifyAbs04 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbs05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -894,28 +892,28 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteAbs01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	template <class Command>
 	struct WriteAbs02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteAbs03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -929,19 +927,19 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZP01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ReadZP02 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -952,34 +950,34 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZP01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZP02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ModifyZP03 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZP04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -992,19 +990,19 @@ struct CCPU::opcodes {
 	template <class Command>
 	struct WriteZP01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZP02 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1018,26 +1016,26 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ReadZPX03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1050,41 +1048,41 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ModifyZPX04 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPX05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1096,27 +1094,27 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct WriteZPX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPX03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1130,26 +1128,26 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ReadZPY03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1162,41 +1160,41 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ModifyZPY04 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPY05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1208,27 +1206,27 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct WriteZPY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPY03 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1242,40 +1240,40 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadAbsX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ReadAbsX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ReadAbsX03 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadAbsX04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1287,52 +1285,52 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyAbsX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ModifyAbsX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsX04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ModifyAbsX05 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyAbsX06 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1345,38 +1343,38 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteAbsX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct WriteAbsX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct WriteAbsX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteAbsX04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1390,40 +1388,40 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadAbsY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ReadAbsY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ReadAbsY03 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadAbsY04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1435,52 +1433,52 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyAbsY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct ModifyAbsY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsY04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct ModifyAbsY05 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_ZP;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyAbsY06 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1493,38 +1491,38 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteAbsY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_PC;
 		}
 	};
 	struct WriteAbsY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct WriteAbsY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteAbsY04 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1538,41 +1536,41 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPXInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPXInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPXInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ReadZPXInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadZPXInd05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1585,56 +1583,56 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPXInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPXInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPXInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ModifyZPXInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPXInd05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ModifyZPXInd06 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPXInd07 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1648,42 +1646,42 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPXInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPXInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_X;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_X;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPXInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct WriteZPXInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteZPXInd05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1698,41 +1696,41 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPYInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPYInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPYInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ReadZPYInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadZPYInd05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1745,56 +1743,56 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPYInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPYInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPYInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ModifyZPYInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPYInd05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ModifyZPYInd06 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPYInd07 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1808,42 +1806,42 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPYInd01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPYInd02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP += cpu.m_Y;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP += cpu->m_Y;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPYInd03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	template <class Command>
 	struct WriteZPYInd04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteZPYInd05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1858,47 +1856,47 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPIndX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPIndX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ReadZPIndX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ReadZPIndX04 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadZPIndX05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1911,59 +1909,59 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPIndX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPIndX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ModifyZPIndX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndX04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndX05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ModifyZPIndX06 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndX07 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -1977,48 +1975,48 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPIndX01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPIndX02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct WriteZPIndX03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_X;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_X;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct WriteZPIndX04 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteZPIndX05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -2033,47 +2031,47 @@ struct CCPU::opcodes {
 	/* Read */
 	struct ReadZPIndY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ReadZPIndY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ReadZPIndY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ReadZPIndY04 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ReadZPIndY05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_PC;
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -2086,59 +2084,59 @@ struct CCPU::opcodes {
 	/* Modify */
 	struct ModifyZPIndY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct ModifyZPIndY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct ModifyZPIndY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndY04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndY05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct ModifyZPIndY06 : cpu::Cycle {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
+		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyZPIndY07 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -2152,48 +2150,48 @@ struct CCPU::opcodes {
 	/* Write */
 	struct WriteZPIndY01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_ZP = cpu.m_DB;
-			++cpu.m_PC;
-			cpu.m_AB = cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_ZP = cpu->m_DB;
+			++cpu->m_PC;
+			cpu->m_AB = cpu->m_ZP;
 		}
 	};
 	struct WriteZPIndY02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_OP = cpu.m_DB;
-			cpu.m_AB = ++cpu.m_ZP;
+		static void execute(CCPU *cpu) {
+			cpu->m_OP = cpu->m_DB;
+			cpu->m_AB = ++cpu->m_ZP;
 		}
 	};
 	struct WriteZPIndY03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_OP, cpu.m_OP16);
-			cpu.setHigh(cpu.m_DB, cpu.m_OP16);
-			cpu.m_OP16 += cpu.m_Y;
-			cpu.setLow(cpu.m_OP16 & 0xff, cpu.m_Abs);
-			cpu.setHigh(cpu.m_DB, cpu.m_Abs);
-			cpu.m_AB = cpu.m_Abs;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_OP, &cpu->m_OP16);
+			cpu->setHigh(cpu->m_DB, &cpu->m_OP16);
+			cpu->m_OP16 += cpu->m_Y;
+			cpu->setLow(cpu->m_OP16 & 0xff, &cpu->m_Abs);
+			cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
 	struct WriteZPIndY04 : cpu::Cycle {
-		static bool skipCycle(CCPU &cpu) {
-			return ((cpu.m_OP16 & 0xff00) == (cpu.m_Abs & 0xff00));
+		static bool skipCycle(CCPU *cpu) {
+			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
 		}
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_Abs = cpu.m_OP16;
+		static void execute(CCPU *cpu) {
+			cpu->m_Abs = cpu->m_OP16;
 			Command::execute(cpu);
-			cpu.m_AB = cpu.m_Abs;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct WriteZPIndY05 : cpu::Cycle {
 		enum { AckIRQ = true };
 		enum { BusMode = BusModeWrite };
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -2207,56 +2205,56 @@ struct CCPU::opcodes {
 	/* RESET */
 	struct Reset00 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	struct Reset01 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	struct Reset02 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + cpu->m_S;
 		}
 	};
 	struct Reset03 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + --cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + --cpu->m_S;
 		}
 	};
 	struct Reset04 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.m_AB = 0x0100 + --cpu.m_S;
+		static void execute(CCPU *cpu) {
+			cpu->m_AB = 0x0100 + --cpu->m_S;
 		}
 	};
 	struct Reset05 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			--cpu.m_S;
-			cpu.m_AB = 0xfffc;
-			cpu.m_PendingNMI = false;
+		static void execute(CCPU *cpu) {
+			--cpu->m_S;
+			cpu->m_AB = 0xfffc;
+			cpu->m_PendingNMI = false;
 		}
 	};
 	struct Reset06 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setLow(cpu.m_DB, cpu.m_PC);
-			cpu.m_Interrupt = CPUFlagInterrupt;
-			cpu.m_PendingINT = false;
-			cpu.m_AB = 0xfffd;
+		static void execute(CCPU *cpu) {
+			cpu->setLow(cpu->m_DB, &cpu->m_PC);
+			cpu->m_Interrupt = CPUFlagInterrupt;
+			cpu->m_PendingINT = false;
+			cpu->m_AB = 0xfffd;
 		}
 	};
 	struct Reset07 : cpu::Cycle {
 		template <class Control>
-		static void execute(CCPU &cpu) {
-			cpu.setHigh(cpu.m_DB, cpu.m_PC);
-			cpu.m_AB = cpu.m_PC;
+		static void execute(CCPU *cpu) {
+			cpu->setHigh(cpu->m_DB, &cpu->m_PC);
+			cpu->m_AB = cpu->m_PC;
 		}
 	};
 	/**
@@ -2561,8 +2559,8 @@ struct CCPU::opcodes {
 	 * @param cpu CPU
 	 * @param index Index
 	 */
-	static void setEndPoint(CCPU &cpu, std::size_t index) {
-		cpu.m_CurrentIndex = index;
+	static void setEndPoint(CCPU *cpu, std::size_t index) {
+		cpu->m_CurrentIndex = index;
 	}
 	/**
 	 * Accesses the bus
@@ -2572,23 +2570,23 @@ struct CCPU::opcodes {
 	 * @param ackIRQ Acknowledge IRQ
 	 * @return If could or not
 	 */
-	static bool accessBus(CCPU &cpu, CCPU::EBusMode busMode, bool ackIRQ) {
-		if (!cpu.isReady()) {
+	static bool accessBus(CCPU *cpu, CCPU::EBusMode busMode, bool ackIRQ) {
+		if (!cpu->isReady()) {
 			return false;
 		}
 		if (ackIRQ) {
-			cpu.processInterrupts();
+			cpu->processInterrupts();
 		}
 		switch (busMode) {
 		case BusModeRead:
-			cpu.m_DB = cpu.m_MotherBoard->getBusCPU().readMemory(cpu.m_AB);
+			cpu->m_DB = cpu->m_MotherBoard->getBusCPU().readMemory(cpu->m_AB);
 			break;
 		case BusModeWrite:
-			cpu.m_MotherBoard->getBusCPU().writeMemory(cpu.m_DB, cpu.m_AB);
+			cpu->m_MotherBoard->getBusCPU().writeMemory(cpu->m_DB, cpu->m_AB);
 			break;
 		}
-		// TODO : Use CPU divider
-		cpu.m_InternalClock += 12;
+		// TODO(me) : Use CPU divider
+		cpu->m_InternalClock += 12;
 		return true;
 	}
 };
@@ -2600,9 +2598,9 @@ struct CCPU::opcodes {
  *
  * @param motherBoard Motherboard
  */
-CCPU::CCPU(CMotherBoard &motherBoard)
+CCPU::CCPU(CMotherBoard *motherBoard)
     : CEventDevice()
-    , m_MotherBoard(&motherBoard)
+    , m_MotherBoard(motherBoard)
     , m_InternalClock()
     , m_CurrentIndex(opcodes::control::ResetIndex)
     , m_RAM{}
@@ -2634,7 +2632,7 @@ CCPU::CCPU(CMotherBoard &motherBoard)
  */
 void CCPU::execute() {
 	while (isReady()) {
-		opcodes::control::execute(*this, m_CurrentIndex);
+		opcodes::control::execute(this, m_CurrentIndex);
 	}
 }
 

@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_CPU_HPP_
-#define VPNES_INCLUDE_CORE_CPU_HPP_
+#ifndef INCLUDE_VPNES_CORE_CPU_HPP_
+#define INCLUDE_VPNES_CORE_CPU_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -70,9 +70,9 @@ public:
 		static void mapIO(MemoryMap::iterator iterRead,
 		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
-		    CCPU &device) {
+		    CCPU *device) {
 			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
-			    writeBuf, device.m_RAM);
+			    writeBuf, device->m_RAM);
 		}
 		/**
 		 * Checks if device is enabled
@@ -90,7 +90,7 @@ public:
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static std::size_t getBank(std::uint16_t addr, CCPU &device) {
+		static std::size_t getBank(std::uint16_t addr, const CCPU &device) {
 			return 0;
 		}
 	};
@@ -220,7 +220,7 @@ private:
 		CPUFlagCarry = 0x01       //!< Carry
 	};
 
-	// TODO: Define all status registers
+	// TODO(me): Define all status registers
 
 	/**
 	 * Checks if can execute
@@ -295,9 +295,9 @@ private:
 	 * @param s Source
 	 * @param d Destination
 	 */
-	void setLow(std::uint8_t s, std::uint16_t &d) {
-		d &= 0xff00;
-		d |= s;
+	void setLow(std::uint8_t s, std::uint16_t *d) {
+		*d &= 0xff00;
+		*d |= s;
 	}
 	/**
 	 * Sets high byte
@@ -305,15 +305,15 @@ private:
 	 * @param s Source
 	 * @param d Destination
 	 */
-	void setHigh(std::uint8_t s, std::uint16_t &d) {
-		d &= 0x00ff;
-		d |= s << 8;
+	void setHigh(std::uint8_t s, std::uint16_t *d) {
+		*d &= 0x00ff;
+		*d |= s << 8;
 	}
 	/**
 	 * Processes interrupts
 	 */
 	void processInterrupts() {
-		// TODO : Update interrupt flags
+		// TODO(me) : Update interrupt flags
 	}
 
 protected:
@@ -341,7 +341,7 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CCPU(CMotherBoard &motherBoard);
+	explicit CCPU(CMotherBoard *motherBoard);
 	/**
 	 * Destroys the object
 	 */
@@ -352,7 +352,7 @@ public:
 	 *
 	 * @param bus CPU bus
 	 */
-	void addHooksCPU(CBus &bus) {
+	void addHooksCPU(CBus *bus) {
 	}
 
 	/**
@@ -369,4 +369,4 @@ public:
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_CPU_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_CPU_HPP_

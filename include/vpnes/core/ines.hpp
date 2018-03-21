@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_INES_HPP_
-#define VPNES_INCLUDE_CORE_INES_HPP_
+#ifndef INCLUDE_VPNES_CORE_INES_HPP_
+#define INCLUDE_VPNES_CORE_INES_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -139,7 +139,7 @@ struct SNESData {
 	 * Constructs the structure from the data
 	 * @param ROM
 	 */
-	SNESData(std::ifstream &ROM);
+	explicit SNESData(std::ifstream *ROM);
 	/**
 	 * Deleted default constructor
 	 */
@@ -156,10 +156,10 @@ struct SNESData {
 	~SNESData() = default;
 };
 
-} /* ines */
+}  // namespace ines
 
 }  // namespace core
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDES_CORE_INES_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_INES_HPP_

@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ namespace factory {
  * @param frontEnd Front-end
  * @return NES
  */
-CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd) {
+CNES *factoryNROM(const SNESConfig &config, CFrontEnd *frontEnd) {
 	return factoryNES<CNROM>(config, frontEnd);
 }
 
@@ -62,7 +62,7 @@ CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd) {
  * @param motherBoard Motherboard
  * @param config NES config
  */
-CNROM::CNROM(CMotherBoard &motherBoard, const SNESConfig &config)
+CNROM::CNROM(CMotherBoard *motherBoard, const SNESConfig &config)
     : m_PRG(config.PRG)
     , m_CHR(config.CHR)
     , m_RAM(config.RAMSize)

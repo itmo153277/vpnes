@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ SNESConfig::SNESConfig()
  * @param inputFile Input file stream
  */
 void SNESConfig::configure(
-    const gui::SApplicationConfig &appConfig, std::ifstream &inputFile) {
+    const gui::SApplicationConfig &appConfig, std::ifstream *inputFile) {
 	ines::SNESData nesData(inputFile);
 	PRGSize = nesData.PRGSize;
 	CHRSize = nesData.CHRSize;
@@ -92,7 +92,7 @@ void SNESConfig::configure(
  * @param frontEnd Front-end
  * @return Instance of NES
  */
-CNES *vpnes::core::SNESConfig::createInstance(CFrontEnd &frontEnd) {
+CNES *vpnes::core::SNESConfig::createInstance(CFrontEnd *frontEnd) {
 	assert(MMCType < MMCAmount);
 	return factoryList[MMCType](*this, frontEnd);
 }

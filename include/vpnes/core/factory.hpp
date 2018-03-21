@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_FACTORY_HPP_
-#define VPNES_INCLUDE_CORE_FACTORY_HPP_
+#ifndef INCLUDE_VPNES_CORE_FACTORY_HPP_
+#define INCLUDE_VPNES_CORE_FACTORY_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -47,7 +47,7 @@ namespace core {
  * @param config NES config
  * @return NES
  */
-typedef CNES *(*NESFactory)(SNESConfig &config, CFrontEnd &frontEnd);
+typedef CNES *(*NESFactory)(const SNESConfig &config, CFrontEnd *frontEnd);
 
 namespace factory {
 
@@ -58,7 +58,7 @@ namespace factory {
  * @param frontEnd Front-end
  * @return NES
  */
-CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd);
+CNES *factoryNROM(const SNESConfig &config, CFrontEnd *frontEnd);
 
 }  // namespace factory
 
@@ -66,4 +66,4 @@ CNES *factoryNROM(SNESConfig &config, CFrontEnd &frontEnd);
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_FACTORY_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_FACTORY_HPP_

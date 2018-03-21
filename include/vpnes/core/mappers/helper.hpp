@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_MAPPERS_HELPER_HPP_
-#define VPNES_INCLUDE_CORE_MAPPERS_HELPER_HPP_
+#ifndef INCLUDE_VPNES_CORE_MAPPERS_HELPER_HPP_
+#define INCLUDE_VPNES_CORE_MAPPERS_HELPER_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -82,16 +82,16 @@ public:
 	 * @param config NES config
 	 * @param frontEnd GUI callback
 	 */
-	CNESHelper(SNESConfig &config, CFrontEnd &frontEnd)
+	CNESHelper(const SNESConfig &config, CFrontEnd *frontEnd)
 	    : CNES()
 	    , m_MotherBoard(frontEnd, Config::getFrequency(), Config::FrameTime)
-	    , m_CPU(m_MotherBoard)
-	    , m_PPU(m_MotherBoard)
-	    , m_APU(m_MotherBoard)
-	    , m_MMC(m_MotherBoard, config) {
-		m_MotherBoard.addBusCPU(m_CPU, m_APU, m_PPU, m_MMC);
-		m_MotherBoard.addBusPPU(m_MMC);
-		m_MotherBoard.registerSimDevices(m_CPU, m_APU, m_PPU, m_MMC);
+	    , m_CPU(&m_MotherBoard)
+	    , m_PPU(&m_MotherBoard)
+	    , m_APU(&m_MotherBoard)
+	    , m_MMC(&m_MotherBoard, config) {
+		m_MotherBoard.addBusCPU(&m_CPU, &m_APU, &m_PPU, &m_MMC);
+		m_MotherBoard.addBusPPU(&m_MMC);
+		m_MotherBoard.registerSimDevices(&m_CPU, &m_APU, &m_PPU, &m_MMC);
 	}
 	/**
 	 * Starts the simulation
@@ -131,7 +131,7 @@ struct SConfigNTSC {
  * @return NES
  */
 template <class T>
-CNES *factoryNES(SNESConfig &config, CFrontEnd &frontEnd) {
+CNES *factoryNES(const SNESConfig &config, CFrontEnd *frontEnd) {
 	return new CNESHelper<SConfigNTSC, T>(config, frontEnd);
 }
 
@@ -141,4 +141,4 @@ CNES *factoryNES(SNESConfig &config, CFrontEnd &frontEnd) {
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_MAPPERS_HELPER_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_MAPPERS_HELPER_HPP_

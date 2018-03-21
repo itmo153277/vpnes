@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ SApplicationConfig::SApplicationConfig() : inputFile() {
  * @param argv Array of parameters
  */
 void SApplicationConfig::parseOptions(int argc, char **argv) {
-	// TODO: Implement parsing
+	// TODO(me): Implement parsing
 	if (argc >= 2) {
 		setInputFile(argv[1]);
 	}

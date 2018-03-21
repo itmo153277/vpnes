@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_MBOARD_HPP_
-#define VPNES_INCLUDE_CORE_MBOARD_HPP_
+#ifndef INCLUDE_VPNES_CORE_MBOARD_HPP_
+#define INCLUDE_VPNES_CORE_MBOARD_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -91,8 +91,8 @@ private:
 	 * @param otherDevices Other devices
 	 */
 	template <class FirstDevice, class... OtherDevices>
-	void addHooksPPU(FirstDevice &device, OtherDevices &... otherDevices) {
-		device.addHooksPPU(*m_BusPPU);
+	void addHooksPPU(FirstDevice *device, OtherDevices *... otherDevices) {
+		device->addHooksPPU(m_BusPPU.get());
 		addHooksPPU(otherDevices...);
 	}
 	/**
@@ -107,8 +107,8 @@ private:
 	 * @param otherDevices Other devices
 	 */
 	template <class FirstDevice, class... OtherDevices>
-	void addHooksCPU(FirstDevice &device, OtherDevices &... otherDevices) {
-		device.addHooksCPU(*m_BusCPU);
+	void addHooksCPU(FirstDevice *device, OtherDevices *... otherDevices) {
+		device->addHooksCPU(m_BusCPU.get());
 		addHooksCPU(otherDevices...);
 	}
 
@@ -157,14 +157,14 @@ public:
 	 * @param frequency Frequency
 	 * @param frameTime Basic frame time
 	 */
-	CMotherBoard(CFrontEnd &frontEnd, double frequency, ticks_t frameTime)
+	CMotherBoard(CFrontEnd *frontEnd, double frequency, ticks_t frameTime)
 	    : CGeneratorDevice(true)
 	    , CEventManager()
 	    , m_CurrentDevice()
-	    , m_FrontEnd(&frontEnd)
+	    , m_FrontEnd(frontEnd)
 	    , m_FrameTime(frameTime)
 	    , m_Freq(frequency) {
-		registerEvent(*this, "FRAME_RENDER_END", m_FrameTime, true,
+		registerEvent(this, "FRAME_RENDER_END", m_FrameTime, true,
 		    &CMotherBoard::handleFrameEnd);
 	}
 	/**
@@ -184,11 +184,11 @@ public:
 	 * @param devices Devices
 	 */
 	template <class... Devices>
-	void registerSimDevices(Devices &... devices) {
+	void registerSimDevices(Devices *... devices) {
 		static_assert(
 		    cond_and<std::is_base_of<CClockedDevice, Devices>...>::value,
 		    "Only for clocked devices");
-		m_Devices = {&devices...};
+		m_Devices = {devices...};
 	}
 	/**
 	 * Creates new PPU bus
@@ -196,7 +196,7 @@ public:
 	 * @param devices Devices on PPU bus
 	 */
 	template <class... Devices>
-	void addBusPPU(Devices &... devices) {
+	void addBusPPU(Devices *... devices) {
 		m_BusPPU.reset(
 		    new CBusConfig<typename Devices::PPUConfig...>(0x00, devices...));
 		addHooksPPU(devices...);
@@ -207,7 +207,7 @@ public:
 	 * @param devices Devices on CPU bus
 	 */
 	template <class... Devices>
-	void addBusCPU(Devices &... devices) {
+	void addBusCPU(Devices *... devices) {
 		m_BusCPU.reset(
 		    new CBusConfig<typename Devices::CPUConfig...>(0x40, devices...));
 		addHooksCPU(devices...);
@@ -264,4 +264,4 @@ public:
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_MBOARD_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_MBOARD_HPP_

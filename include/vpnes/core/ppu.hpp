@@ -5,7 +5,7 @@
  */
 /*
  NES Emulator
- Copyright (C) 2012-2017  Ivanov Viktor
+ Copyright (C) 2012-2018  Ivanov Viktor
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 
  */
 
-#ifndef VPNES_INCLUDE_CORE_PPU_HPP_
-#define VPNES_INCLUDE_CORE_PPU_HPP_
+#ifndef INCLUDE_VPNES_CORE_PPU_HPP_
+#define INCLUDE_VPNES_CORE_PPU_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -70,9 +70,9 @@ public:
 		static void mapIO(MemoryMap::iterator iterRead,
 		    MemoryMap::iterator iterWrite, MemoryMap::iterator iterMod,
 		    std::uint8_t *openBus, std::uint8_t *dummy, std::uint8_t *writeBuf,
-		    CPPU &device) {
+		    CPPU *device) {
 			BankConfig::mapIO(iterRead, iterWrite, iterMod, openBus, dummy,
-			    writeBuf, &device.m_IOBuf);
+			    writeBuf, &device->m_IOBuf);
 		}
 		/**
 		 * Checks if device is enabled
@@ -90,7 +90,7 @@ public:
 		 * @param device Device
 		 * @return Active bank
 		 */
-		static std::size_t getBank(std::uint16_t addr, CPPU &device) {
+		static std::size_t getBank(std::uint16_t addr, const CPPU &device) {
 			return 0;
 		}
 	};
@@ -142,8 +142,8 @@ public:
 	 *
 	 * @param motherBoard Motherboard
 	 */
-	CPPU(CMotherBoard &motherBoard)
-	    : CEventDevice(), m_MotherBoard(&motherBoard), m_IOBuf() {
+	explicit CPPU(CMotherBoard *motherBoard)
+	    : CEventDevice(), m_MotherBoard(motherBoard), m_IOBuf() {
 	}
 	/**
 	 * Destroys the object
@@ -155,10 +155,10 @@ public:
 	 *
 	 * @param bus CPU bus
 	 */
-	void addHooksCPU(CBus &bus) {
+	void addHooksCPU(CBus *bus) {
 		for (std::uint16_t addr = 0x2000; addr < 0x4000; addr++) {
-			bus.addPreReadHook(addr, *this, &CPPU::readReg);
-			bus.addWriteHook(addr, *this, &CPPU::writeReg);
+			bus->addPreReadHook(addr, this, &CPPU::readReg);
+			bus->addWriteHook(addr, this, &CPPU::writeReg);
 		}
 	}
 	/**
@@ -166,7 +166,7 @@ public:
 	 *
 	 * @param bus PPU bus
 	 */
-	void addHooksPPU(CBus &bus) {
+	void addHooksPPU(CBus *bus) {
 	}
 
 	/**
@@ -183,4 +183,4 @@ public:
 
 }  // namespace vpnes
 
-#endif /* VPNES_INCLUDE_CORE_PPU_HPP_ */
+#endif  // INCLUDE_VPNES_CORE_PPU_HPP_
