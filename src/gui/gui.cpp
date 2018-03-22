@@ -29,7 +29,7 @@
 
 #include <SDL.h>
 #include <cerrno>
-#include <<cstdint>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <exception>

@@ -66,6 +66,9 @@
     <ClInclude Include="include\vpnes\core\ppu.hpp">
       <Filter>Headers\core</Filter>
     </ClInclude>
+    <ClInclude Include="include\vpnes\core\ppu_compile.hpp">
+      <Filter>Headers\core</Filter>
+    </ClInclude>
     <ClInclude Include="include\vpnes\gui\config.hpp">
       <Filter>Headers\gui</Filter>
     </ClInclude>

@@ -3,7 +3,7 @@ vpnes 0.5
 
 NES Emulator
 
-Copyright &copy; 2012-2017 Ivanov Viktor
+Copyright &copy; 2012-2018 Ivanov Viktor
 
 ## Installation
 

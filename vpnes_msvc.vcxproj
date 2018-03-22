@@ -198,6 +198,7 @@
     <ClInclude Include="include\vpnes\core\mboard.hpp" />
     <ClInclude Include="include\vpnes\core\nes.hpp" />
     <ClInclude Include="include\vpnes\core\ppu.hpp" />
+    <ClInclude Include="include\vpnes\core\ppu_compile.hpp" />
     <ClInclude Include="include\vpnes\gui\config.hpp" />
     <ClInclude Include="include\vpnes\gui\gui.hpp" />
     <ClInclude Include="include\vpnes\vpnes.hpp" />

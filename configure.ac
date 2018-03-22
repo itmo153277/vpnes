@@ -16,9 +16,17 @@ DX_PS_FEATURE(OFF)
 DX_INIT_DOXYGEN([vpnes], [], [doc])
 AC_CONFIG_HEADERS([config.h])
 
-AC_COPYRIGHT([Copyright (c) 2012-2017 Ivanov Viktor])
+AC_COPYRIGHT([Copyright (c) 2012-2018 Ivanov Viktor])
 
 AC_CANONICAL_HOST
+
+host_os_windows=no
+case ${host_os} in
+	*cygwin* | *mingw* | *msys* )
+		host_os_windows=yes
+		;;
+esac
+AM_CONDITIONAL([WINDOWS], [test "x$host_os_windows" = "xyes"])
 
 AM_CONDITIONAL([MAKE_MAN], [test "x$DX_FLAG_man" = "x1"])
 
