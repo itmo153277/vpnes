@@ -9,7 +9,7 @@ Copyright &copy; 2012-2018 Ivanov Viktor
 
 ### Cross-platform
 
-Before compiling make sure that you have autoconf-archive, SDL2 and SDL2_gfx installed.
+Before compiling make sure that you have autoconf-archive (>= 2015.11.07), SDL2 (>= 2.0.5) and SDL2_gfx installed.
 
 #### Compiling From Git
 

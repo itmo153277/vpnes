@@ -35,16 +35,21 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([], [mandatory])
 
 can_use_sdl2="yes"
-AM_PATH_SDL2([2.0.0], [], [can_use_sdl2="no"])
-SDL_LIBS="$SDL_LIBS -lSDL2_gfx"
-if test "x$can_use_sdl2" = "xyes" ; then
-	LIBS_SAVE=$LIBS
-	CPPFLAGS_SAVE=$CPPFLAGS
-	LIBS="$SDL_LIBS $LIBS"
-	CPPFLAGS="$SDL_CFLAGS $CPPFLAGS"
-	AC_CHECK_HEADERS([SDL2_gfxPrimitives.h SDL2_framerate.h], [], [can_use_sdl2="no"], [])
-	LIBS=$LIBS_SAVE
-	CPPFLAGS=$CPPFLAGS_SAVE
+PKG_CHECK_MODULES([SDL], [sdl2 >= 2.0.5 SDL2_gfx], [], [can_use_sdl2="no"])
+if test "x$can_use_sdl2" = "xno" ; then
+	AC_MSG_WARN([pkg-config failed: $SDL_PKG_ERRORS])
+	dnl Retrying with direct approach
+	AM_PATH_SDL2([2.0.5], [can_use_sdl2="yes"])
+	if test "x$can_use_sdl2" = "xyes" ; then
+		SDL_LIBS="$SDL_LIBS -lSDL2_gfx"
+		LIBS_SAVE=$LIBS
+		CPPFLAGS_SAVE=$CPPFLAGS
+		LIBS="$SDL_LIBS $LIBS"
+		CPPFLAGS="$SDL_CFLAGS $CPPFLAGS"
+		AC_CHECK_HEADERS([SDL2_gfxPrimitives.h SDL2_framerate.h], [], [can_use_sdl2="no"], [])
+		LIBS=$LIBS_SAVE
+		CPPFLAGS=$CPPFLAGS_SAVE
+	fi
 fi
 if test "x$can_use_sdl2" = "xno" ; then
 	AC_MSG_ERROR([could not find compatible SDL2])
@@ -56,4 +61,3 @@ fi
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
-
