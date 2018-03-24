@@ -520,7 +520,7 @@ public:
 	 */
 	void registerDeviceEvent(CEvent *event) {
 		assert(m_EventData.find(event) == m_EventData.end());
-		auto newData = m_EventData.emplace(event, event);
+		auto newData = m_EventData.emplace(event, SEventData(event));
 		SEventData &eventData = newData.first->second;
 		if (eventData.m_Enabled) {
 			m_EventQueue.insert(&eventData);
@@ -643,7 +643,7 @@ public:
 		assert(eventMap.find(name) == eventMap.end());
 		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
 		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		events.emplace(device, event);
+		events.emplace(device, std::unique_ptr<typename T::CEvent>(event));
 		eventMap.emplace(name, event);
 		device->registerDeviceEvent(event);
 		return *event;
