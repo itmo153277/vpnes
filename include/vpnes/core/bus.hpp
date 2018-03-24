@@ -362,7 +362,7 @@ public:
 	template <class T>
 	void addPreReadHook(std::uint16_t addr, T *device,
 	    typename CAddrHookMapped<T>::addrHook_t hook) {
-		m_ReadHooksPre.emplace(addr, new CAddrHookMapped<T>(device, hook));
+		m_ReadHooksPre.emplace(addr, std::unique_ptr<CAddrHook>(new CAddrHookMapped<T>(device, hook)));
 	}
 	/**
 	 * Adds new post read hook
@@ -386,7 +386,7 @@ public:
 	template <class T>
 	void addWriteHook(std::uint16_t addr, T *device,
 	    typename CAddrValHookMapped<T>::addrHook_t hook) {
-		m_WriteHooks.emplace(addr, new CAddrValHookMapped<T>(device, hook));
+		m_WriteHooks.emplace(addr, std::unique_ptr<CAddrValHook>(new CAddrValHookMapped<T>(device, hook)));
 	}
 };
 
