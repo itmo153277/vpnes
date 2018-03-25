@@ -131,53 +131,6 @@ struct distinct_class_pack<class_pack<T1, T2...>>
 template <>
 struct distinct_class_pack<class_pack<>> : class_pack<> {};
 
-/**
- * Indices pack helpers
- */
-template <std::size_t... I>
-struct index_pack {
-	/**
-	 * Actual type
-	 */
-	using type = index_pack;
-	enum {
-		size = sizeof...(I)  //!< Pack size
-	};
-};
-
-/**
- * Merging index pack
- */
-template <class IndexPack1, class IndexPack2>
-struct merge_index_pack;
-
-/**
- * Implementation for merging index pack
- */
-template <std::size_t... I1, std::size_t... I2>
-struct merge_index_pack<index_pack<I1...>, index_pack<I2...>>
-    : index_pack<I1..., (sizeof...(I1) + I2)...> {};
-
-/**
- * Making index pack of given size
- */
-template <std::size_t Size>
-struct make_index_pack
-    : merge_index_pack<typename make_index_pack<Size / 2>::type,
-          typename make_index_pack<Size - Size / 2>::type> {};
-
-/**
- * Empty index pack
- */
-template <>
-struct make_index_pack<0> : index_pack<> {};
-
-/**
- * Index pack start
- */
-template <>
-struct make_index_pack<1> : index_pack<0> {};
-
 }  // namespace vpnes
 
 #endif  // INCLUDE_VPNES_VPNES_HPP_

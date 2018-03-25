@@ -178,8 +178,7 @@ void CGUI::handleFrameRender(double frameTime) {
 		   << curFrame * 1000.0 /
 		          std::chrono::duration_cast<std::chrono::milliseconds>(
 		              newTime - lastTime)
-		              .count()
-		   << std::endl;
+		              .count();
 		::SDL_SetWindowTitle(m_Window, ss.str().c_str());
 		curFrame = 0;
 	}

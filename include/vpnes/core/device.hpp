@@ -632,7 +632,7 @@ public:
 	 * @return Constructed event
 	 */
 	template <class T, typename... TArgs>
-	typename T::CEvent &registerEvent(T *device, const char *name, ticks_t time,
+	typename T::CEvent *registerEvent(T *device, const char *name, ticks_t time,
 	    bool enabled, TArgs &&... args) {
 		static_assert(std::is_base_of<CEventDevice, T>::value,
 		    "T is not event based device");
@@ -641,12 +641,13 @@ public:
 		                  decltype(std::forward<TArgs>(args))...>::value,
 		    "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
-		typename T::CEvent *event = new typename T::template CLocalEvent<T>(
+		auto event = std::make_unique<typename T::template CLocalEvent<T>>(
 		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		events.emplace(device, event);
-		eventMap.emplace(name, event);
-		device->registerDeviceEvent(event);
-		return *event;
+		typename T::CEvent *eventPtr = event.get();
+		events.emplace(device, std::move(event));
+		eventMap.emplace(name, eventPtr);
+		device->registerDeviceEvent(eventPtr);
+		return eventPtr;
 	}
 	/**
 	 * Looks up for an event

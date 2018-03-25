@@ -32,7 +32,7 @@ AM_CONDITIONAL([MAKE_MAN], [test "x$DX_FLAG_man" = "x1"])
 
 AC_LANG([C++])
 
-AX_CXX_COMPILE_STDCXX_11([], [mandatory])
+AX_CXX_COMPILE_STDCXX_17([], [mandatory])
 
 can_use_sdl2="yes"
 PKG_CHECK_MODULES([SDL], [sdl2 >= 2.0.5 SDL2_gfx], [], [can_use_sdl2="no"])

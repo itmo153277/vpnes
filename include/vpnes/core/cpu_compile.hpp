@@ -29,6 +29,7 @@
 #include "config.h"
 #endif
 
+#include <utility>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/cpu.hpp>
 
@@ -189,7 +190,7 @@ struct InvokeExpandHelper;
  */
 
 template <std::size_t Index, class Operation, std::size_t... Indices>
-struct InvokeExpandHelper<Index, Operation, index_pack<Indices...>>
+struct InvokeExpandHelper<Index, Operation, std::index_sequence<Indices...>>
     : class_pack<Invoker<Indices, Index + Indices, Operation>...> {};
 
 /**
@@ -211,7 +212,7 @@ template <std::size_t Offset, class FirstOperation, class... OtherOperations>
 struct InvokeExpand<Offset, class_pack<FirstOperation, OtherOperations...>>
     : merge_class_pack<
           typename InvokeExpandHelper<Offset, FirstOperation,
-              typename make_index_pack<FirstOperation::Size>::type>::type,
+              std::make_index_sequence<FirstOperation::Size>>::type,
           typename InvokeExpand<Offset + FirstOperation::Size,
               class_pack<OtherOperations...>>::type> {};
 
@@ -317,7 +318,7 @@ struct OpcodeParser;
  * Implementation of opcode parser
  */
 template <std::size_t... Codes, class OpcodeFinder>
-struct OpcodeParser<OpcodeFinder, index_pack<Codes...>> {
+struct OpcodeParser<OpcodeFinder, std::index_sequence<Codes...>> {
 	/**
 	 * Looks up code and returns index in compiled microcode
 	 *
@@ -422,7 +423,7 @@ struct Control {
 	 */
 	static std::size_t parseOpcode(std::uint8_t code) {
 		return OpcodeParser<opcode_finder,
-		    typename make_index_pack<0x100>::type>::parseOpcode(code);
+		    std::make_index_sequence<0x100>>::parseOpcode(code);
 	}
 };
 

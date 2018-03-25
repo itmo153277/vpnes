@@ -6,8 +6,8 @@
 
 #pragma once
 
-/* Define if the compiler supports basic C++11 syntax */
-#define HAVE_CXX11 1
+/* Define if the compiler supports basic C++17 syntax */
+#define HAVE_CXX17 1
 
 /* Name of package */
 #define PACKAGE "vpnes"

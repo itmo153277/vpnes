@@ -362,7 +362,8 @@ public:
 	template <class T>
 	void addPreReadHook(std::uint16_t addr, T *device,
 	    typename CAddrHookMapped<T>::addrHook_t hook) {
-		m_ReadHooksPre.emplace(addr, new CAddrHookMapped<T>(device, hook));
+		m_ReadHooksPre.emplace(
+		    addr, std::make_unique<CAddrHookMapped<T>>(device, hook));
 	}
 	/**
 	 * Adds new post read hook
@@ -374,7 +375,8 @@ public:
 	template <class T>
 	void addPostReadHook(std::uint16_t addr, T *device,
 	    typename CAddrValHookMapped<T>::addrHook_t hook) {
-		m_ReadHooksPost.emplace(addr, new CAddrValHookMapped<T>(device, hook));
+		m_ReadHooksPost.emplace(
+		    addr, std::make_unique<CAddrValHookMapped<T>>(device, hook));
 	}
 	/**
 	 * Adds new write hook
@@ -386,7 +388,8 @@ public:
 	template <class T>
 	void addWriteHook(std::uint16_t addr, T *device,
 	    typename CAddrValHookMapped<T>::addrHook_t hook) {
-		m_WriteHooks.emplace(addr, new CAddrValHookMapped<T>(device, hook));
+		m_WriteHooks.emplace(
+		    addr, std::make_unique<CAddrValHookMapped<T>>(device, hook));
 	}
 };
 
@@ -993,7 +996,7 @@ struct BankOffsetExpand;
  * Expanded bank offset values
  */
 template <std::size_t... Indices, class... Banks>
-struct BankOffsetExpand<class_pack<Banks...>, index_pack<Indices...>> {
+struct BankOffsetExpand<class_pack<Banks...>, std::index_sequence<Indices...>> {
 	/**
 	 * Gets read offset
 	 *
@@ -1034,7 +1037,7 @@ struct BankOffsetExpand<class_pack<Banks...>, index_pack<Indices...>> {
  */
 template <class... Banks>
 struct BankOffset : BankOffsetExpand<class_pack<Banks...>,
-                        typename make_index_pack<sizeof...(Banks)>::type> {};
+                        std::make_index_sequence<sizeof...(Banks)>> {};
 
 /**
  * Bank config

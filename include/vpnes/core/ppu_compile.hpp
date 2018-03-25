@@ -31,6 +31,7 @@
 
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/device.hpp>
+#include <vpnes/core/ppu.hpp>
 
 namespace vpnes {
 
