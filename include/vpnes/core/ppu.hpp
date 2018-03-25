@@ -108,7 +108,14 @@ private:
 	 * IO Buffer
 	 */
 	std::uint8_t m_IOBuf;
-
+	/**
+	 * Estimated frame time
+	 */
+	ticks_t m_FrameTime;
+	/**
+	 * Frequency
+	 */
+	double m_Freq;
 	/**
 	 * Reads register
 	 *
@@ -123,6 +130,18 @@ private:
 	 * @param addr Address
 	 */
 	void writeReg(std::uint8_t val, std::uint16_t addr) {
+	}
+
+	/**
+	 * Handles frame ending
+	 *
+	 * @param event Frame ending event
+	 */
+	void handleFrameEnd(CMotherBoard::CEvent *event) {
+		m_MotherBoard->getFrontEnd()->handleFrameRender(
+		    event->getFireTime() * m_Freq);
+		m_MotherBoard->resetClock(event->getFireTime());
+		event->setFireTime(m_FrameTime);
 	}
 
 protected:
@@ -141,9 +160,17 @@ public:
 	 * Constructs the object
 	 *
 	 * @param motherBoard Motherboard
+	 * @param frequency Frequency
+	 * @param frameTime Basic frame time
 	 */
-	explicit CPPU(CMotherBoard *motherBoard)
-	    : CEventDevice(), m_MotherBoard(motherBoard), m_IOBuf() {
+	CPPU(CMotherBoard *motherBoard, double frequency, std::size_t frameTime)
+	    : CEventDevice()
+	    , m_MotherBoard(motherBoard)
+	    , m_IOBuf()
+	    , m_FrameTime(frameTime)
+	    , m_Freq(frequency) {
+		m_MotherBoard->registerEvent(this, m_MotherBoard, "FRAME_RENDER_END",
+		    m_FrameTime, true, &CPPU::handleFrameEnd);
 	}
 	/**
 	 * Destroys the object

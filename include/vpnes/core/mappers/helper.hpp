@@ -84,9 +84,9 @@ public:
 	 */
 	CNESHelper(const SNESConfig &config, CFrontEnd *frontEnd)
 	    : CNES()
-	    , m_MotherBoard(frontEnd, Config::getFrequency(), Config::FrameTime)
+	    , m_MotherBoard(frontEnd)
 	    , m_CPU(&m_MotherBoard)
-	    , m_PPU(&m_MotherBoard)
+	    , m_PPU(&m_MotherBoard, Config::getFrequency(), Config::FrameTime)
 	    , m_APU(&m_MotherBoard)
 	    , m_MMC(&m_MotherBoard, config) {
 		m_MotherBoard.addBusCPU(&m_CPU, &m_APU, &m_PPU, &m_MMC);
@@ -118,7 +118,7 @@ struct SConfigNTSC {
 	 *
 	 * @return Frequency
 	 */
-	static double getFrequency() {
+	static constexpr double getFrequency() {
 		return 44.0 / 945000.0;
 	}
 };

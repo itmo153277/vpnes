@@ -2599,7 +2599,7 @@ struct CCPU::opcodes {
  * @param motherBoard Motherboard
  */
 CCPU::CCPU(CMotherBoard *motherBoard)
-    : CEventDevice()
+    : CClockedDevice()
     , m_MotherBoard(motherBoard)
     , m_InternalClock()
     , m_CurrentIndex(opcodes::control::ResetIndex)

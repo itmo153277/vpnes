@@ -288,7 +288,7 @@ public:
 	/**
 	 * Template for local events
 	 */
-	template <class T>
+	template <class Handler, class Device>
 	class CLocalEvent : public CEvent {
 	public:
 		/**
@@ -296,13 +296,17 @@ public:
 		 *
 		 * @param Occurred event
 		 */
-		typedef void (T::*local_trigger_t)(CEvent *);
+		typedef void (Handler::*local_trigger_t)(CEvent *);
 
 	private:
 		/**
 		 * Saved local event handler
 		 */
 		local_trigger_t m_LocalTrigger;
+		/**
+		 * Device that will be called
+		 */
+		Handler *m_Handler;
 
 	public:
 		/**
@@ -314,9 +318,11 @@ public:
 		 * @param device Associated device
 		 * @param trigger Trigger that will be fired
 		 */
-		CLocalEvent(const char *name, ticks_t time, bool enabled, T *device,
-		    local_trigger_t trigger)
-		    : CEvent(name, time, enabled, device), m_LocalTrigger(trigger) {
+		CLocalEvent(const char *name, ticks_t time, bool enabled,
+		    Handler *handler, Device *device, local_trigger_t trigger)
+		    : CEvent(name, time, enabled, device)
+		    , m_LocalTrigger(trigger)
+		    , m_Handler(handler) {
 		}
 		/**
 		 * Destroys the object
@@ -326,7 +332,7 @@ public:
 		 * Trigger for local event handler
 		 */
 		void fire() {
-			(static_cast<T *>(m_Device)->*m_LocalTrigger)(this);
+			(m_Handler->*m_LocalTrigger)(this);
 		}
 	};
 
@@ -631,19 +637,22 @@ public:
 	 * @param args Other arguments to pass to constructor
 	 * @return Constructed event
 	 */
-	template <class T, typename... TArgs>
-	typename T::CEvent *registerEvent(T *device, const char *name, ticks_t time,
-	    bool enabled, TArgs &&... args) {
-		static_assert(std::is_base_of<CEventDevice, T>::value,
+	template <class Device, class Handler, typename... TArgs>
+	typename Device::CEvent *registerEvent(Handler *handler, Device *device,
+	    const char *name, ticks_t time, bool enabled, TArgs &&... args) {
+		static_assert(std::is_base_of<CEventDevice, Device>::value,
 		    "T is not event based device");
-		static_assert(std::is_constructible<typename T::template CLocalEvent<T>,
-		                  const char *, ticks_t, bool, T *,
-		                  decltype(std::forward<TArgs>(args))...>::value,
+		static_assert(
+		    std::is_constructible<
+		        typename Device::template CLocalEvent<Handler, Device>,
+		        const char *, ticks_t, bool, Handler *, Device *,
+		        decltype(std::forward<TArgs>(args))...>::value,
 		    "T::LocalEvent cannot be constructed");
 		assert(eventMap.find(name) == eventMap.end());
-		auto event = std::make_unique<typename T::template CLocalEvent<T>>(
-		    name, time, enabled, device, std::forward<TArgs>(args)...);
-		typename T::CEvent *eventPtr = event.get();
+		auto event = std::make_unique<
+		    typename Device::template CLocalEvent<Handler, Device>>(
+		    name, time, enabled, handler, device, std::forward<TArgs>(args)...);
+		typename Device::CEvent *eventPtr = event.get();
 		events.emplace(device, std::move(event));
 		eventMap.emplace(name, eventPtr);
 		device->registerDeviceEvent(eventPtr);

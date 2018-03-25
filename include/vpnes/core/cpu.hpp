@@ -44,7 +44,7 @@ namespace core {
 /**
  * Basic CPU
  */
-class CCPU : public CEventDevice {
+class CCPU : public CClockedDevice {
 public:
 	/**
 	 * CPU bus config
@@ -327,7 +327,6 @@ protected:
 	 * @param ticks Amount of ticks
 	 */
 	void resetClock(ticks_t ticks) {
-		CEventDevice::resetClock(ticks);
 		m_InternalClock -= ticks;
 	}
 

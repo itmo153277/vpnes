@@ -70,14 +70,6 @@ private:
 	 * Front-end
 	 */
 	CFrontEnd *m_FrontEnd;
-	/**
-	 * Estimated frame time
-	 */
-	ticks_t m_FrameTime;
-	/**
-	 * Frequency
-	 */
-	double m_Freq;
 
 	/**
 	 * Adds hooks for PPU bus
@@ -112,17 +104,6 @@ private:
 		addHooksCPU(otherDevices...);
 	}
 
-	/**
-	 * Handles frame ending
-	 *
-	 * @param event Frame ending event
-	 */
-	void handleFrameEnd(CEvent *event) {
-		m_FrontEnd->handleFrameRender(event->getFireTime() * m_Freq);
-		resetClock(event->getFireTime());
-		event->setFireTime(m_FrameTime);
-	}
-
 protected:
 	/**
 	 * Executes the simulation
@@ -154,18 +135,12 @@ public:
 	 * Constructs the object
 	 *
 	 * @param frontEnd Front-end
-	 * @param frequency Frequency
-	 * @param frameTime Basic frame time
 	 */
-	CMotherBoard(CFrontEnd *frontEnd, double frequency, ticks_t frameTime)
+	explicit CMotherBoard(CFrontEnd *frontEnd)
 	    : CGeneratorDevice(true)
 	    , CEventManager()
 	    , m_CurrentDevice()
-	    , m_FrontEnd(frontEnd)
-	    , m_FrameTime(frameTime)
-	    , m_Freq(frequency) {
-		registerEvent(this, "FRAME_RENDER_END", m_FrameTime, true,
-		    &CMotherBoard::handleFrameEnd);
+	    , m_FrontEnd(frontEnd) {
 	}
 	/**
 	 * Deleted copy constructor
@@ -190,6 +165,7 @@ public:
 		    "Only for clocked devices");
 		m_Devices = {devices...};
 	}
+
 	/**
 	 * Creates new PPU bus
 	 *
@@ -232,9 +208,6 @@ public:
 		return *m_BusCPU;
 	}
 
-	double getFrequency() const {
-		return m_Freq;
-	}
 	/**
 	 * Resets the clock by ticks amount
 	 *
@@ -257,6 +230,14 @@ public:
 		} else {
 			return m_Clock;
 		}
+	}
+	/**
+	 * Gets frontend
+	 *
+	 * @return Frontend
+	 */
+	CFrontEnd *getFrontEnd() const {
+		return m_FrontEnd;
 	}
 };
 
