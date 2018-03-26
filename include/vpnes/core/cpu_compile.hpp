@@ -128,6 +128,7 @@ struct Operation<FirstCycle, OtherCycles...> {
 					FirstCycle::template execute<Control>(cpu);
 				} else {
 					Control::setEndPoint(cpu, Index);
+					return;
 				}
 			}
 			Operation<OtherCycles...>::template execute<0, Index + 1, Control>(

@@ -155,16 +155,16 @@ struct CCPU::opcodes {
 	};
 	struct cmdINY : cpu::Command {
 		static void execute(CCPU *cpu) {
-			++cpu->m_X;
-			cpu->setNegativeFlag(cpu->m_X);
-			cpu->setZeroFlag(cpu->m_X);
+			++cpu->m_Y;
+			cpu->setNegativeFlag(cpu->m_Y);
+			cpu->setZeroFlag(cpu->m_Y);
 		}
 	};
 	struct cmdDEY : cpu::Command {
 		static void execute(CCPU *cpu) {
-			--cpu->m_X;
-			cpu->setNegativeFlag(cpu->m_X);
-			cpu->setZeroFlag(cpu->m_X);
+			--cpu->m_Y;
+			cpu->setNegativeFlag(cpu->m_Y);
+			cpu->setZeroFlag(cpu->m_Y);
 		}
 	};
 	struct cmdBCC : cpu::Command {
@@ -282,7 +282,7 @@ struct CCPU::opcodes {
 	};
 	struct cmdCMP : cpu::Command {
 		static void execute(CCPU *cpu) {
-			std::uint16_t dummy = cpu->m_A - cpu->m_OP;
+			std::uint16_t dummy = cpu->m_A - cpu->m_DB;
 			cpu->setCarryFlag(dummy < 0x0100);
 			cpu->setNegativeFlag(dummy);
 			cpu->setZeroFlag(dummy & 0xff);
@@ -290,7 +290,7 @@ struct CCPU::opcodes {
 	};
 	struct cmdCPX : cpu::Command {
 		static void execute(CCPU *cpu) {
-			std::uint16_t dummy = cpu->m_X - cpu->m_OP;
+			std::uint16_t dummy = cpu->m_X - cpu->m_DB;
 			cpu->setCarryFlag(dummy < 0x0100);
 			cpu->setNegativeFlag(dummy);
 			cpu->setZeroFlag(dummy & 0xff);
@@ -298,7 +298,7 @@ struct CCPU::opcodes {
 	};
 	struct cmdCPY : cpu::Command {
 		static void execute(CCPU *cpu) {
-			std::uint16_t dummy = cpu->m_Y - cpu->m_OP;
+			std::uint16_t dummy = cpu->m_Y - cpu->m_DB;
 			cpu->setCarryFlag(dummy < 0x0100);
 			cpu->setNegativeFlag(dummy);
 			cpu->setZeroFlag(dummy & 0xff);
@@ -306,16 +306,16 @@ struct CCPU::opcodes {
 	};
 	struct cmdBIT : cpu::Command {
 		static void execute(CCPU *cpu) {
-			cpu->setOverflowFlag((cpu->m_OP & 0x40) != 0);
-			cpu->setNegativeFlag(cpu->m_OP);
-			cpu->setZeroFlag(cpu->m_A & cpu->m_OP);
+			cpu->setOverflowFlag((cpu->m_DB & 0x40) != 0);
+			cpu->setNegativeFlag(cpu->m_DB);
+			cpu->setZeroFlag(cpu->m_A & cpu->m_DB);
 		}
 	};
 	struct cmdADC : cpu::Command {
 		static void execute(CCPU *cpu) {
-			std::uint16_t dummy = cpu->m_OP + cpu->m_A + cpu->m_Carry;
+			std::uint16_t dummy = cpu->m_DB + cpu->m_A + cpu->m_Carry;
 			cpu->setOverflowFlag(
-			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
+			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
 			cpu->setCarryFlag(dummy >= 0x0100);
 			cpu->m_A = dummy & 0xff;
 			cpu->setNegativeFlag(cpu->m_A);
@@ -325,9 +325,9 @@ struct CCPU::opcodes {
 	struct cmdSBC : cpu::Command {
 		static void execute(CCPU *cpu) {
 			std::uint16_t dummy =
-			    cpu->m_A - cpu->m_OP - (cpu->m_Carry ^ CPUFlagCarry);
+			    cpu->m_A - cpu->m_DB - (cpu->m_Carry ^ CPUFlagCarry);
 			cpu->setOverflowFlag(
-			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
+			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
 			cpu->setCarryFlag(dummy < 0x0100);
 			cpu->m_A = dummy & 0xff;
 			cpu->setNegativeFlag(cpu->m_A);
@@ -656,6 +656,7 @@ struct CCPU::opcodes {
 		enum { BusMode = BusModeWrite };
 		template <class Control>
 		static void execute(CCPU *cpu) {
+			--cpu->m_S;
 			cpu->m_AB = cpu->m_PC;
 		}
 	};
@@ -2379,19 +2380,19 @@ struct CCPU::opcodes {
 	    // Shifts
 
 	    // ASL
-	    cpu::Opcode<0x0a, opImm<cmdASLA>>,
+	    cpu::Opcode<0x0a, opImp<cmdASLA>>,
 	    cpu::Opcode<0x06, opModifyZP<cmdASL>>,
 	    cpu::Opcode<0x16, opModifyZPX<cmdASL>>,
 	    cpu::Opcode<0x0e, opModifyAbs<cmdASL>>,
 	    cpu::Opcode<0x1e, opModifyAbsX<cmdASL>>,
 	    // LSR
-	    cpu::Opcode<0x4a, opImm<cmdLSRA>>,
+	    cpu::Opcode<0x4a, opImp<cmdLSRA>>,
 	    cpu::Opcode<0x46, opModifyZP<cmdLSR>>,
 	    cpu::Opcode<0x56, opModifyZPX<cmdLSR>>,
 	    cpu::Opcode<0x4e, opModifyAbs<cmdLSR>>,
 	    cpu::Opcode<0x5e, opModifyAbsX<cmdLSR>>,
 	    // ROL
-	    cpu::Opcode<0x2a, opImm<cmdROLA>>,
+	    cpu::Opcode<0x2a, opImp<cmdROLA>>,
 	    cpu::Opcode<0x26, opModifyZP<cmdROL>>,
 	    cpu::Opcode<0x36, opModifyZPX<cmdROL>>,
 	    cpu::Opcode<0x2e, opModifyAbs<cmdROL>>,
