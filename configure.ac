@@ -4,6 +4,7 @@ AC_INIT([vpnes], [0.5], [viktprog@gmail.com])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([auxdir])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_MAINTAINER_MODE
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES(yes)], [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
 DX_HTML_FEATURE(ON)
 DX_CHM_FEATURE(OFF)
@@ -55,9 +56,20 @@ if test "x$can_use_sdl2" = "xno" ; then
 	AC_MSG_ERROR([could not find compatible SDL2])
 else
 	AC_DEFINE([USE_SDL], 1, [Define to 1 to enable SDL])
-	CPPFLAGS="$SDL_CFLAGS $CPPFLAGS"
-	LIBS="$SDL_LIBS $LIBS"
 fi
+
+dnl For unit testing
+can_run_unit_tests="yes"
+AX_BOOST_BASE([1.21], [], [can_run_unit_tests="no"])
+AX_BOOST_UNIT_TEST_FRAMEWORK
+if test "x$BOOST_UNIT_TEST_FRAMEWORK_LIB" = "x" ; then
+	can_run_unit_tests="no"
+fi
+if test "x$can_run_unit_tests" = "xno" ; then
+	AC_MSG_WARN([could not find boost: tests are disabled])
+fi
+
+AM_CONDITIONAL([UNITTESTS_ENABLED], [test "x$can_run_unit_tests" = "xyes"])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

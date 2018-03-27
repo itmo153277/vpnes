@@ -9,9 +9,9 @@ Copyright &copy; 2012-2018 Ivanov Viktor
 
 ### Cross-platform
 
-Before compiling make sure that you have autoconf-archive (>= 2015.11.07), SDL2 (>= 2.0.5) and SDL2_gfx installed.
-
 #### Compiling From Git
+
+Before compiling make sure that you have autoconf (>= 2.68), autoconf-archive (>= 2016.12.06), automake, SDL2 (>= 2.0.5) and SDL2_gfx installed.
 
 Clone repository
 
@@ -30,11 +30,20 @@ Configure
 ```
 $ ./configure
 ```
+>The maintainer mode is disabled by default. That means that makefiles won't be updated when new files are added to the project.
+>
+>To enable maintainer mode, run configure with `--enable-maintainer-mode`. It ensures that your build scripts will always be up-to-date.
 
 Compile
 
- ```
+```
 $ make
+```
+
+Run tests (optional)
+
+```
+$ make check
 ```
 
 Install as root
@@ -46,6 +55,8 @@ Install as root
 For more detailed information about compiling the sources see [INSTALL](./INSTALL) and `./configure --help`.
 
 #### Compiling From Source Tarball
+
+Before compiling make sure that you have SDL2 (>= 2.0.5) and SDL2_gfx installed.
 
 Extract sources
 
@@ -59,10 +70,16 @@ Configure
 $ ./configure
 ```
 
- Compile
+Compile
 
- ```
+```
 $ make
+```
+
+Run tests (optional)
+
+```
+$ make check
 ```
 
 Install as root

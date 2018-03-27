@@ -1,15 +1,27 @@
 ACLOCAL_AMFLAGS=-I m4
 AUTOMAKE_OPTIONS = subdir-objects
+
+
 bin_PROGRAMS = vpnes
-vpnes_SOURCES = \
-	main.cpp \
-	src/gui/gui.cpp \
-	src/gui/config.cpp \
-	src/core/mappers/nrom.cpp \
+check_PROGRAMS = unittests
+
+if UNITTESTS_ENABLED
+UNITTESTS=unittests
+else
+UNITTESTS=
+endif
+TESTS = $(UNITTESTS)
+
+CORE_SOURCES = \
+    src/core/mappers/nrom.cpp \
 	src/core/config.cpp \
 	src/core/cpu.cpp \
 	src/core/ines.cpp
-vpnes_CPPFLAGS = -I$(top_srcdir)/include $(AM_CPP_FLAGS)
+GUI_SOURCES = \
+	src/gui/gui.cpp \
+	src/gui/config.cpp
+UNITTEST_SOURCES = \
+	src/tests/example-test.cpp
 noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
 	include/vpnes/gui/config.hpp \
@@ -29,6 +41,22 @@ noinst_HEADERS = \
 	include/vpnes/core/nes.hpp \
 	include/vpnes/core/ppu_compile.hpp \
 	include/vpnes/core/ppu.hpp
+
+vpnes_SOURCES = \
+	main.cpp \
+	$(CORE_SOURCES) \
+	$(GUI_SOURCES)
+unittests_SOURCES = \
+	$(UNITTEST_SOURCES) \
+	$(CORE_SOURCES)
+
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
+vpnes_CPPFLAGS = $(AM_CPPFLAGS) $(SDL_CFLAGS)
+vpnes_LDADD = $(SDL_LIBS)
+
+unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS)
+unittests_LDADD = $(BOOST_LDFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB)
 
 @DX_RULES@
 EXTRA_DIST = \
