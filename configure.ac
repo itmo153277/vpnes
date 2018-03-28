@@ -31,6 +31,9 @@ AM_CONDITIONAL([WINDOWS], [test "x$host_os_windows" = "xyes"])
 
 AM_CONDITIONAL([MAKE_MAN], [test "x$DX_FLAG_man" = "x1"])
 
+AC_PROG_RANLIB
+AM_PROG_AR
+
 AC_LANG([C++])
 
 AX_CXX_COMPILE_STDCXX_17([], [mandatory])
@@ -72,4 +75,5 @@ fi
 AM_CONDITIONAL([UNITTESTS_ENABLED], [test "x$can_run_unit_tests" = "xyes"])
 
 AC_CONFIG_FILES([Makefile])
+AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_OUTPUT

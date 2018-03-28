@@ -26,11 +26,9 @@
 #include "config.h"
 #endif
 
-// TODO(me): add TAP output producer for autotools
-
-#define BOOST_TEST_MODULE ExampleTest
+#define BOOST_TEST_MODULE Example tests
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_CASE(default_test) {
+BOOST_AUTO_TEST_CASE(test01) {
 	BOOST_CHECK(true);
 }
