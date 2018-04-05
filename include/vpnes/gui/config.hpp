@@ -48,6 +48,26 @@ private:
 	 */
 	std::string inputFile;
 
+protected:
+	/**
+	 * Parse command line option
+	 *
+	 * @param name Option name
+	 * @param value Argument
+	 */
+	virtual bool parseOption(
+	    const std::string &name, const std::string &value) {
+		return false;
+	}
+	/**
+	 * Parse command line option
+	 *
+	 * @param name Option name
+	 */
+	virtual bool parseOption(const std::string &name) {
+		return false;
+	}
+
 public:
 	/**
 	 * Parses command line options
@@ -69,7 +89,7 @@ public:
 	/**
 	 * Destroys the object
 	 */
-	~SApplicationConfig() = default;
+	virtual ~SApplicationConfig() = default;
 
 	/**
 	 * Checks if the program has an input file

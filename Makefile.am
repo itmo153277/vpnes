@@ -12,6 +12,9 @@ GUI_SOURCES = \
 UNITTEST_SOURCES = \
 	src/tests/unittests/example-test.cpp \
 	src/tests/unittests/init.cpp
+TESTER_SOURCES = \
+	src/tests/end2end/end2end.cpp \
+	src/gui/config.cpp
 noinst_HEADERS = \
 	include/vpnes/vpnes.hpp \
 	include/vpnes/gui/config.hpp \
@@ -21,6 +24,7 @@ noinst_HEADERS = \
 	include/vpnes/core/apu.hpp \
 	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
+	include/vpnes/core/configext.hpp \
 	include/vpnes/core/cpu.hpp \
 	include/vpnes/core/cpu_compile.hpp \
 	include/vpnes/core/device.hpp \
@@ -43,7 +47,7 @@ LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
 
 
 bin_PROGRAMS = vpnes
-check_PROGRAMS = $(UNITTESTS)
+check_PROGRAMS = $(UNITTESTS) tester
 noinst_LIBRARIES = libcore.a
 
 libcore_a_SOURCES = $(CORE_SOURCES)
@@ -51,6 +55,7 @@ vpnes_SOURCES = \
 	main.cpp \
 	$(GUI_SOURCES)
 unittests_SOURCES =	$(UNITTEST_SOURCES)
+tester_SOURCES = $(TESTER_SOURCES)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
@@ -59,6 +64,8 @@ vpnes_LDADD = $(SDL_LIBS) libcore.a
 
 unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS)
 unittests_LDADD = $(BOOST_LDFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) libcore.a
+
+tester_LDADD = libcore.a
 
 @DX_RULES@
 EXTRA_DIST = \

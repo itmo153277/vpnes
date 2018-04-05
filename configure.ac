@@ -69,7 +69,7 @@ if test "x$BOOST_UNIT_TEST_FRAMEWORK_LIB" = "x" ; then
 	can_run_unit_tests="no"
 fi
 if test "x$can_run_unit_tests" = "xno" ; then
-	AC_MSG_WARN([could not find boost: tests are disabled])
+	AC_MSG_WARN([could not find boost: unit tests are disabled])
 fi
 
 AM_CONDITIONAL([UNITTESTS_ENABLED], [test "x$can_run_unit_tests" = "xyes"])

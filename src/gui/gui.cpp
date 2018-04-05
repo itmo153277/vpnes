@@ -186,10 +186,10 @@ void CGUI::handleFrameRender(double frameTime) {
 	std::chrono::high_resolution_clock::time_point lastTime = m_Time;
 	m_Jitter += frameTime;
 	if (m_Jitter > m_TimeOverhead) {
-		int64_t waitTime = static_cast<int64_t>(m_Jitter - m_TimeOverhead);
+		int64_t waitTime = static_cast<std::int64_t>(m_Jitter - m_TimeOverhead);
 		std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 		m_Time = std::chrono::high_resolution_clock::now();
-		int64_t actualWait = static_cast<int64_t>(
+		int64_t actualWait = static_cast<std::int64_t>(
 		    std::chrono::duration_cast<std::chrono::milliseconds>(
 		        m_Time - lastTime)
 		        .count());

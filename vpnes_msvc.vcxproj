@@ -189,6 +189,7 @@
     <ClInclude Include="include\vpnes\core\apu.hpp" />
     <ClInclude Include="include\vpnes\core\bus.hpp" />
     <ClInclude Include="include\vpnes\core\config.hpp" />
+    <ClInclude Include="include\vpnes\core\configext.hpp" />
     <ClInclude Include="include\vpnes\core\cpu.hpp" />
     <ClInclude Include="include\vpnes\core\cpu_compile.hpp" />
     <ClInclude Include="include\vpnes\core\device.hpp" />

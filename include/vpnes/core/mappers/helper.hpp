@@ -30,6 +30,7 @@
 #include "config.h"
 #endif
 
+#include <array>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/bus.hpp>
@@ -47,7 +48,7 @@ namespace factory {
 /**
  * Basic NES implementation based on config
  */
-template <class Config, class MMCType>
+template <class Config, class MMCType, class... Devices>
 class CNESHelper : public CNES {
 private:
 	/**
@@ -81,17 +82,20 @@ public:
 	 *
 	 * @param config NES config
 	 * @param frontEnd GUI callback
+	 * @param devices Additional devices
 	 */
-	CNESHelper(const SNESConfig &config, CFrontEnd *frontEnd)
+	explicit CNESHelper(
+	    const SNESConfig &config, CFrontEnd *frontEnd, Devices *... devices)
 	    : CNES()
 	    , m_MotherBoard(frontEnd)
 	    , m_CPU(&m_MotherBoard)
 	    , m_PPU(&m_MotherBoard, Config::getFrequency(), Config::FrameTime)
 	    , m_APU(&m_MotherBoard)
 	    , m_MMC(&m_MotherBoard, config) {
-		m_MotherBoard.addBusCPU(&m_CPU, &m_APU, &m_PPU, &m_MMC);
-		m_MotherBoard.addBusPPU(&m_MMC);
-		m_MotherBoard.registerSimDevices(&m_CPU, &m_APU, &m_PPU, &m_MMC);
+		m_MotherBoard.addBusCPU(&m_CPU, &m_APU, &m_PPU, &m_MMC, devices...);
+		m_MotherBoard.addBusPPU(&m_MMC, devices...);
+		m_MotherBoard.registerSimDevices(
+		    &m_CPU, &m_APU, &m_PPU, &m_MMC);
 	}
 	/**
 	 * Starts the simulation
@@ -128,11 +132,14 @@ struct SConfigNTSC {
  *
  * @param config NES config
  * @param frontEnd Front-end
+ * @param devices Additional devices
  * @return NES
  */
-template <class T>
-CNES *factoryNES(const SNESConfig &config, CFrontEnd *frontEnd) {
-	return new CNESHelper<SConfigNTSC, T>(config, frontEnd);
+template <class T, class... Devices>
+CNES *factoryNES(
+    const SNESConfig &config, CFrontEnd *frontEnd, Devices *... devices) {
+	return new CNESHelper<SConfigNTSC, T, Devices...>(
+	    config, frontEnd, devices...);
 }
 
 }  // namespace factory

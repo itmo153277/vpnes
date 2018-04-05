@@ -128,7 +128,7 @@ struct SNESConfig {
 	 * @param frontEnd Front-end
 	 * @return Instance of NES
 	 */
-	CNES *createInstance(CFrontEnd *frontEnd);
+	virtual CNES *createInstance(CFrontEnd *frontEnd);
 	/**
 	 * Default constructor
 	 */
@@ -142,7 +142,7 @@ struct SNESConfig {
 	/**
 	 * Default destructor
 	 */
-	~SNESConfig() = default;
+	virtual ~SNESConfig() = default;
 };
 
 }  // namespace core
