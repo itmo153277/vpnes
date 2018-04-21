@@ -30,8 +30,13 @@
 #include "config.h"
 #endif
 
+#include <cassert>
+#include <cstdint>
 #include <array>
+#include <unordered_map>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/debugger.hpp>
+#include <vpnes/core/nes.hpp>
 #include <vpnes/core/device.hpp>
 #include <vpnes/core/bus.hpp>
 #include <vpnes/core/mboard.hpp>
@@ -44,6 +49,125 @@ namespace vpnes {
 namespace core {
 
 namespace factory {
+
+/**
+ * Implementation for debugger class
+ */
+class CDebuggerHelper : public CDebugger {
+private:
+	class CDebugDevice : public CDevice {
+	private:
+		/**
+		 * Hooks for CPU reads
+		 */
+		std::unordered_multimap<std::uint16_t, addrHook_t> m_HooksCPURead;
+		/**
+		 * Hooks for CPU writes
+		 */
+		std::unordered_multimap<std::uint16_t, addrHook_t> m_HooksCPUWrite;
+		/**
+		 * Motherboard
+		 */
+		CMotherBoard *m_MotherBoard;
+
+		/**
+		 * Reads to CPU bus
+		 *
+		 * @param val Value
+		 * @param addr Address
+		 */
+		void readCPU(std::uint8_t val, std::uint16_t addr) {
+			auto iter = m_HooksCPURead.find(addr);
+			assert(iter != m_HooksCPURead.end());
+			iter->second(addr, val);
+		}
+		/**
+		 * Writes to CPU bus
+		 *
+		 * @param val Value
+		 * @param addr Address
+		 */
+		void writeCPU(std::uint8_t val, std::uint16_t addr) {
+			auto iter = m_HooksCPUWrite.find(addr);
+			assert(iter != m_HooksCPUWrite.end());
+			iter->second(addr, val);
+		}
+
+	public:
+		/**
+		 * Deleted default constructor
+		 */
+		CDebugDevice() = delete;
+		/**
+		 * Constructor
+		 *
+		 * @param motherBoard Motherboard
+		 */
+		explicit CDebugDevice(CMotherBoard *motherBoard)
+		    : m_HooksCPURead(), m_HooksCPUWrite(), m_MotherBoard(motherBoard) {
+		}
+
+		/**
+		 * Hook address read on CPU bus
+		 *
+		 * @param addr Address
+		 * @param hook Hook
+		 */
+		void hookCPURead(std::uint16_t addr, addrHook_t hook) {
+			m_HooksCPURead.emplace(addr, hook);
+			m_MotherBoard->getBusCPU()->addPostReadHook(
+			    addr, this, &CDebugDevice::readCPU);
+		}
+		/**
+		 * Hook address write on CPU bus
+		 *
+		 * @param addr Address
+		 * @param hook Hook
+		 */
+		void hookCPUWrite(std::uint16_t addr, addrHook_t hook) {
+			m_HooksCPUWrite.emplace(addr, hook);
+			m_MotherBoard->getBusCPU()->addWriteHook(
+			    addr, this, &CDebugDevice::readCPU);
+		}
+	};
+	/**
+	 * Debug device
+	 */
+	CDebugDevice m_DebugDevice;
+
+public:
+	/**
+	 * Deleted default constructor
+	 */
+	CDebuggerHelper() = delete;
+	/**
+	 * Constructor
+	 *
+	 * @param motherBoard Motherboard
+	 */
+	explicit CDebuggerHelper(CMotherBoard *motherBoard)
+	    : m_DebugDevice(motherBoard) {
+	}
+
+	/**
+	 * Hook address read on CPU bus
+	 *
+	 * @param addr Address
+	 * @param hook Hook
+	 */
+	void hookCPURead(std::uint16_t addr, addrHook_t hook) {
+		m_DebugDevice.hookCPURead(addr, hook);
+	}
+	/**
+	 * Hook address write on CPU bus
+	 *
+	 * @param addr Address
+	 * @param hook Hook
+	 */
+	void hookCPUWrite(std::uint16_t addr, addrHook_t hook) {
+		m_DebugDevice.hookCPUWrite(addr, hook);
+	}
+};
 
 /**
  * Basic NES implementation based on config
@@ -71,6 +195,10 @@ private:
 	 * MMC
 	 */
 	MMCType m_MMC;
+	/**
+	 * Debugger
+	 */
+	CDebuggerHelper m_Debugger;
 
 public:
 	/**
@@ -91,11 +219,11 @@ public:
 	    , m_CPU(&m_MotherBoard)
 	    , m_PPU(&m_MotherBoard, Config::getFrequency(), Config::FrameTime)
 	    , m_APU(&m_MotherBoard)
-	    , m_MMC(&m_MotherBoard, config) {
+	    , m_MMC(&m_MotherBoard, config)
+	    , m_Debugger(&m_MotherBoard) {
 		m_MotherBoard.addBusCPU(&m_CPU, &m_APU, &m_PPU, &m_MMC, devices...);
 		m_MotherBoard.addBusPPU(&m_MMC, devices...);
-		m_MotherBoard.registerSimDevices(
-		    &m_CPU, &m_APU, &m_PPU, &m_MMC);
+		m_MotherBoard.registerSimDevices(&m_CPU, &m_APU, &m_PPU, &m_MMC);
 	}
 	/**
 	 * Starts the simulation
@@ -108,6 +236,14 @@ public:
 	 */
 	void turnOff() {
 		m_MotherBoard.setEnabled(false);
+	}
+	/**
+	 * Debugger for NES
+	 *
+	 * @return Debugger for NES
+	 */
+	CDebugger *getDebugger() {
+		return &m_Debugger;
 	}
 };
 

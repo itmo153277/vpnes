@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Defines extended factories
+ * Defines debugger for NES
  */
 /*
  NES Emulator
@@ -23,47 +23,63 @@
 
  */
 
-#ifndef INCLUDE_VPNES_CORE_CONFIGEXT_HPP_
-#define INCLUDE_VPNES_CORE_CONFIGEXT_HPP_
+#ifndef INCLUDE_VPNES_CORE_DEBUGGER_HPP_
+#define INCLUDE_VPNES_CORE_DEBUGGER_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include <cstdint>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/core/frontend.hpp>
-#include <vpnes/core/nes.hpp>
-#include <vpnes/core/config.hpp>
-#include <vpnes/core/mappers/helper.hpp>
-#include <vpnes/core/mappers/nrom.hpp>
 
 namespace vpnes {
 
 namespace core {
 
-struct SNESConfigExt : SNESConfig {
+/**
+ * NES Debugger
+ */
+class CDebugger {
+public:
 	/**
-	 * Creates an instance of NES
+	 * Hook in device
 	 *
-	 * @param frontEnd Front-end
-	 * @return Instance of NES
+	 * @param addr Address
 	 */
-	template <class... Devices>
-	CNES *createInstance(CFrontEnd *frontEnd, Devices *... devices) {
-		typedef CNES *(*NESFactoryExt)(const SNESConfig &config,
-		    CFrontEnd *frontEnd, Devices *... devices);
-
-		const NESFactoryExt factoryList[MMCAmount] = {
-		    &factory::factoryNES<CNROM, Devices...>,  // NROM-128
-		    &factory::factoryNES<CNROM, Devices...>   // NROM-256
-		};
-
-		return factoryList[MMCType](*this, frontEnd, devices...);
-	}
+	typedef void (*addrHook_t)(std::uint16_t addr, std::uint8_t val);
+	/**
+	 * Hook address read on CPU bus
+	 *
+	 * @param address Address
+	 * @param hook Hook
+	 */
+	virtual void hookCPURead(std::uint16_t addr, addrHook_t hook) = 0;
+	/**
+	 * Hook address write on CPU bus
+	 *
+	 * @param addr Address
+	 * @param hook Hook
+	 */
+	virtual void hookCPUWrite(std::uint16_t addr, addrHook_t hook) = 0;
+	/**
+	 * Constructor
+	 */
+	CDebugger() = default;
+	/**
+	 * Deleted copy constructor
+	 *
+	 * @param s Source value
+	 */
+	CDebugger(const CDebugger &s) = delete;
+	/**
+	 * Destructor
+	 */
+	virtual ~CDebugger() = default;
 };
 
 }  // namespace core
 
 }  // namespace vpnes
 
-#endif  // INCLUDE_VPNES_CORE_CONFIGEXT_HPP_
+#endif  // INCLUDE_VPNES_CORE_DEBUGGER_HPP_

@@ -2580,10 +2580,10 @@ struct CCPU::opcodes {
 		}
 		switch (busMode) {
 		case BusModeRead:
-			cpu->m_DB = cpu->m_MotherBoard->getBusCPU().readMemory(cpu->m_AB);
+			cpu->m_DB = cpu->m_MotherBoard->getBusCPU()->readMemory(cpu->m_AB);
 			break;
 		case BusModeWrite:
-			cpu->m_MotherBoard->getBusCPU().writeMemory(cpu->m_DB, cpu->m_AB);
+			cpu->m_MotherBoard->getBusCPU()->writeMemory(cpu->m_DB, cpu->m_AB);
 			break;
 		}
 		// TODO(me) : Use CPU divider

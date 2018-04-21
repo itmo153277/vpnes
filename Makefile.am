@@ -24,9 +24,9 @@ noinst_HEADERS = \
 	include/vpnes/core/apu.hpp \
 	include/vpnes/core/bus.hpp \
 	include/vpnes/core/config.hpp \
-	include/vpnes/core/configext.hpp \
 	include/vpnes/core/cpu.hpp \
 	include/vpnes/core/cpu_compile.hpp \
+	include/vpnes/core/debugger.hpp \
 	include/vpnes/core/device.hpp \
 	include/vpnes/core/factory.hpp \
 	include/vpnes/core/frontend.hpp \

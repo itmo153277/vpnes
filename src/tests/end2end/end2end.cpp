@@ -29,15 +29,13 @@
 #include <stdexcept>
 #include <memory>
 #include <chrono>
-#include <future>
-#include <thread>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
 #include <vpnes/core/frontend.hpp>
-#include <vpnes/core/configext.hpp>
+#include <vpnes/core/config.hpp>
 
 /**
  * Configuration for end-to-end testing
@@ -49,6 +47,7 @@ protected:
 	 *
 	 * @param name Option name
 	 * @param value Argument
+	 * @return Valid option or not
 	 */
 	bool parseOption(const std::string &name, const std::string &value) {
 		return vpnes::gui::SApplicationConfig::parseOption(name, value);
@@ -152,18 +151,15 @@ int main(int argc, char **argv) {
 			throw std::invalid_argument("No timeout specified");
 		}
 		std::ifstream inputFile = config.getInputFile();
-		vpnes::core::SNESConfigExt nesConfig;
+		vpnes::core::SNESConfig nesConfig;
 		nesConfig.configure(config, &inputFile);
 		inputFile.close();
-		auto future = std::async(std::launch::async, [&] {
-			auto time = std::chrono::seconds(config.getTimeout());
-			auto frontEnd = std::make_unique<CTestFrontEnd>(time);
-			std::unique_ptr<vpnes::core::CNES> nes(
-			    nesConfig.createInstance(frontEnd.get()));
-			nes->powerUp();
-			return EXIT_SUCCESS;
-		});
-		return future.get();
+		auto time = std::chrono::seconds(config.getTimeout());
+		auto frontEnd = std::make_unique<CTestFrontEnd>(time);
+		std::unique_ptr<vpnes::core::CNES> nes(
+		    nesConfig.createInstance(frontEnd.get()));
+		nes->powerUp();
+		return EXIT_SUCCESS;
 	} catch (const std::invalid_argument &e) {
 		std::cerr << e.what() << std::endl;
 		return EXIT_FAILURE;

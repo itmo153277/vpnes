@@ -54,6 +54,7 @@ protected:
 	 *
 	 * @param name Option name
 	 * @param value Argument
+	 * @return Valid option or not
 	 */
 	virtual bool parseOption(
 	    const std::string &name, const std::string &value) {
@@ -63,6 +64,7 @@ protected:
 	 * Parse command line option
 	 *
 	 * @param name Option name
+	 * @return Valid option or not
 	 */
 	virtual bool parseOption(const std::string &name) {
 		return false;

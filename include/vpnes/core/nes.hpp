@@ -31,6 +31,7 @@
 #endif
 
 #include <vpnes/vpnes.hpp>
+#include <vpnes/core/debugger.hpp>
 
 namespace vpnes {
 
@@ -49,6 +50,12 @@ public:
 	 * Turns NES off
 	 */
 	virtual void turnOff() = 0;
+	/**
+	 * Debugger for NES
+	 *
+	 * @return Debugger for NES
+	 */
+	virtual CDebugger *getDebugger() = 0;
 	/**
 	 * Constructor
 	 */

@@ -194,18 +194,18 @@ public:
 	 *
 	 * @return PPU bus
 	 */
-	CBus &getBusPPU() const {
+	CBus *getBusPPU() const {
 		assert(m_BusPPU);
-		return *m_BusPPU;
+		return m_BusPPU.get();
 	}
 	/**
 	 * Gets CPU bus
 	 *
 	 * @return CPU bus
 	 */
-	CBus &getBusCPU() const {
+	CBus *getBusCPU() const {
 		assert(m_BusCPU);
-		return *m_BusCPU;
+		return m_BusCPU.get();
 	}
 
 	/**
