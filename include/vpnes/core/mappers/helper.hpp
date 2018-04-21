@@ -127,7 +127,7 @@ private:
 		void hookCPUWrite(std::uint16_t addr, addrHook_t hook) {
 			m_HooksCPUWrite.emplace(addr, hook);
 			m_MotherBoard->getBusCPU()->addWriteHook(
-			    addr, this, &CDebugDevice::readCPU);
+			    addr, this, &CDebugDevice::writeCPU);
 		}
 	};
 	/**

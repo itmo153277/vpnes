@@ -2348,13 +2348,13 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x61, opReadZPXInd<cmdADC>>,
 	    cpu::Opcode<0x71, opReadZPIndY<cmdADC>>,
 	    // SBC
-	    cpu::Opcode<0x69, opImm<cmdSBC>>, cpu::Opcode<0x65, opReadZP<cmdSBC>>,
-	    cpu::Opcode<0x75, opReadZPX<cmdSBC>>,
-	    cpu::Opcode<0x6d, opReadAbs<cmdSBC>>,
-	    cpu::Opcode<0x7d, opReadAbsX<cmdSBC>>,
-	    cpu::Opcode<0x79, opReadAbsY<cmdSBC>>,
-	    cpu::Opcode<0x61, opReadZPXInd<cmdSBC>>,
-	    cpu::Opcode<0x71, opReadZPIndY<cmdSBC>>,
+	    cpu::Opcode<0xe9, opImm<cmdSBC>>, cpu::Opcode<0xe5, opReadZP<cmdSBC>>,
+	    cpu::Opcode<0xf5, opReadZPX<cmdSBC>>,
+	    cpu::Opcode<0xed, opReadAbs<cmdSBC>>,
+	    cpu::Opcode<0xfd, opReadAbsX<cmdSBC>>,
+	    cpu::Opcode<0xf9, opReadAbsY<cmdSBC>>,
+	    cpu::Opcode<0xe1, opReadZPXInd<cmdSBC>>,
+	    cpu::Opcode<0xf1, opReadZPIndY<cmdSBC>>,
 
 	    // Increment / Decrement
 
@@ -2398,7 +2398,7 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x2e, opModifyAbs<cmdROL>>,
 	    cpu::Opcode<0x3e, opModifyAbsX<cmdROL>>,
 	    // ROR
-	    cpu::Opcode<0x6a, opImm<cmdRORA>>,
+	    cpu::Opcode<0x6a, opImp<cmdRORA>>,
 	    cpu::Opcode<0x66, opModifyZP<cmdROR>>,
 	    cpu::Opcode<0x76, opModifyZPX<cmdROR>>,
 	    cpu::Opcode<0x6e, opModifyAbs<cmdROR>>,
@@ -2449,7 +2449,7 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0xcc, opReadAbs<cmdCPY>>,
 	    // BIT
 	    cpu::Opcode<0x24, opReadZP<cmdBIT>>,
-	    cpu::Opcode<0xcc, opReadAbs<cmdBIT>>,
+	    cpu::Opcode<0x2c, opReadAbs<cmdBIT>>,
 
 	    // Branches
 
@@ -2520,11 +2520,11 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0xf4, opReadZPX<cpu::Command>>,
 	    cpu::Opcode<0x0c, opReadAbs<cpu::Command>>,
 	    cpu::Opcode<0x1c, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0x2c, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0x4c, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0x6c, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0xcc, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0xec, opReadAbsX<cpu::Command>>
+	    cpu::Opcode<0x3c, opReadAbsX<cpu::Command>>,
+	    cpu::Opcode<0x5c, opReadAbsX<cpu::Command>>,
+	    cpu::Opcode<0x7c, opReadAbsX<cpu::Command>>,
+	    cpu::Opcode<0xdc, opReadAbsX<cpu::Command>>,
+	    cpu::Opcode<0xfc, opReadAbsX<cpu::Command>>
 
 	    // Undocumented
 
