@@ -240,6 +240,7 @@ private:
 		state |= m_Negative & CPUFlagNegative;
 		state |= m_Overflow;
 		state |= m_Decimal;
+		state |= m_Interrupt;
 		state |= m_Zero;
 		state |= m_Carry;
 		return state;

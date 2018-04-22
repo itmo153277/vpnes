@@ -57,6 +57,8 @@ struct CCPU::opcodes {
 	struct cmdPLA : cpu::Command {
 		static void execute(CCPU *cpu) {
 			cpu->m_A = cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdPLP : cpu::Command {
@@ -327,7 +329,7 @@ struct CCPU::opcodes {
 			std::uint16_t dummy =
 			    cpu->m_A - cpu->m_DB - (cpu->m_Carry ^ CPUFlagCarry);
 			cpu->setOverflowFlag(
-			    ((dummy ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
+			    ((dummy ^ cpu->m_A) & (cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
 			cpu->setCarryFlag(dummy < 0x0100);
 			cpu->m_A = dummy & 0xff;
 			cpu->setNegativeFlag(cpu->m_A);
@@ -1314,7 +1316,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU *cpu) {
 			cpu->m_OP = cpu->m_DB;
-			cpu->m_AB = cpu->m_ZP;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
@@ -1323,7 +1325,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu->m_AB = cpu->m_ZP;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsX06 : cpu::Cycle {
@@ -1462,7 +1464,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU *cpu) {
 			cpu->m_OP = cpu->m_DB;
-			cpu->m_AB = cpu->m_ZP;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	template <class Command>
@@ -1471,7 +1473,7 @@ struct CCPU::opcodes {
 		template <class Control>
 		static void execute(CCPU *cpu) {
 			Command::execute(cpu);
-			cpu->m_AB = cpu->m_ZP;
+			cpu->m_AB = cpu->m_Abs;
 		}
 	};
 	struct ModifyAbsY06 : cpu::Cycle {
@@ -2177,9 +2179,6 @@ struct CCPU::opcodes {
 	};
 	template <class Command>
 	struct WriteZPIndY04 : cpu::Cycle {
-		static bool skipCycle(CCPU *cpu) {
-			return ((cpu->m_OP16 & 0xff00) == (cpu->m_Abs & 0xff00));
-		}
 		template <class Control>
 		static void execute(CCPU *cpu) {
 			cpu->m_Abs = cpu->m_OP16;
@@ -2329,9 +2328,9 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x8e, opWriteAbs<cmdSTX>>,
 	    // LDY
 	    cpu::Opcode<0xa0, opImm<cmdLDY>>, cpu::Opcode<0xa4, opReadZP<cmdLDY>>,
-	    cpu::Opcode<0xb4, opWriteZPX<cmdLDY>>,
-	    cpu::Opcode<0xac, opWriteAbs<cmdLDY>>,
-	    cpu::Opcode<0xbc, opWriteAbsX<cmdLDY>>,
+	    cpu::Opcode<0xb4, opReadZPX<cmdLDY>>,
+	    cpu::Opcode<0xac, opReadAbs<cmdLDY>>,
+	    cpu::Opcode<0xbc, opReadAbsX<cmdLDY>>,
 	    // STY
 	    cpu::Opcode<0x84, opWriteZP<cmdSTY>>,
 	    cpu::Opcode<0x94, opWriteZPX<cmdSTY>>,
@@ -2375,7 +2374,7 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0xc6, opModifyZP<cmdDEC>>,
 	    cpu::Opcode<0xd6, opModifyZPX<cmdDEC>>,
 	    cpu::Opcode<0xce, opModifyAbs<cmdDEC>>,
-	    cpu::Opcode<0xfe, opModifyAbsX<cmdDEC>>,
+	    cpu::Opcode<0xde, opModifyAbsX<cmdDEC>>,
 
 	    // Shifts
 
