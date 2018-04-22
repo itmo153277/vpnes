@@ -51,7 +51,7 @@ struct CCPU::opcodes {
 	};
 	struct cmdPHP : cpu::Command {
 		static void execute(CCPU *cpu) {
-			cpu->m_DB = cpu->packState();
+			cpu->m_DB = cpu->packState() | CPUFlagBreak;
 		}
 	};
 	struct cmdPLA : cpu::Command {
