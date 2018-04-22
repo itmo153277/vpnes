@@ -22,6 +22,7 @@
 
  */
 
+#define BOOST_TEST_MODULE Unit tests
 #include <boost/test/unit_test.hpp>
 #include <boost/test/unit_test_log_formatter.hpp>
 #include <boost/test/execution_monitor.hpp>

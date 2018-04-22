@@ -26,7 +26,6 @@
 #include "config.h"
 #endif
 
-#define BOOST_TEST_MODULE Example tests
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_CASE(test01) {

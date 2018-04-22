@@ -62,7 +62,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 vpnes_CPPFLAGS = $(AM_CPPFLAGS) $(SDL_CFLAGS)
 vpnes_LDADD = $(SDL_LIBS) libcore.a
 
-unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS)
+unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_CPPFLAGS)
 unittests_LDADD = $(BOOST_LDFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) libcore.a
 
 tester_LDADD = libcore.a
