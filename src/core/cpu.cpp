@@ -412,6 +412,54 @@ struct CCPU::opcodes {
 			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
+	struct cmdSLO : cpu::Command {
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_OP & 0x80) != 0);
+			cpu->m_OP <<= 1;
+			cpu->m_A |= cpu->m_OP;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+			cpu->m_DB = cpu->m_OP;
+		}
+	};
+	struct cmdRLA : cpu::Command {
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_OP & 0x80;
+			cpu->m_OP <<= 1;
+			cpu->m_OP |= cpu->m_Carry;
+			cpu->m_A &= cpu->m_OP;
+			cpu->setCarryFlag(dummy != 0);
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+			cpu->m_DB = cpu->m_OP;
+		}
+	};
+	struct cmdSRE : cpu::Command {
+		static void execute(CCPU *cpu) {
+			cpu->setCarryFlag((cpu->m_OP & 0x01) != 0);
+			cpu->m_OP >>= 1;
+			cpu->m_A ^= cpu->m_OP;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+			cpu->m_DB = cpu->m_OP;
+		}
+	};
+	struct cmdRRA : cpu::Command {
+		static void execute(CCPU *cpu) {
+			std::uint8_t dummy = cpu->m_OP & 0x01;
+			cpu->m_OP >>= 1;
+			cpu->m_OP |= (cpu->m_Carry << 7);
+			cpu->setCarryFlag(dummy != 0);
+			std::uint16_t dummySum = cpu->m_DB + cpu->m_A + cpu->m_Carry;
+			cpu->setOverflowFlag(
+			    ((dummySum ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
+			cpu->setCarryFlag(dummySum >= 0x0100);
+			cpu->m_A = dummySum & 0xff;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+			cpu->m_DB = cpu->m_OP;
+		}
+	};
 
 	/* Cycles */
 
@@ -2523,29 +2571,94 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x5c, opReadAbsX<cpu::Command>>,
 	    cpu::Opcode<0x7c, opReadAbsX<cpu::Command>>,
 	    cpu::Opcode<0xdc, opReadAbsX<cpu::Command>>,
-	    cpu::Opcode<0xfc, opReadAbsX<cpu::Command>>
+	    cpu::Opcode<0xfc, opReadAbsX<cpu::Command>>,
 
 	    // Undocumented
 
 	    // SLO
+	    cpu::Opcode<0x03, opModifyZPXInd<cmdSLO>>,
+	    cpu::Opcode<0x07, opModifyZP<cmdSLO>>,
+	    cpu::Opcode<0x0f, opModifyAbs<cmdSLO>>,
+	    cpu::Opcode<0x13, opModifyZPIndY<cmdSLO>>,
+	    cpu::Opcode<0x17, opModifyZPX<cmdSLO>>,
+	    cpu::Opcode<0x1b, opModifyAbsY<cmdSLO>>,
+	    cpu::Opcode<0x1f, opModifyAbsX<cmdSLO>>,
 	    // RLA
+	    cpu::Opcode<0x23, opModifyZPXInd<cmdRLA>>,
+	    cpu::Opcode<0x27, opModifyZP<cmdRLA>>,
+	    cpu::Opcode<0x2f, opModifyAbs<cmdRLA>>,
+	    cpu::Opcode<0x33, opModifyZPIndY<cmdRLA>>,
+	    cpu::Opcode<0x37, opModifyZPX<cmdRLA>>,
+	    cpu::Opcode<0x3b, opModifyAbsY<cmdRLA>>,
+	    cpu::Opcode<0x3f, opModifyAbsX<cmdRLA>>,
 	    // SRE
+	    cpu::Opcode<0x43, opModifyZPXInd<cmdSRE>>,
+	    cpu::Opcode<0x47, opModifyZP<cmdSRE>>,
+	    cpu::Opcode<0x4f, opModifyAbs<cmdSRE>>,
+	    cpu::Opcode<0x53, opModifyZPIndY<cmdSRE>>,
+	    cpu::Opcode<0x57, opModifyZPX<cmdSRE>>,
+	    cpu::Opcode<0x5b, opModifyAbsY<cmdSRE>>,
+	    cpu::Opcode<0x5f, opModifyAbsX<cmdSRE>>,
 	    // RRA
+	    cpu::Opcode<0x63, opModifyZPXInd<cmdRRA>>,
+	    cpu::Opcode<0x67, opModifyZP<cmdRRA>>,
+	    cpu::Opcode<0x6f, opModifyAbs<cmdRRA>>,
+	    cpu::Opcode<0x73, opModifyZPIndY<cmdRRA>>,
+	    cpu::Opcode<0x77, opModifyZPX<cmdRRA>>,
+	    cpu::Opcode<0x7b, opModifyAbsY<cmdRRA>>,
+	    cpu::Opcode<0x7f, opModifyAbsX<cmdRRA>>,
 	    // SAX
+	    cpu::Opcode<0x63, opWriteZPXInd<cpu::Command>>,
+	    cpu::Opcode<0x67, opWriteZP<cpu::Command>>,
+	    cpu::Opcode<0x6f, opWriteAbs<cpu::Command>>,
+	    cpu::Opcode<0x77, opWriteZPX<cpu::Command>>,
 	    // LAX
+	    cpu::Opcode<0xa3, opReadZPXInd<cpu::Command>>,
+	    cpu::Opcode<0xa7, opReadZP<cpu::Command>>,
+	    cpu::Opcode<0xaf, opReadAbs<cpu::Command>>,
+	    cpu::Opcode<0xb3, opReadZPIndY<cpu::Command>>,
+	    cpu::Opcode<0xb7, opReadZPX<cpu::Command>>,
+	    cpu::Opcode<0xbf, opReadAbsX<cpu::Command>>,
 	    // DCP
+	    cpu::Opcode<0xc3, opModifyZPXInd<cpu::Command>>,
+	    cpu::Opcode<0xc7, opModifyZP<cpu::Command>>,
+	    cpu::Opcode<0xcf, opModifyAbs<cpu::Command>>,
+	    cpu::Opcode<0xd3, opModifyZPIndY<cpu::Command>>,
+	    cpu::Opcode<0xd7, opModifyZPX<cpu::Command>>,
+	    cpu::Opcode<0xdb, opModifyAbsY<cpu::Command>>,
+	    cpu::Opcode<0xdf, opModifyAbsX<cpu::Command>>,
 	    // ISC
+	    cpu::Opcode<0xe3, opModifyZPXInd<cpu::Command>>,
+	    cpu::Opcode<0xe7, opModifyZP<cpu::Command>>,
+	    cpu::Opcode<0xef, opModifyAbs<cpu::Command>>,
+	    cpu::Opcode<0xf3, opModifyZPIndY<cpu::Command>>,
+	    cpu::Opcode<0xf7, opModifyZPX<cpu::Command>>,
+	    cpu::Opcode<0xfb, opModifyAbsY<cpu::Command>>,
+	    cpu::Opcode<0xff, opModifyAbsX<cpu::Command>>,
 	    // ANC
+	    cpu::Opcode<0x0b, opImm<cpu::Command>>,
+	    cpu::Opcode<0x2b, opImm<cpu::Command>>,
 	    // ALR
+	    cpu::Opcode<0x4b, opImm<cpu::Command>>,
 	    // ARR
+	    cpu::Opcode<0x6b, opImm<cpu::Command>>,
 	    // XAA
+	    cpu::Opcode<0x8b, opImm<cpu::Command>>,
 	    // LAX
+	    cpu::Opcode<0xab, opImm<cpu::Command>>,
 	    // SBC
+	    cpu::Opcode<0xeb, opImm<cpu::Command>>,
 	    // AHX
+	    cpu::Opcode<0x9f, opWriteAbsY<cpu::Command>>,
+	    cpu::Opcode<0x93, opWriteZPIndY<cpu::Command>>,
 	    // SHY
+	    cpu::Opcode<0x9c, opWriteAbsX<cpu::Command>>,
 	    // SHX
+	    cpu::Opcode<0x9e, opWriteAbsY<cpu::Command>>,
 	    // TAS
+	    cpu::Opcode<0x9b, opWriteAbsY<cpu::Command>>,
 	    // LAS
+	    cpu::Opcode<0xbb, opWriteAbsY<cpu::Command>>
 
 	    >;
 	/**
