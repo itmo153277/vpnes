@@ -2,29 +2,59 @@ language: cpp
 sudo: require
 compiler: gcc
 
+cache:
+  directories:
+    - $HOME/downloads
+
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
 
 install:
+  - pushd /tmp
   - sudo apt-get install -yqq build-essential g++-7 autoconf automake pkg-config
   - export CXX="g++-7"
-  - wget -q http://ftpmirror.gnu.org/autoconf-archive/autoconf-archive-2017.03.21.tar.xz
-  - tar xf autoconf-archive-2017.03.21.tar.xz && pushd autoconf-archive-2017.03.21
-  - ./configure --prefix=/usr && make -j$(nproc) && sudo make install
-  - popd
-  - wget -qO boost_1_65_0.tar.gz http://sourceforge.net/projects/boost/files/boost/1.65.0/boost_1_65_0.tar.gz/download
-  - tar xf boost_1_65_0.tar.gz && pushd boost_1_65_0
   - >
-    echo "using gcc : : /usr/bin/g++-7 ; " >> tools/build/src/user-config.jam &&  ./bootstrap.sh --prefix=/usr --with-libraries=test && ./b2 -d0 variant=release link=shared && sudo ./b2 -d0 variant=release link=shared install
-  - popd
-  - wget -q https://www.libsdl.org/release/SDL2-2.0.5.tar.gz
-  - tar xf SDL2-2.0.5.tar.gz && pushd SDL2-2.0.5
-  - ./configure --prefix=/usr && make -j$(nproc) && sudo make install
-  - popd
-  - wget -qO SDL2_gfx-1.0.4.tar.gz https://sourceforge.net/projects/sdl2gfx/files/SDL2_gfx-1.0.4.tar.gz/download
-  - tar xf SDL2_gfx-1.0.4.tar.gz && pushd SDL2_gfx-1.0.4
-  - ./configure --prefix=/usr --enable-shared --disable-static && make -j$(nproc) && sudo make install
+    if [ ! -d "$HOME/downloads/autoconf-archive-2017.03.21" ] ; then
+      cd /tmp && wget -q http://ftpmirror.gnu.org/autoconf-archive/autoconf-archive-2017.03.21.tar.xz && \
+      tar xf autoconf-archive-2017.03.21.tar.xz -C "$HOME/downloads" && \
+      cd $HOME/downloads/autoconf-archive-2017.03.21 && \
+      ./configure --prefix=/usr && make -j$(nproc) && sudo make install
+    else \
+      cd $HOME/downloads/autoconf-archive-2017.03.21 && \
+      sudo make install
+    fi
+  - >
+    if [ ! -d "$HOME/downloads/boost_1_65_0" ] ; then
+      cd /tmp && wget -qO boost_1_65_0.tar.gz http://sourceforge.net/projects/boost/files/boost/1.65.0/boost_1_65_0.tar.gz/download && \
+      tar xf boost_1_65_0.tar.gz -C "$HOME/downloads" && cd "$HOME/downloads/boost_1_65_0" && \
+      echo "using gcc : : /usr/bin/g++-7 ; " >> tools/build/src/user-config.jam && \
+      ./bootstrap.sh --prefix=/usr --with-libraries=test && ./b2 -d0 variant=release link=shared && \
+      sudo ./b2 -d0 variant=release link=shared install
+    else
+      cd "$HOME/downloads/boost_1_65_0" && \
+      sudo ./b2 -d0 variant=release link=shared install
+    fi
+  - >
+    if [ ! -d "$HOME/downloads/SDL2-2.0.5" ] ; then
+      cd /tmp && wget -q https://www.libsdl.org/release/SDL2-2.0.5.tar.gz && \
+      tar xf SDL2-2.0.5.tar.gz -C "$HOME/downloads" && cd "$HOME/downloads/SDL2-2.0.5" && \
+      ./configure --prefix=/usr && make -j$(nproc) && \
+      sudo make install
+    else
+      cd "$HOME/downloads/SDL2-2.0.5" && \
+      sudo make install
+    fi
+  - >
+    if [ ! -d "$HOME/downloads/SDL2_gfx-1.0.4" ] ; then
+      cd /tmp && wget -qO SDL2_gfx-1.0.4.tar.gz https://sourceforge.net/projects/sdl2gfx/files/SDL2_gfx-1.0.4.tar.gz/download && \
+      tar xf SDL2_gfx-1.0.4.tar.gz -C "$HOME/downloads" && cd "$HOME/downloads/SDL2_gfx-1.0.4" && \
+      ./configure --prefix=/usr --enable-shared --disable-static && make -j$(nproc) && \
+      sudo make install
+    else
+      cd "$HOME/downloads/SDL2_gfx-1.0.4" && \
+      sudo make install
+    fi
   - popd
 
 script:
