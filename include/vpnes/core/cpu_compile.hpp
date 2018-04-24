@@ -293,8 +293,15 @@ struct FindOpcode;
  */
 template <std::size_t DefaultOffset>
 struct FindOpcode<DefaultOffset, class_pack<>> {
-	template <std::uint8_t Code>
-	using type = OpcodeOffset<Code, DefaultOffset>;
+	/**
+	 * Looks up opcode offset
+	 *
+	 * @param code Opcode
+	 * @return Opcode offset
+	 */
+	static constexpr std::size_t find(std::uint8_t code) {
+		return DefaultOffset;
+	}
 };
 
 /**
@@ -302,11 +309,20 @@ struct FindOpcode<DefaultOffset, class_pack<>> {
  */
 template <std::size_t DefaultOffset, class FirstOffset, class... OtherOffsets>
 struct FindOpcode<DefaultOffset, class_pack<FirstOffset, OtherOffsets...>> {
-	template <std::uint8_t Code>
-	using type =
-	    typename std::conditional<Code == FirstOffset::code, FirstOffset,
-	        typename FindOpcode<DefaultOffset,
-	            class_pack<OtherOffsets...>>::template type<Code>>::type;
+	/**
+	 * Looks up opcode offset
+	 *
+	 * @param code Opcode
+	 * @return Opcode offset
+	 */
+	static constexpr std::size_t find(std::uint8_t code) {
+		if (code == FirstOffset::code) {
+			return FirstOffset::offset;
+		} else {
+			return FindOpcode<DefaultOffset, class_pack<OtherOffsets...>>::find(
+			    code);
+		}
+	}
 };
 
 /**
@@ -328,7 +344,7 @@ struct OpcodeParser<OpcodeFinder, std::index_sequence<Codes...>> {
 	 */
 	static std::size_t parseOpcode(std::uint8_t code) {
 		static const std::size_t codes[sizeof...(Codes)] = {
-		    OpcodeFinder::template type<Codes>::offset...};
+		    OpcodeFinder::find(Codes)...};
 		return codes[code];
 	}
 };
