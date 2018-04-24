@@ -460,6 +460,19 @@ struct CCPU::opcodes {
 			cpu->m_DB = cpu->m_OP;
 		}
 	};
+	struct cmdSAX : cpu::Command {
+		static void execute(CCPU *cpu) {
+			cpu->m_DB = cpu->m_A & cpu->m_X;
+		}
+	};
+	struct cmdLAX : cpu::Command {
+		static void execute(CCPU *cpu) {
+			cpu->m_A = cpu->m_DB;
+			cpu->m_X = cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+		}
+	};
 
 	/* Cycles */
 
@@ -2608,17 +2621,17 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x7b, opModifyAbsY<cmdRRA>>,
 	    cpu::Opcode<0x7f, opModifyAbsX<cmdRRA>>,
 	    // SAX
-	    cpu::Opcode<0x63, opWriteZPXInd<cpu::Command>>,
-	    cpu::Opcode<0x67, opWriteZP<cpu::Command>>,
-	    cpu::Opcode<0x6f, opWriteAbs<cpu::Command>>,
-	    cpu::Opcode<0x77, opWriteZPX<cpu::Command>>,
+	    cpu::Opcode<0x83, opWriteZPXInd<cmdSAX>>,
+	    cpu::Opcode<0x87, opWriteZP<cmdSAX>>,
+	    cpu::Opcode<0x8f, opWriteAbs<cmdSAX>>,
+	    cpu::Opcode<0x97, opWriteZPY<cmdSAX>>,
 	    // LAX
-	    cpu::Opcode<0xa3, opReadZPXInd<cpu::Command>>,
-	    cpu::Opcode<0xa7, opReadZP<cpu::Command>>,
-	    cpu::Opcode<0xaf, opReadAbs<cpu::Command>>,
-	    cpu::Opcode<0xb3, opReadZPIndY<cpu::Command>>,
-	    cpu::Opcode<0xb7, opReadZPX<cpu::Command>>,
-	    cpu::Opcode<0xbf, opReadAbsX<cpu::Command>>,
+	    cpu::Opcode<0xa3, opReadZPXInd<cmdLAX>>,
+	    cpu::Opcode<0xa7, opReadZP<cmdLAX>>,
+	    cpu::Opcode<0xaf, opReadAbs<cmdLAX>>,
+	    cpu::Opcode<0xb3, opReadZPIndY<cmdLAX>>,
+	    cpu::Opcode<0xb7, opReadZPY<cmdLAX>>,
+	    cpu::Opcode<0xbf, opReadAbsY<cmdLAX>>,
 	    // DCP
 	    cpu::Opcode<0xc3, opModifyZPXInd<cpu::Command>>,
 	    cpu::Opcode<0xc7, opModifyZP<cpu::Command>>,
