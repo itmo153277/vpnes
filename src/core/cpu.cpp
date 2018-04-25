@@ -450,9 +450,9 @@ struct CCPU::opcodes {
 			cpu->m_OP >>= 1;
 			cpu->m_OP |= (cpu->m_Carry << 7);
 			cpu->setCarryFlag(dummy != 0);
-			std::uint16_t dummySum = cpu->m_DB + cpu->m_A + cpu->m_Carry;
+			std::uint16_t dummySum = cpu->m_OP + cpu->m_A + cpu->m_Carry;
 			cpu->setOverflowFlag(
-			    ((dummySum ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_DB) & 0x80) != 0);
+			    ((dummySum ^ cpu->m_A) & ~(cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
 			cpu->setCarryFlag(dummySum >= 0x0100);
 			cpu->m_A = dummySum & 0xff;
 			cpu->setNegativeFlag(cpu->m_A);
@@ -490,8 +490,9 @@ struct CCPU::opcodes {
 			cpu->setOverflowFlag(
 			    ((dummy ^ cpu->m_A) & (cpu->m_A ^ cpu->m_OP) & 0x80) != 0);
 			cpu->setCarryFlag(dummy < 0x0100);
-			cpu->setNegativeFlag(dummy);
-			cpu->setZeroFlag(dummy & 0xff);
+			cpu->m_A = dummy & 0xff;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 			cpu->m_DB = cpu->m_OP;
 		}
 	};
@@ -500,6 +501,7 @@ struct CCPU::opcodes {
 			cpu->m_A &= cpu->m_DB;
 			cpu->setCarryFlag((cpu->m_A & 0x80) != 0);
 			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
 	struct cmdALR : cpu::Command {
@@ -513,11 +515,14 @@ struct CCPU::opcodes {
 	};
 	struct cmdARR : cpu::Command {
 		static void execute(CCPU *cpu) {
-			std::uint8_t dummy = cpu->m_A & cpu->m_DB;
-			dummy >>= 1;
-			dummy |= cpu->m_Carry << 7;
-			cpu->setNegativeFlag(dummy);
-			cpu->setZeroFlag(dummy);
+			cpu->m_A &= cpu->m_DB;
+			cpu->m_A >>= 1;
+			cpu->m_A |= cpu->m_Carry << 7;
+			cpu->setNegativeFlag(cpu->m_A);
+			cpu->setZeroFlag(cpu->m_A);
+			cpu->setOverflowFlag(
+			    (((cpu->m_A >> 6) ^ (cpu->m_A >> 5)) & 0x01) != 0);
+			cpu->setCarryFlag((cpu->m_A & 0x40) != 0);
 		}
 	};
 	struct cmdXAA : cpu::Command {
@@ -528,42 +533,46 @@ struct CCPU::opcodes {
 			cpu->m_A &= cpu->m_X & (dummy | 0xef);
 		}
 	};
-	struct cmdLXA : cpu::Command {
-		static void execute(CCPU *cpu) {
-			cpu->m_A &= cpu->m_DB;
-			cpu->m_X = cpu->m_A;
-			cpu->setNegativeFlag(cpu->m_A);
-			cpu->setZeroFlag(cpu->m_A);
-		}
-	};
 	struct cmdAXS : cpu::Command {
 		static void execute(CCPU *cpu) {
 			cpu->m_X &= cpu->m_A;
-			std::uint16_t dummy = cpu->m_X - cpu->m_DB;
-			cpu->setCarryFlag(dummy < 0x0100);
-			cpu->setNegativeFlag(dummy);
-			cpu->setZeroFlag(dummy);
+			cpu->setCarryFlag(cpu->m_X >= cpu->m_DB);
+			cpu->m_X -= cpu->m_DB;
+			cpu->setNegativeFlag(cpu->m_X);
+			cpu->setZeroFlag(cpu->m_X);
 		}
 	};
 	struct cmdSHA : cpu::Command {
 		static void execute(CCPU *cpu) {
-			cpu->m_DB = cpu->m_A & cpu->m_X & ((cpu->m_PC >> 8) + 1);
+			cpu->m_DB = cpu->m_A & cpu->m_X & ((cpu->m_OP16 >> 8) + 1);
+			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
+				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+			}
 		}
 	};
 	struct cmdSHX : cpu::Command {
 		static void execute(CCPU *cpu) {
-			cpu->m_DB = cpu->m_X & ((cpu->m_PC >> 8) + 1);
+			cpu->m_DB = cpu->m_X & ((cpu->m_OP16 >> 8) + 1);
+			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
+				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+			}
 		}
 	};
 	struct cmdSHY : cpu::Command {
 		static void execute(CCPU *cpu) {
-			cpu->m_DB = cpu->m_Y & ((cpu->m_PC >> 8) + 1);
+			cpu->m_DB = cpu->m_Y & ((cpu->m_OP16 >> 8) + 1);
+			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
+				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+			}
 		}
 	};
 	struct cmdTAS : cpu::Command {
 		static void execute(CCPU *cpu) {
 			cpu->m_S = cpu->m_A & cpu->m_X;
-			cpu->m_DB = cpu->m_S & ((cpu->m_PC >> 8) + 1);
+			cpu->m_DB = cpu->m_S & ((cpu->m_OP16 >> 8) + 1);
+			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
+				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+			}
 		}
 	};
 	struct cmdLAS : cpu::Command {
@@ -2734,7 +2743,7 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0xaf, opReadAbs<cmdLAX>>,
 	    cpu::Opcode<0xb3, opReadZPIndY<cmdLAX>>,
 	    cpu::Opcode<0xb7, opReadZPY<cmdLAX>>,
-	    cpu::Opcode<0xbf, opReadAbsY<cmdLAX>>,
+	    cpu::Opcode<0xbf, opReadAbsY<cmdLAX>>, cpu::Opcode<0xab, opImm<cmdLAX>>,
 	    // DCP
 	    cpu::Opcode<0xc3, opModifyZPXInd<cmdDCP>>,
 	    cpu::Opcode<0xc7, opModifyZP<cmdDCP>>,
@@ -2759,8 +2768,6 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x6b, opImm<cmdARR>>,
 	    // XAA
 	    cpu::Opcode<0x8b, opImm<cmdXAA>>,
-	    // LXA
-	    cpu::Opcode<0xab, opImm<cmdLXA>>,
 	    // AXS
 	    cpu::Opcode<0xcb, opImm<cmdAXS>>,
 	    // SHA
