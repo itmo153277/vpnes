@@ -279,7 +279,7 @@ private:
 	 *
 	 * @param s Value
 	 */
-	void setZeroFlag(std::uint8_t s) {
+	void setZeroFlag(std::uint16_t s) {
 		m_Zero = (s == 0) ? CPUFlagZero : 0;
 	}
 	/**
