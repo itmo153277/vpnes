@@ -536,6 +536,15 @@ struct CCPU::opcodes {
 			cpu->setZeroFlag(cpu->m_A);
 		}
 	};
+	struct cmdAXS : cpu::Command {
+		static void execute(CCPU *cpu) {
+			cpu->m_X &= cpu->m_A;
+			std::uint16_t dummy = cpu->m_X - cpu->m_DB;
+			cpu->setCarryFlag(dummy < 0x0100);
+			cpu->setNegativeFlag(dummy);
+			cpu->setZeroFlag(dummy);
+		}
+	};
 	struct cmdSHA : cpu::Command {
 		static void execute(CCPU *cpu) {
 			cpu->m_DB = cpu->m_A & cpu->m_X & ((cpu->m_PC >> 8) + 1);
@@ -2752,6 +2761,8 @@ struct CCPU::opcodes {
 	    cpu::Opcode<0x8b, opImm<cmdXAA>>,
 	    // LXA
 	    cpu::Opcode<0xab, opImm<cmdLXA>>,
+	    // AXS
+	    cpu::Opcode<0xcb, opImm<cmdAXS>>,
 	    // SHA
 	    cpu::Opcode<0x9f, opWriteAbsY<cmdSHA>>,
 	    cpu::Opcode<0x93, opWriteZPIndY<cmdSHA>>,
