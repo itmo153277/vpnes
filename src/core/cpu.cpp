@@ -546,7 +546,7 @@ struct CCPU::opcodes {
 		static void execute(CCPU *cpu) {
 			cpu->m_DB = cpu->m_A & cpu->m_X & ((cpu->m_OP16 >> 8) + 1);
 			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
-				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+				cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			}
 		}
 	};
@@ -554,7 +554,7 @@ struct CCPU::opcodes {
 		static void execute(CCPU *cpu) {
 			cpu->m_DB = cpu->m_X & ((cpu->m_OP16 >> 8) + 1);
 			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
-				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+				cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			}
 		}
 	};
@@ -562,7 +562,7 @@ struct CCPU::opcodes {
 		static void execute(CCPU *cpu) {
 			cpu->m_DB = cpu->m_Y & ((cpu->m_OP16 >> 8) + 1);
 			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
-				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+				cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			}
 		}
 	};
@@ -571,7 +571,7 @@ struct CCPU::opcodes {
 			cpu->m_S = cpu->m_A & cpu->m_X;
 			cpu->m_DB = cpu->m_S & ((cpu->m_OP16 >> 8) + 1);
 			if ((cpu->m_AB & 0xff00) != (cpu->m_OP16 & 0xff00)) {
-				cpu->m_Abs = (cpu->m_Abs & 0xff) | (cpu->m_DB << 8);
+				cpu->setHigh(cpu->m_DB, &cpu->m_Abs);
 			}
 		}
 	};
