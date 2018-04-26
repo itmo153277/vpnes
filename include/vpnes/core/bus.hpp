@@ -341,16 +341,20 @@ public:
 	 * Reads memory from the bus
 	 *
 	 * @param addr Address
+	 * @param direct Direct
 	 * @return Value at the address
 	 */
-	virtual std::uint8_t readMemory(std::uint16_t addr) = 0;
+	virtual std::uint8_t readMemory(
+	    std::uint16_t addr, bool direct = false) = 0;
 	/**
 	 * Writes memory on the bus
 	 *
 	 * @param s Value
 	 * @param addr Address
+	 * @param direct Direct
 	 */
-	virtual void writeMemory(std::uint8_t s, std::uint16_t addr) = 0;
+	virtual void writeMemory(
+	    std::uint8_t s, std::uint16_t addr, bool direct = false) = 0;
 
 	/**
 	 * Adds new pre read hook
@@ -1613,15 +1617,20 @@ public:
 	 * Reads memory from the bus
 	 *
 	 * @param addr Address
+	 * @param direct Direct
 	 * @return Value at the address
 	 */
-	std::uint8_t readMemory(std::uint16_t addr) {
-		processPreReadHooks(addr);
+	std::uint8_t readMemory(std::uint16_t addr, bool direct = false) {
+		if (!direct) {
+			processPreReadHooks(addr);
+		}
 		MemoryMap::iterator iter = BusAggregate<DeviceConfigs...,
 		    COpenBusDevice::BusConfig>::getAddrRead(m_DeviceArr.begin(),
 		    m_ReadArr.begin(), addr);
 		std::uint8_t res = **iter;
-		processPostReadHooks(res, addr);
+		if (!direct) {
+			processPostReadHooks(res, addr);
+		}
 		return res;
 	}
 	/**
@@ -1629,8 +1638,9 @@ public:
 	 *
 	 * @param s Value
 	 * @param addr Address
+	 * @param direct Direct
 	 */
-	void writeMemory(std::uint8_t s, std::uint16_t addr) {
+	void writeMemory(std::uint8_t s, std::uint16_t addr, bool direct = false) {
 		auto iter = BusAggregate<DeviceConfigs...,
 		    COpenBusDevice::BusConfig>::getAddrWrite(m_DeviceArr.begin(),
 		    m_WriteArr.begin(), m_ModArr.begin(), addr);
@@ -1639,14 +1649,18 @@ public:
 		std::uint8_t val = m_WriteBuf & **(iter.second);
 		do {
 			m_WriteBuf = val;
-			processWriteHooks(m_WriteBuf, addr);
+			if (!direct) {
+				processWriteHooks(m_WriteBuf, addr);
+			}
 			val &= **(iter.second);
 		} while (val != m_WriteBuf);
 		**(iter.first) = m_WriteBuf;
 #else
 		m_WriteBuf = s;
 		m_WriteBuf &= **(iter.second);
-		processWriteHooks(m_WriteBuf, addr);
+		if (!direct) {
+			processWriteHooks(m_WriteBuf, addr);
+		}
 		**(iter.first) = m_WriteBuf;
 #endif
 	}

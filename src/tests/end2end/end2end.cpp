@@ -26,11 +26,13 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <stdexcept>
 #include <memory>
 #include <chrono>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/config.hpp>
@@ -69,7 +71,7 @@ public:
 	 * @return Timeout value
 	 */
 	int getTimeout() const {
-		return 5;
+		return 60;
 	}
 };
 
@@ -134,6 +136,19 @@ public:
 };
 
 /**
+ * Checks if NES is in valid state for test debug output
+ *
+ * @param nes NES
+ * @return Is valid or not
+ */
+bool checkValidState(vpnes::core::CNES *nes) {
+	auto debugger = nes->getDebugger();
+	return debugger->directCPURead(0x6001) == 0xde &&
+	       debugger->directCPURead(0x6002) == 0xb0 &&
+	       debugger->directCPURead(0x6003) == 0x61;
+}
+
+/**
  * Entry point for e2e tester
  *
  * @param argc Number of command line arguments
@@ -154,12 +169,60 @@ int main(int argc, char **argv) {
 		vpnes::core::SNESConfig nesConfig;
 		nesConfig.configure(config, &inputFile);
 		inputFile.close();
+		int result = EXIT_FAILURE;
+		bool inProgress = false;
 		auto time = std::chrono::seconds(config.getTimeout());
 		auto frontEnd = std::make_unique<CTestFrontEnd>(time);
 		std::unique_ptr<vpnes::core::CNES> nes(
 		    nesConfig.createInstance(frontEnd.get()));
+		nes->getDebugger()->hookCPUWrite(0x6000, [&](std::uint16_t addr,
+		                                             std::uint8_t val) {
+			std::uint16_t readAddress;
+			std::stringstream str;
+			switch (val) {
+			case 0x80:  // Start test
+				if (inProgress) {
+					throw std::invalid_argument("wrong state");
+				}
+				inProgress = true;
+				break;
+			case 0x81:  // Input required - skipping
+				if (!checkValidState(nes.get()) || !inProgress) {
+					throw std::invalid_argument("wrong state");
+				}
+				nes->turnOff();
+				result = EXIT_SUCCESS;
+				break;
+			default:
+				if (!checkValidState(nes.get()) || !inProgress) {
+					throw std::invalid_argument("wrong state");
+				}
+				if (val >= 0x80) {
+					throw std::invalid_argument("wrong result code");
+				}
+				for (readAddress = 0x6004; readAddress < 0x8000;
+				     ++readAddress) {
+					std::uint8_t readValue =
+					    nes->getDebugger()->directCPURead(readAddress);
+					if (readValue == 0) {
+						break;
+					}
+					if (!std::isalnum(readValue) && !std::ispunct(readValue) &&
+					    !std::isspace(readValue)) {
+						throw std::invalid_argument(
+						    "tried to print an invalid character");
+					}
+					str << readValue;
+				}
+				std::cout << str.str() << std::endl;
+				nes->turnOff();
+				if (val == 0) {
+					result = EXIT_SUCCESS;
+				}
+			}
+		});
 		nes->powerUp();
-		return EXIT_SUCCESS;
+		return result;
 	} catch (const std::invalid_argument &e) {
 		std::cerr << e.what() << std::endl;
 		return EXIT_FAILURE;

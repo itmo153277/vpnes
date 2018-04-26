@@ -77,9 +77,11 @@ private:
 		 * @param addr Address
 		 */
 		void readCPU(std::uint8_t val, std::uint16_t addr) {
-			auto iter = m_HooksCPURead.find(addr);
-			assert(iter != m_HooksCPURead.end());
-			iter->second(addr, val);
+			auto range = m_HooksCPURead.equal_range(addr);
+			assert(range.first != range.second);
+			for (auto iter = range.first; iter != range.second; ++iter) {
+				iter->second(addr, val);
+			}
 		}
 		/**
 		 * Writes to CPU bus
@@ -88,9 +90,11 @@ private:
 		 * @param addr Address
 		 */
 		void writeCPU(std::uint8_t val, std::uint16_t addr) {
-			auto iter = m_HooksCPUWrite.find(addr);
-			assert(iter != m_HooksCPUWrite.end());
-			iter->second(addr, val);
+			auto range = m_HooksCPUWrite.equal_range(addr);
+			assert(range.first != range.second);
+			for (auto iter = range.first; iter != range.second; ++iter) {
+				iter->second(addr, val);
+			}
 		}
 
 	public:
@@ -114,9 +118,11 @@ private:
 		 * @param hook Hook
 		 */
 		void hookCPURead(std::uint16_t addr, addrHook_t hook) {
+			if (m_HooksCPURead.find(addr) == m_HooksCPURead.end()) {
+				m_MotherBoard->getBusCPU()->addPostReadHook(
+				    addr, this, &CDebugDevice::readCPU);
+			}
 			m_HooksCPURead.emplace(addr, hook);
-			m_MotherBoard->getBusCPU()->addPostReadHook(
-			    addr, this, &CDebugDevice::readCPU);
 		}
 		/**
 		 * Hook address write on CPU bus
@@ -125,11 +131,18 @@ private:
 		 * @param hook Hook
 		 */
 		void hookCPUWrite(std::uint16_t addr, addrHook_t hook) {
+			if (m_HooksCPUWrite.find(addr) == m_HooksCPUWrite.end()) {
+				m_MotherBoard->getBusCPU()->addWriteHook(
+				    addr, this, &CDebugDevice::writeCPU);
+			}
 			m_HooksCPUWrite.emplace(addr, hook);
-			m_MotherBoard->getBusCPU()->addWriteHook(
-			    addr, this, &CDebugDevice::writeCPU);
 		}
 	};
+
+	/**
+	 * Motherboard
+	 */
+	CMotherBoard *m_MotherBoard;
 	/**
 	 * Debug device
 	 */
@@ -146,7 +159,7 @@ public:
 	 * @param motherBoard Motherboard
 	 */
 	explicit CDebuggerHelper(CMotherBoard *motherBoard)
-	    : m_DebugDevice(motherBoard) {
+	    : m_MotherBoard(motherBoard), m_DebugDevice(motherBoard) {
 	}
 
 	/**
@@ -166,6 +179,24 @@ public:
 	 */
 	void hookCPUWrite(std::uint16_t addr, addrHook_t hook) {
 		m_DebugDevice.hookCPUWrite(addr, hook);
+	}
+	/**
+	 * Direct read from CPU bus
+	 *
+	 * @param addr Address
+	 * @return Value on CPU bus
+	 */
+	std::uint8_t directCPURead(std::uint16_t addr) {
+		return m_MotherBoard->getBusCPU()->readMemory(addr, true);
+	}
+	/**
+	 * Direct write to CPU bus
+	 *
+	 * @param addr Address
+	 * @param val Value
+	 */
+	void directCPUWrite(std::uint16_t addr, std::uint8_t val) {
+		m_MotherBoard->getBusCPU()->writeMemory(val, addr, true);
 	}
 };
 
@@ -236,6 +267,7 @@ public:
 	 */
 	void turnOff() {
 		m_MotherBoard.setEnabled(false);
+		m_MotherBoard.setClock(m_MotherBoard.getPending());
 	}
 	/**
 	 * Debugger for NES

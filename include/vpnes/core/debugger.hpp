@@ -31,6 +31,7 @@
 #endif
 
 #include <cstdint>
+#include <functional>
 #include <vpnes/vpnes.hpp>
 
 namespace vpnes {
@@ -44,10 +45,9 @@ class CDebugger {
 public:
 	/**
 	 * Hook in device
-	 *
-	 * @param addr Address
 	 */
-	typedef void (*addrHook_t)(std::uint16_t addr, std::uint8_t val);
+	typedef std::function<void(std::uint16_t addr, std::uint8_t val)>
+	    addrHook_t;
 	/**
 	 * Hook address read on CPU bus
 	 *
@@ -62,6 +62,20 @@ public:
 	 * @param hook Hook
 	 */
 	virtual void hookCPUWrite(std::uint16_t addr, addrHook_t hook) = 0;
+	/**
+	 * Direct read from CPU bus
+	 *
+	 * @param addr Address
+	 * @return Value on CPU bus
+	 */
+	virtual std::uint8_t directCPURead(std::uint16_t addr) = 0;
+	/**
+	 * Direct write to CPU bus
+	 *
+	 * @param addr Address
+	 * @param val Value
+	 */
+	virtual void directCPUWrite(std::uint16_t addr, std::uint8_t val) = 0;
 	/**
 	 * Constructor
 	 */
