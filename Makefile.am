@@ -36,18 +36,42 @@ noinst_HEADERS = \
 	include/vpnes/core/ppu_compile.hpp \
 	include/vpnes/core/ppu.hpp
 
+BLARGG_TESTS = \
+	tests/blargg/cpu/instr/01-basics.nes \
+	tests/blargg/cpu/instr/02-implied.nes \
+	tests/blargg/cpu/instr/03-immediate.nes \
+	tests/blargg/cpu/instr/04-zero_page.nes \
+	tests/blargg/cpu/instr/05-zp_xy.nes \
+	tests/blargg/cpu/instr/06-absolute.nes \
+	tests/blargg/cpu/instr/07-abs_xy.nes \
+	tests/blargg/cpu/instr/08-ind_x.nes \
+	tests/blargg/cpu/instr/09-ind_y.nes \
+	tests/blargg/cpu/instr/10-branches.nes \
+	tests/blargg/cpu/instr/11-stack.nes \
+	tests/blargg/cpu/instr/12-jmp_jsr.nes \
+	tests/blargg/cpu/instr/13-rts.nes \
+	tests/blargg/cpu/instr/14-rti.nes \
+	tests/blargg/cpu/instr/15-brk.nes \
+	tests/blargg/cpu/instr/16-special.nes
+
+BLARGG_DIST = \
+	$(BLARGG_TESTS) \
+	tests/blargg/LICENSE.txt \
+	tests/cpu/instr/README.txt
+
 if UNITTESTS_ENABLED
 UNITTESTS=unittests
 else
 UNITTESTS=
 endif
-TESTS = $(UNITTESTS)
+TEST_EXTENSIONS = .nes
+TESTS = $(UNITTESTS) $(BLARGG_TESTS)
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
 	 $(top_srcdir)/auxdir/tap-driver.sh --ignore-exit
-
+NES_LOG_COMPILER = $(top_builddir)/tester_blargg$(EXEEXT)
 
 bin_PROGRAMS = vpnes
-check_PROGRAMS = $(UNITTESTS) tester
+check_PROGRAMS = $(UNITTESTS) tester_blargg
 noinst_LIBRARIES = libcore.a
 
 libcore_a_SOURCES = $(CORE_SOURCES)
@@ -55,7 +79,7 @@ vpnes_SOURCES = \
 	main.cpp \
 	$(GUI_SOURCES)
 unittests_SOURCES =	$(UNITTEST_SOURCES)
-tester_SOURCES = $(TESTER_SOURCES)
+tester_blargg_SOURCES = $(TESTER_SOURCES)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
@@ -65,7 +89,7 @@ vpnes_LDADD = $(SDL_LIBS) libcore.a
 unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_CPPFLAGS)
 unittests_LDADD = $(BOOST_LDFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) libcore.a
 
-tester_LDADD = libcore.a
+tester_blargg_LDADD = libcore.a
 
 @DX_RULES@
 EXTRA_DIST = \
@@ -75,7 +99,8 @@ EXTRA_DIST = \
 	vpnes_msvc.vcxproj.filters \
 	config.msvc.h \
 	README.md \
-	$(DX_CONFIG)
+	$(DX_CONFIG) \
+	$(BLARGG_DIST)
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
 if MAKE_MAN
 dist_man3_MANS = $(top_builddir)/doc/man/man3/*.3

@@ -14,5 +14,4 @@ Makefile.in
 /vpnes_msvc.VC.*
 /Debug
 /Release
-/Tests
 /vpnes_msvc.vcxproj.user
