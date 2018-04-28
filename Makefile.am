@@ -57,7 +57,7 @@ BLARGG_TESTS = \
 BLARGG_DIST = \
 	$(BLARGG_TESTS) \
 	tests/blargg/LICENSE.txt \
-	tests/cpu/instr/README.txt
+	tests/blargg/cpu/instr/README.txt
 
 if UNITTESTS_ENABLED
 UNITTESTS=unittests
