@@ -11,7 +11,12 @@ Copyright &copy; 2012-2018 Ivanov Viktor
 
 #### Compiling From Git
 
-Before compiling make sure that you have autoconf (>= 2.68), autoconf-archive (>= 2016.12.06), automake, SDL2 (>= 2.0.5) and SDL2_gfx installed.
+Before compiling make sure that you have installed:
+1. autoconf (>= 2.68) 
+1. autoconf-archive (>= 2016.12.06) 
+1. automake
+1. SDL2 (>= 2.0.5) and SDL2_gfx 
+1. Boost (>=1.65)
 
 Clone repository
 
