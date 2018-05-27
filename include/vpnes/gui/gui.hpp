@@ -35,7 +35,7 @@
 #include <memory>
 #include <chrono>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/config.hpp>
+#include <vpnes/config/config.hpp>
 #include <vpnes/core/frontend.hpp>
 #include <vpnes/core/nes.hpp>
 
@@ -63,7 +63,7 @@ protected:
 	/**
 	 * Application configuration
 	 */
-	SApplicationConfig m_Config;
+	config::SApplicationConfig m_Config;
 	/**
 	 * NES
 	 */
@@ -111,7 +111,7 @@ public:
 	 * @param argv Array of parameters
 	 * @return Exit code
 	 */
-	int startGUI(int argc, char **argv);
+	int startGUI(config::SApplicationConfig* config);
 	/**
 	 * Frame-ready callback
 	 *

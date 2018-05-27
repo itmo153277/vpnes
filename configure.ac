@@ -63,7 +63,7 @@ fi
 
 dnl For unit testing
 can_run_unit_tests="yes"
-AX_BOOST_BASE([1.65], [], [can_run_unit_tests="no"])
+AX_BOOST_BASE([1.65])
 AX_BOOST_UNIT_TEST_FRAMEWORK
 if test "x$BOOST_UNIT_TEST_FRAMEWORK_LIB" = "x" ; then
 	can_run_unit_tests="no"
@@ -80,12 +80,13 @@ else
 	CPPFLAGS=$CPPFLAGS_SAVE
 	AC_MSG_RESULT([$boost_link])
 	if test "x$boost_link" = "xdynamic" ; then
-		AC_SUBST(BOOST_UNIT_TEST_FRAMEWORK_CPPFLAGS, [-DBOOST_TEST_DYN_LINK])
+		AC_SUBST([BOOST_UNIT_TEST_FRAMEWORK_CPPFLAGS], [-DBOOST_TEST_DYN_LINK])
 	fi
 fi
 if test "x$can_run_unit_tests" = "xno" ; then
 	AC_MSG_WARN([could not find boost: unit tests are disabled])
 fi
+AX_BOOST_PROGRAM_OPTIONS
 
 AM_CONDITIONAL([UNITTESTS_ENABLED], [test "x$can_run_unit_tests" = "xyes"])
 

@@ -23,8 +23,8 @@
 
  */
 
-#ifndef INCLUDE_VPNES_GUI_CONFIG_HPP_
-#define INCLUDE_VPNES_GUI_CONFIG_HPP_
+#ifndef INCLUDE_VPNES_CONFIG_CONFIG_HPP_
+#define INCLUDE_VPNES_CONFIG_CONFIG_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -32,11 +32,16 @@
 
 #include <fstream>
 #include <string>
+#include <boost/program_options.hpp>
 #include <vpnes/vpnes.hpp>
+#include <vpnes/config/gui.hpp>
+#include <vpnes/config/core.hpp>
+
+namespace po = boost::program_options;
 
 namespace vpnes {
 
-namespace gui {
+namespace config {
 
 /**
  * Application configuration
@@ -44,31 +49,25 @@ namespace gui {
 struct SApplicationConfig {
 private:
 	/**
-	 * File name
+	 * Path to rom
 	 */
-	std::string inputFile;
+	std::string m_inputFile;
+
+	/**
+	 * Path to config file
+	 */
+	std::string m_configFile;
+
+  SGuiConfig m_guiConfig;
+	SCoreConfig m_coreConfig;
 
 protected:
 	/**
-	 * Parse command line option
-	 *
-	 * @param name Option name
-	 * @param value Argument
-	 * @return Valid option or not
+	 * Define options that will be available on CLI
+	 * 
+	 * @return po::options_description& for future use for parsing
 	 */
-	virtual bool parseOption(
-	    const std::string &name, const std::string &value) {
-		return false;
-	}
-	/**
-	 * Parse command line option
-	 *
-	 * @param name Option name
-	 * @return Valid option or not
-	 */
-	virtual bool parseOption(const std::string &name) {
-		return false;
-	}
+	po::options_description defineCMDOptions();
 
 public:
 	/**
@@ -77,7 +76,7 @@ public:
 	 * @param argc Amount of parameters
 	 * @param argv Array of parameters
 	 */
-	void parseOptions(int argc, char **argv);
+	bool parseOptions(int argc, char **argv);
 	/**
 	 * Sets default values
 	 */
@@ -99,7 +98,7 @@ public:
 	 * @return True if input file is present
 	 */
 	inline bool hasInputFile() const noexcept {
-		return inputFile.size() > 0;
+		return m_inputFile.size() > 0;
 	}
 	/**
 	 * Sets input file
@@ -107,7 +106,7 @@ public:
 	 * @param fileName Input file path
 	 */
 	void setInputFile(const char *fileName) {
-		inputFile = fileName;
+		m_inputFile = fileName;
 	}
 	/**
 	 * Opens input file and constructs ifstream object
@@ -115,10 +114,18 @@ public:
 	 * @return std::ifstream for reading file
 	 */
 	std::ifstream getInputFile();
+
+	SGuiConfig& getGuiConfig() {
+		return m_guiConfig;
+	}
+
+	SCoreConfig& getCoreConfig() {
+		return m_coreConfig;
+	}
 };
 
-}  // namespace gui
+}  // namespace config
 
 }  // namespace vpnes
 
-#endif  // INCLUDE_VPNES_GUI_CONFIG_HPP_
+#endif  // INCLUDE_VPNES_CONFIG_CONFIG_HPP_

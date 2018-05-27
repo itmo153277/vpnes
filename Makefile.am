@@ -1,23 +1,26 @@
 ACLOCAL_AMFLAGS=-I m4
 AUTOMAKE_OPTIONS = subdir-objects
 
+CONFIG_SOURCES = \
+	src/config/config.cpp
 CORE_SOURCES = \
 	src/core/mappers/nrom.cpp \
 	src/core/config.cpp \
 	src/core/cpu.cpp \
 	src/core/ines.cpp
 GUI_SOURCES = \
-	src/gui/gui.cpp \
-	src/gui/config.cpp
+	src/gui/gui.cpp 
 UNITTEST_SOURCES = \
 	src/tests/unittests/example-test.cpp \
 	src/tests/unittests/init.cpp
 TESTER_SOURCES = \
 	src/tests/end2end/end2end.cpp \
-	src/gui/config.cpp
+	src/config/config.cpp
 noinst_HEADERS = \
+	include/vpnes/config/config.hpp \
+	include/vpnes/config/core.hpp \
+	include/vpnes/config/gui.hpp \
 	include/vpnes/vpnes.hpp \
-	include/vpnes/gui/config.hpp \
 	include/vpnes/gui/gui.hpp \
 	include/vpnes/core/mappers/helper.hpp \
 	include/vpnes/core/mappers/nrom.hpp \
@@ -74,7 +77,7 @@ bin_PROGRAMS = vpnes
 check_PROGRAMS = $(UNITTESTS) tester_blargg
 noinst_LIBRARIES = libcore.a
 
-libcore_a_SOURCES = $(CORE_SOURCES)
+libcore_a_SOURCES = $(CORE_SOURCES) $(CONFIG_SOURCES)
 vpnes_SOURCES = \
 	main.cpp \
 	$(GUI_SOURCES)
@@ -83,13 +86,14 @@ tester_blargg_SOURCES = $(TESTER_SOURCES)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
-vpnes_CPPFLAGS = $(AM_CPPFLAGS) $(SDL_CFLAGS)
-vpnes_LDADD = $(SDL_LIBS) libcore.a
+vpnes_CPPFLAGS = $(AM_CPPFLAGS) $(SDL_CFLAGS) $(BOOST_CPPFLAGS) $(BOOST_PROGRAM_OPTIONS_CPPFLAGS)
+vpnes_LDADD = $(SDL_LIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) libcore.a
 
 unittests_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_CPPFLAGS)
 unittests_LDADD = $(BOOST_LDFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) libcore.a
 
-tester_blargg_LDADD = libcore.a
+tester_blargg_CPPFLAGS = $(AM_CPPFLAGS) $(SDL_CFLAGS) $(BOOST_CPPFLAGS) $(BOOST_PROGRAM_OPTIONS_CPPFLAGS)
+tester_blargg_LDADD = $(SDL_LIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) libcore.a
 
 @DX_RULES@
 EXTRA_DIST = \

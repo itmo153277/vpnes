@@ -30,6 +30,10 @@
 #include <iostream>
 #include <vpnes/vpnes.hpp>
 #include <vpnes/gui/gui.hpp>
+#include <vpnes/config/config.hpp>
+
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 
 /**
  * Entry point
@@ -43,7 +47,12 @@ int main(int argc, char **argv) {
 	std::setlocale(LC_ALL, "");
 	std::clog << std::internal << std::hex << std::showbase;
 	std::clog << PACKAGE_BUILD << std::endl << std::endl;
-	/* Startup */
+
+	vpnes::config::SApplicationConfig config;
+	if (!config.parseOptions(argc, argv)) {
+		return EXIT_FAILURE;
+	}
+
 	vpnes::gui::CGUI gui;
-	return gui.startGUI(argc, argv);
+	return gui.startGUI(&config);
 }

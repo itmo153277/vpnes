@@ -41,7 +41,8 @@
 #include <fstream>
 #include <sstream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/config.hpp>
+#include <vpnes/config/config.hpp>
+#include <vpnes/config/gui.hpp>
 #include <vpnes/gui/gui.hpp>
 #include <vpnes/core/config.hpp>
 #include <vpnes/core/nes.hpp>
@@ -117,26 +118,27 @@ void CGUI::initMainWindow(std::size_t width, std::size_t height) {
  * @param argv Array of parameters
  * @return Exit code
  */
-int CGUI::startGUI(int argc, char **argv) {
-	m_Config.parseOptions(argc, argv);
-	if (!m_Config.hasInputFile()) {
-		std::cerr << "Usage:" << std::endl;
-		std::cerr << argv[0] << " path_to_rom.nes" << std::endl;
-		return 0;
-	}
+int CGUI::startGUI(config::SApplicationConfig* appConfig) {
 	try {
 		if (::SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 			throw std::invalid_argument(SDL_GetError());
 		}
-		std::ifstream inputFile = m_Config.getInputFile();
+
 		core::SNESConfig nesConfig;
-		nesConfig.configure(m_Config, &inputFile);
+
+		std::ifstream inputFile = appConfig->getInputFile();
+		nesConfig.configure(appConfig->getCoreConfig(), &inputFile);
 		inputFile.close();
-		initMainWindow(512, 448);
+
+		auto uiConfig = appConfig->getGuiConfig();
+		initMainWindow(uiConfig.getWidth(), uiConfig.getHeight());
+
 		m_NES.reset(nesConfig.createInstance(this));
+
 		m_Jitter = 0;
 		m_TimeOverhead = 0;
 		m_Time = std::chrono::high_resolution_clock::now();
+
 		m_NES->powerUp();
 	} catch (const std::invalid_argument &e) {
 		std::cerr << e.what() << std::endl;
@@ -144,6 +146,7 @@ int CGUI::startGUI(int argc, char **argv) {
 		std::cerr << "Unknown error: " << e.what() << std::endl;
 		std::cerr << std::strerror(errno) << std::endl;
 	}
+
 	return EXIT_SUCCESS;
 }
 

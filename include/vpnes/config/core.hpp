@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Implements configuration parsing
+ * Config for core settings
  */
 /*
  NES Emulator
@@ -23,53 +23,29 @@
 
  */
 
+#ifndef INCLUDE_VPNES_CONFIG_CORE_HPP_
+#define INCLUDE_VPNES_CONFIG_CORE_HPP_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <cassert>
-#include <cstring>
-#include <iostream>
-#include <vpnes/gui/config.hpp>
+#include <fstream>
+#include <string>
+#include <vpnes/vpnes.hpp>
 
 namespace vpnes {
 
-namespace gui {
+namespace config {
 
-/* SApplicationConfig */
+struct SCoreConfig {
+  public:
+    SCoreConfig() {
+    }
+};
 
-/**
- * Sets default values
- */
-SApplicationConfig::SApplicationConfig() : inputFile() {
-}
-
-/**
- * Parses command line options
- *
- * @param argc Amount of parameters
- * @param argv Array of parameters
- */
-void SApplicationConfig::parseOptions(int argc, char **argv) {
-	// TODO(me): Implement parsing
-	if (argc >= 2) {
-		setInputFile(argv[1]);
-	}
-}
-
-/**
- * Opens input file and constructs ifstream object
- *
- * @return std::ifstream for reading file
- */
-std::ifstream SApplicationConfig::getInputFile() {
-	assert(inputFile.size() > 0);
-	std::ifstream file;
-	file.exceptions(file.exceptions() | std::fstream::failbit);
-	file.open(inputFile, std::fstream::binary);
-	return file;
-}
-
-}  // namespace gui
+}  // namespace config
 
 }  // namespace vpnes
+
+#endif  // INCLUDE_VPNES_CONFIG_CORE_HPP_

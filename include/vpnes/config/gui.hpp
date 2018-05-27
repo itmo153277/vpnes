@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * Defines factories
+ * Config gor GUI
  */
 /*
  NES Emulator
@@ -23,46 +23,54 @@
 
  */
 
-#ifndef INCLUDE_VPNES_CORE_FACTORY_HPP_
-#define INCLUDE_VPNES_CORE_FACTORY_HPP_
+#ifndef INCLUDE_VPNES_CONFIG_GUI_HPP_
+#define INCLUDE_VPNES_CONFIG_GUI_HPP_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include <fstream>
+#include <string>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/core/frontend.hpp>
-#include <vpnes/core/nes.hpp>
-#include <vpnes/core/config.hpp>
 
 namespace vpnes {
 
-namespace core {
+namespace config {
 
-/**
- * NES factory
- *
- * @param appConfig Application config
- * @param config NES config
- * @return NES
- */
-typedef CNES *(*NESFactory)(const SNESConfig &config, CFrontEnd *frontEnd);
+struct SGuiConfig {
+  private:
+    int m_width;
+    int m_height;
 
-namespace factory {
+  public:
+    SGuiConfig() {
+    }
 
-/**
- * NROM NES factory
- *
- * @param config NES config
- * @param frontEnd Front-end
- * @return NES
- */
-CNES *factoryNROM(const SNESConfig &config, CFrontEnd *frontEnd);
+    SGuiConfig(int width, int height) {
+      m_width = width;
+      m_height = height;
+    }
 
-}  // namespace factory
+    int getWidth() {
+      return m_width;
+    }
 
-}  // namespace core
+    int getHeight() {
+      return m_height;
+    }
+
+    void setWidth(int width) {
+      m_width = width;
+    }
+
+    void setHeight(int height) {
+      m_height = height;
+    }
+};
+
+}  // namespace config
 
 }  // namespace vpnes
 
-#endif  // INCLUDE_VPNES_CORE_FACTORY_HPP_
+#endif  // INCLUDE_VPNES_CONFIG_GUI_HPP_

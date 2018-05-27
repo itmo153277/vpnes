@@ -37,7 +37,7 @@
 #include <vpnes/vpnes.hpp>
 #include <vpnes/core/frontend.hpp>
 #include <vpnes/core/nes.hpp>
-#include <vpnes/gui/config.hpp>
+#include <vpnes/config/core.hpp>
 
 namespace vpnes {
 
@@ -117,11 +117,11 @@ struct SNESConfig {
 	/**
 	 * Configures the class
 	 *
-	 * @param appConfig Application configuration
+	 * @param coreConfig Configuration for core emulator settings
 	 * @param inputFile Input file stream
 	 */
 	void configure(
-	    const gui::SApplicationConfig &appConfig, std::ifstream *inputFile);
+	    const config::SCoreConfig &coreConfig, std::ifstream *inputFile);
 	/**
 	 * Creates an instance of NES
 	 *

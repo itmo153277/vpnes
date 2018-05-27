@@ -35,26 +35,14 @@
 #include <sstream>
 #include <fstream>
 #include <vpnes/vpnes.hpp>
-#include <vpnes/gui/config.hpp>
+#include <vpnes/config/config.hpp>
 #include <vpnes/core/frontend.hpp>
 #include <vpnes/core/config.hpp>
 
 /**
  * Configuration for end-to-end testing
  */
-struct SConfig : vpnes::gui::SApplicationConfig {
-protected:
-	/**
-	 * Parse command line option
-	 *
-	 * @param name Option name
-	 * @param value Argument
-	 * @return Valid option or not
-	 */
-	bool parseOption(const std::string &name, const std::string &value) {
-		return vpnes::gui::SApplicationConfig::parseOption(name, value);
-	}
-
+struct SConfig : vpnes::config::SApplicationConfig {
 public:
 	/**
 	 * Checks if timeout was specified
@@ -167,7 +155,7 @@ int main(int argc, char **argv) {
 		}
 		std::ifstream inputFile = config.getInputFile();
 		vpnes::core::SNESConfig nesConfig;
-		nesConfig.configure(config, &inputFile);
+		nesConfig.configure(config.getCoreConfig(), &inputFile);
 		inputFile.close();
 		int result = EXIT_FAILURE;
 		bool inProgress = false;

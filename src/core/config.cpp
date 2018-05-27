@@ -36,6 +36,7 @@
 #include <vpnes/core/config.hpp>
 #include <vpnes/core/ines.hpp>
 #include <vpnes/core/factory.hpp>
+#include <vpnes/config/core.hpp>
 
 namespace vpnes {
 
@@ -73,7 +74,7 @@ SNESConfig::SNESConfig()
  * @param inputFile Input file stream
  */
 void SNESConfig::configure(
-    const gui::SApplicationConfig &appConfig, std::ifstream *inputFile) {
+    const config::SCoreConfig &coreConfig, std::ifstream *inputFile) {
 	ines::SNESData nesData(inputFile);
 	PRGSize = nesData.PRGSize;
 	CHRSize = nesData.CHRSize;
