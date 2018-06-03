@@ -1,0 +1,29 @@
+version: 1.0.{build}
+image: Visual Studio 2017
+configuration: Release
+platform:
+- x86
+- x64
+environment:
+  SDLIncludes: C:\deps\SDL2-2.0.5\include
+  SDLDeps: SDL2.lib;SDL2main.lib
+  SDLLib: C:\deps\SDL2-2.0.5\lib\%PLATFORM%
+cache: C:\deps
+before_build:
+- cmd: >-
+    setlocal
+
+    set DepFolder=C:\deps
+    set DepExec=
+
+    if exist %DepFolder% set DepExec=rem
+
+    %DepExec% mkdir %DepFolder%
+    %DepExec% appveyor DownloadFile https://www.libsdl.org/release/SDL2-devel-2.0.5-VC.zip
+    %DepExec% 7z x SDL2-devel-2.0.5-VC.zip
+    %DepExec% move SDL2-2.0.5 %DepFolder%\SDL2-2.0.5
+
+    endlocal
+build:
+  project: vpnes_msvc.sln
+  verbosity: minimal
